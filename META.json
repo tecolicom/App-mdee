@@ -1,12 +1,12 @@
 {
-   "abstract" : "mdv script dummy module",
+   "abstract" : "Markdown viewer using greple and nup",
    "author" : [
       "Kazumasa Utashiro"
    ],
    "dynamic_config" : 0,
    "generated_by" : "Minilla/v3.1.29, CPAN::Meta::Converter version 2.150010",
    "license" : [
-      "perl_5"
+      "mit"
    ],
    "meta-spec" : {
       "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
@@ -44,10 +44,11 @@
          "requires" : {
             "App::Greple" : "10.02",
             "App::Greple::tee" : "1.03",
-            "App::ansicolumn" : "1.50",
+            "App::ansicolumn" : "1.48",
             "App::ansifold" : "1.34",
-            "Getopt::Long::Bash" : "0",
-            "perl" : "v5.26.0"
+            "App::nup" : "0.99",
+            "Getopt::Long::Bash" : "v0.7.0",
+            "perl" : "5.016"
          }
       },
       "test" : {

@@ -1,15 +1,16 @@
 name           = "App-mdv"
-badges         = [ "github-actions/test.yml", "metacpan" ]
 readme_from    = "script/mdv"
 authors_from   = "script/mdv"
 script_files   = [ "script/mdv" ]
+badges         = [ "github-actions/test", "metacpan" ]
 module_maker   = "ModuleBuildTiny"
 static_install = "auto"
 
 [release]
 branch = "main"
 hooks = [
-    "perl -Ilib -MApp::mdv=\\$VERSION -i -pE 's/^\\s*Version \\K([\\d.]+)/$VERSION/' script/mdv",
+    "perl -Ilib -MApp::mdv -i -pE 's/^\\s*Version \\K(\\d+(\\.\\d+)*)$/$App::mdv::VERSION/i' script/mdv",
+    "sed -i '' '/^1;$/q' lib/App/mdv.pm && greple -Mperl -h --nocolor :pod script/mdv >> lib/App/mdv.pm",
 ]
 
 [unsupported]

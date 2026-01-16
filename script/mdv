@@ -1,16 +1,8 @@
 #!/usr/bin/env bash
+# vim: filetype=bash :  -*- mode: sh; sh-shell: bash; -*-
 
-##
-## Bash version check
-##
-if (( BASH_VERSINFO[0] < 4 || ( BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 3 ) )); then
-    echo "Error: $0 requires bash 4.3 or later (current: $BASH_VERSION)" >&2
-    exit 1
-fi
+set -euo pipefail
 
-##
-## Helper functions
-##
 define() { IFS='\n' read -r -d '' ${1} || true ; }
 
 myname="${0##*/}"
@@ -21,34 +13,209 @@ define pod <<"=cut"
 
 =head1 NAME
 
-mdv - Markdown viewer using greple
+mdv - Markdown viewer using greple and nup
 
 =head1 SYNOPSIS
 
     mdv [ options ] file ...
 
-    Options:
-        -h, --help          show help message
-        -v, --version       show version
-        -w, --width=#       output width (default: 80)
-        -x, --trace         enable trace mode
-        --border-style=#    ansicolumn border style
-        -C, --pane=#        ansicolumn pane option
-        -p, --paragraph     ansicolumn paragraph mode
+     -h  --help             show help
+         --version          show version
+     -d  --debug            debug mode
+     -n  --dryrun           dry-run mode
+     -w  --width=#          fold width (default: 80)
+     -C  --pane=#           number of columns
+     -R  --row=#            number of rows
+     -G  --grid=#           grid layout (e.g., 2x3)
+     -P  --page=#           page height in lines
+     -S  --pane-width=#     pane width (default: 85)
+    --bs --border-style=#   border style
+         --pager=#          pager command (empty to disable)
+         --no-pager         disable pager
 
 =head1 VERSION
 
-    Version 0.01
+Version 0.01
+
+=cut
+
+[[ $pod =~ Version\ +([0-9.]+) ]] && my_version=${BASH_REMATCH[1]}
+
+##############################################################################
+# Utility functions
+##############################################################################
+
+debug() {
+    [[ ${debug:-} ]] && echo "debug: $*" >&2 || true
+}
+
+die() {
+    echo "$myname: $*" >&2
+    exit 1
+}
+
+# Check bash version (4.3+ required for getoptlong.sh)
+if ((BASH_VERSINFO[0] < 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 3))); then
+    die "bash 4.3+ required (found $BASH_VERSION)"
+fi
+
+##############################################################################
+# Option definitions
+##############################################################################
+
+define USAGE <<END
+mdv - Markdown viewer using greple and nup
+
+Usage: $myname [ options ] file ...
+END
+
+declare -a up_opts=(--document --no-filename)
+declare width=80
+
+declare -A OPTS=(
+    [&REQUIRE]=0.7 [&USAGE]="$USAGE" [&PERMUTE]=
+    [         help | h   !        # show help         ]=
+    [      version |     !        # show version      ]=
+    [        debug | d            # debug mode        ]=
+    [       dryrun | n            # dry-run mode      ]=
+    [        width | w  :=i       # fold width        ]=80
+    [        pager |    :!        # pager command     ]=
+    [         grid | G  :>up_opts # grid layout       ]=
+    [         pane | C  :>up_opts # number of columns ]=
+    [          row | R  :>up_opts # number of rows    ]=
+    [         page | P  :>up_opts # page height       ]=
+    [   pane-width | S  :>up_opts # pane width        ]=
+    [ border-style | bs :>up_opts # border style      ]=
+)
+
+##############################################################################
+# Option callbacks
+##############################################################################
+
+help() {
+    sed -E \
+        -e '/^$/N' \
+        -e 's/^(\n*)=head[0-9]* */\1/' \
+        -e '/^\n*[#=]/d' \
+        -e '/Version/q' \
+        <<< "$pod"
+    exit 0
+}
+
+version() {
+    echo "$my_version"
+    exit 0
+}
+
+pager() {
+    if [[ -z $2 ]]; then
+        up_opts+=("--no-pager")
+    else
+        up_opts+=("--pager=$2")
+    fi
+}
+
+##############################################################################
+# Parse options
+##############################################################################
+
+. getoptlong.sh OPTS "$@"
+
+##############################################################################
+# Main
+##############################################################################
+
+if (( $# == 0 )) && [[ -t 0 ]]; then
+    help
+fi
+
+##############################################################################
+# Markdown highlighting with greple
+##############################################################################
+
+ITEM_PREFIX='^\h*(?:[*-]|\d+\.)\h+'
+
+declare -a greple_opts=(-G --ci=G --all --need=0)
+
+# Base color for headers
+BASE=NavyBlue
+
+# HTML comments (dimmed)
+greple_opts+=(--cm "<${BASE}>+r60" -E '<!--.*?-->')
+
+# Bold text
+greple_opts+=(--cm "<${BASE}>D" -E '\*\*.*?\*\*')
+
+# Headers (h1-h5)
+greple_opts+=(
+    --cm "L25DE/<${BASE}>"     -E '^#\h+.*'
+    --cm "L25DE/<${BASE}>+l10" -E '^##\h+.*'
+    --cm "L00DN/<${BASE}>=l93" -E '^###\h+.*'
+    --cm "<${BASE}>UD"         -E '^####\h+.*'
+    --cm "<${BASE}>+l20;U"     -E '^#####+.*'
+)
+
+# Inline code (backticks)
+greple_opts+=(--cm '/L23,/L23,/L23' -E '(?<bt>`++)((?:(?!\g{bt}).)++)(\g{bt})')
+
+# Code blocks (fenced)
+greple_opts+=(
+    --cm "L20 , <${BASE}>=l85 , <${BASE}>/L23;E , L20" \
+    -E '^\h*(?<bt>`{3,}+)(.*)\n((?s:.*?))^\h*(\g{bt})'
+)
+
+##############################################################################
+# Build command pipeline
+##############################################################################
+
+md_filter() {
+    greple "${greple_opts[@]}" "$1" \
+    | greple \
+        -Mtee \&ansifold --crmode --autoindent="${ITEM_PREFIX}" -sw${width} -- \
+        -E "${ITEM_PREFIX}.*\n" --crmode --all --need=0 --no-color \
+    | greple \
+        -Mtee::config=discrete \&ansicolumn -s '|' -o '|' -t --cu=1 -- \
+        -E '^(\|.+\|\n){3,}' --all --need=0 --no-color \
+    | perl -pE 's/ /-/g if /^ \| (\s* -+ \s* \|)+ $/x'
+}
+
+# Build nup command
+declare -a nup_cmd=(nup "${up_opts[@]}")
+
+debug "up_opts: ${up_opts[*]}"
+debug "nup_cmd: ${nup_cmd[*]}"
+
+# Process files
+if (( $# == 0 )); then
+    # stdin mode (not supported yet)
+    die "stdin mode not supported, please specify file(s)"
+fi
+
+# Process each file through md_filter and pipe to nup
+{
+    for file in "$@"; do
+        [[ -f $file ]] || die "file not found: $file"
+        md_filter "$file"
+    done
+} | if [[ ${dryrun:-} ]]; then
+    echo "${nup_cmd[*]}"
+    cat > /dev/null
+else
+    "${nup_cmd[@]}"
+fi
+
+: <<'=cut'
 
 =head1 DESCRIPTION
 
-B<mdv> is a Markdown viewer command using L<greple(1)> for syntax
-highlighting.  It provides colorized output of Markdown files with
-support for:
+B<mdv> is a Markdown viewer command that combines L<greple(1)> for
+syntax highlighting with L<nup(1)> for multi-column paged output.
+
+It provides colorized display of Markdown files with support for:
 
 =over 4
 
-=item * Headers (h1-h5)
+=item * Headers (h1-h5) with distinct styling
 
 =item * Bold text
 
@@ -56,32 +223,118 @@ support for:
 
 =item * Code blocks (fenced with ```)
 
-=item * HTML comments
+=item * HTML comments (dimmed)
 
-=item * Tables
+=item * Tables (formatted with ansicolumn)
+
+=item * List items with proper indentation
 
 =back
 
-Output is processed through L<ansifold(1)> for line wrapping and
-L<ansicolumn(1)> for terminal paging.
+=head1 OPTIONS
 
-=head1 DEPENDENCIES
-
-This command requires the following CPAN modules:
+=head2 General Options
 
 =over 4
 
-=item * L<App::Greple>
+=item B<-h>, B<--help>
 
-=item * L<App::Greple::tee>
+Show help message.
 
-=item * L<App::ansifold>
+=item B<--version>
 
-=item * L<App::ansicolumn>
+Show version.
 
-=item * L<Getopt::Long::Bash>
+=item B<-d>, B<--debug>
+
+Enable debug mode.
+
+=item B<-n>, B<--dryrun>
+
+Dry-run mode. Show the command without executing.
+
+=item B<-w> I<N>, B<--width>=I<N>
+
+Set the fold width for text wrapping. Default is 80.
 
 =back
+
+=head2 Layout Options (passed to nup)
+
+=over 4
+
+=item B<-C> I<N>, B<--pane>=I<N>
+
+Set the number of columns (panes).
+
+=item B<-R> I<N>, B<--row>=I<N>
+
+Set the number of rows.
+
+=item B<-G> I<CxR>, B<--grid>=I<CxR>
+
+Set grid layout. For example, C<-G2x3> creates 2 columns and 3 rows.
+
+=item B<-P> I<N>, B<--page>=I<N>
+
+Set the page height in lines.
+
+=item B<-S> I<N>, B<--pane-width>=I<N>
+
+Set the pane width in characters. Default is 85.
+
+=item B<--bs>=I<STYLE>, B<--border-style>=I<STYLE>
+
+Set the border style.
+
+=back
+
+=head2 Pager Options
+
+=over 4
+
+=item B<--pager>=I<COMMAND>
+
+Set the pager command.
+Use C<--pager=> (empty) or C<--no-pager> to disable pager.
+
+=item B<--no-pager>
+
+Disable pager.
+
+=back
+
+=head1 EXAMPLES
+
+    mdv README.md              # view markdown file
+    mdv -C2 document.md        # 2-column view
+    mdv -G2x2 manual.md        # 2x2 grid (4-up)
+    mdv -w60 narrow.md         # narrower text width
+    mdv --no-pager file.md     # without pager
+
+=head1 DEPENDENCIES
+
+This command requires the following:
+
+=over 4
+
+=item * L<App::Greple> - pattern matching and highlighting
+
+=item * L<App::Greple::tee> - filter integration
+
+=item * L<App::ansifold> - ANSI-aware text folding
+
+=item * L<App::ansicolumn> - ANSI-aware column formatting
+
+=item * L<App::nup> - N-up multi-column paged output
+
+=item * L<Getopt::Long::Bash> - bash option parsing
+
+=back
+
+=head1 SEE ALSO
+
+L<nup(1)>, L<greple(1)>, L<ansifold(1)>, L<ansicolumn(1)>
 
 =head1 AUTHOR
 
@@ -91,72 +344,7 @@ Kazumasa Utashiro
 
 Copyright 2025 Kazumasa Utashiro.
 
-This library is free software; you can redistribute it and/or modify
-it under the same terms as Perl itself.
+This software is released under the MIT License.
+L<https://opensource.org/licenses/MIT>
 
 =cut
-
-[[ $pod =~ Version\ +([0-9.]+) ]] && my_version=${BASH_REMATCH[1]}
-
-##
-## Main
-##
-set -euo pipefail
-
-declare -A OPTS=(
-    [ help        | h  !             ]=
-    [ version     | v  !             ]=
-    [ width       | w  :=i           ]=80
-    [ trace       | x  !             ]=
-    [ border-style| bs :>ansicolumn  ]=
-    [ pane        | C  :>ansicolumn  ]=
-    [ paragraph   | p  +>ansicolumn  ]=
-    [ boundary    |    :>ansicolumn  ]=
-)
-declare -a ansicolumn=(--boundary=space)
-
-trace() { [[ $2 ]] && set -x || set +x ; }
-help()    { [[ $2 ]] && { pod2text "$0" ; exit ; } }
-version() { [[ $2 ]] && { echo "$myname version $my_version" ; exit ; } }
-
-. getoptlong.sh OPTS "$@"
-
-if (( $# == 0 )); then
-    echo "Usage: $myname [options] file ..." >&2
-    exit 1
-fi
-
-declare -a grepleopt=(-G --ci=G --all --need=0)
-
-   BASE=NavyBlue
-COMMENT=(--cm "<${BASE}>+r60"       -E '<!--.*?-->')
-   BOLD=(--cm "<${BASE}>D"          -E '\*\*.*?\*\*')
-      H=(--cm "L25DE/<${BASE}>"     -E '^#\h+.*'
-	 --cm "L25DE/<${BASE}>+l10" -E '^##\h+.*'
-	 --cm "L00DN/<${BASE}>=l93" -E '^###\h+.*'
-	 --cm "<${BASE}>UD"         -E '^####\h+.*'
-	 --cm "<${BASE}>+l20;U"     -E '^#####+.*')
-LITERAL=(--cm '/L23,/L23,/L23'      -E '(?<bt>`++)((?:(?!\g{bt}).)++)(\g{bt})')
-  QUOTE=(--cm "L20 , <${BASE}>=l85 , <${BASE}>/L23;E , L20" \
-				    -E '^\h*(?<bt>`{3,}+)(.*)\n((?s:.*?))^\h*(\g{bt})')
-
-for tag in BOLD H LITERAL QUOTE QMARK COMMENT ; do
-    declare -n array=$tag
-    grepleopt+=( "${array[@]}" )
-done
-
-ITEM_PREFIX='^\h*(?:[*-]|\(#+\))\h+'
-
-while (( $# > 0 )) ; do
-    greple "${grepleopt[@]}" "$1" \
-	| greple \
-	    -Mtee \&ansifold --crmode --autoindent="${ITEM_PREFIX}" -sw${width} -- \
-	    -E "${ITEM_PREFIX}.*\n" --crmode --all --need=0 --no-color \
-	| greple \
-	    -Mtee::config=discrete \&ansicolumn -s '|' -o '|' -t --cu=1 -- \
-	    -E '^(\|.+\|\n){3,}' --all --need=0 --no-color \
-	| perl -pE 's/ /-/g if /^ \| (\s* -+ \s* \|)+ $/x' \
-	| ansicolumn -DP -C $((width+5))/,DUP,1,GE,EXCH,1,IF "${ansicolumn[@]}" \
-	| less --snap-to=-1 --file-size -F
-    shift
-done

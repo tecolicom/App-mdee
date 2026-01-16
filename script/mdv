@@ -21,14 +21,11 @@ mdv - Markdown viewer using greple and nup
 
      -h  --help             show help
          --version          show version
-     -d  --debug            debug mode
+     -d  --debug            debug level (repeatable)
      -n  --dryrun           dry-run mode
-         --fold             enable line folding (default: on)
-         --no-fold          disable line folding
-         --table            enable table formatting (default: on)
-         --no-table         disable table formatting
-         --nup              use nup for paged output (default: on)
-         --no-nup           disable nup, output to stdout
+         --[no-]fold        line folding (default: on)
+         --[no-]table       table formatting (default: on)
+         --[no-]nup         nup paged output (default: on)
      -w  --width=#          fold width (default: 80)
      -C  --pane=#           number of columns
      -R  --row=#            number of rows
@@ -36,8 +33,7 @@ mdv - Markdown viewer using greple and nup
      -P  --page=#           page height in lines
      -S  --pane-width=#     pane width (default: 85)
     --bs --border-style=#   border style
-         --pager=#          pager command (empty to disable)
-         --no-pager         disable pager
+         --[no-]pager[=#]   pager command
 
 =head1 VERSION
 
@@ -50,10 +46,6 @@ Version 0.01
 ##############################################################################
 # Utility functions
 ##############################################################################
-
-debug() {
-    [[ ${debug:-} ]] && echo "debug: $*" >&2 || true
-}
 
 die() {
     echo "$myname: $*" >&2
@@ -75,29 +67,25 @@ mdv - Markdown viewer using greple and nup
 Usage: $myname [ options ] file ...
 END
 
-declare -a up_opts=(--document --no-filename)
-declare width=80
-declare fold=1
-declare table=1
-declare nup=1
+declare -a nup_opts=(--document --no-filename)
 
 declare -A OPTS=(
     [&REQUIRE]=0.7 [&USAGE]="$USAGE" [&PERMUTE]=
     [         help | h   !        # show help         ]=
     [      version |     !        # show version      ]=
-    [        debug | d            # debug mode        ]=
+    [        debug | d   +        # debug level       ]=0
     [       dryrun | n            # dry-run mode      ]=
     [         fold |              # line folding      ]=1
     [        table |              # table formatting  ]=1
     [          nup |              # use nup           ]=1
     [        width | w  :=i       # fold width        ]=80
-    [        pager |    :!        # pager command     ]=
-    [         grid | G  :>up_opts # grid layout       ]=
-    [         pane | C  :>up_opts # number of columns ]=
-    [          row | R  :>up_opts # number of rows    ]=
-    [         page | P  :>up_opts # page height       ]=
-    [   pane-width | S  :>up_opts # pane width        ]=
-    [ border-style | bs :>up_opts # border style      ]=
+    [        pager |    ?!        # pager command     ]=
+    [         grid | G  :>nup_opts # grid layout       ]=
+    [         pane | C  :>nup_opts # number of columns ]=
+    [          row | R  :>nup_opts # number of rows    ]=
+    [         page | P  :>nup_opts # page height       ]=
+    [   pane-width | S  :>nup_opts # pane width        ]=
+    [ border-style | bs :>nup_opts # border style      ]=
 )
 
 ##############################################################################
@@ -120,10 +108,10 @@ version() {
 }
 
 pager() {
-    if [[ -z $2 ]]; then
-        up_opts+=("--no-pager")
+    if [[ -n $pager ]]; then
+        nup_opts+=("--pager=$pager")
     else
-        up_opts+=("--pager=$2")
+        nup_opts+=("--no-pager")
     fi
 }
 
@@ -205,7 +193,7 @@ declare -a cmd_table_fix=(
     perl -pE 's/ /-/g if /^ \| (\s* -+ \s* \|)+ $/x'
 )
 
-declare -a cmd_nup=(nup "${up_opts[@]}")
+declare -a cmd_nup=(nup "${nup_opts[@]}")
 
 # Collect pipeline stages
 declare -a stages=(cmd_greple)
@@ -225,8 +213,8 @@ for stage in "${stages[@]}"; do
     pipeline+="$(quote_cmd "${cmd[@]}")"
 done
 
-debug "stages: ${stages[*]}"
-debug "pipeline: $pipeline"
+(( debug > 0 )) && echo "debug: stages: ${stages[*]}" >&2
+(( debug > 0 )) && echo "debug: pipeline: $pipeline" >&2
 
 if [[ ${dryrun:-} ]]; then
     echo "$pipeline"
@@ -277,7 +265,8 @@ Show version.
 
 =item B<-d>, B<--debug>
 
-Enable debug mode.
+Set debug level.  Can be repeated (C<-d>, C<-dd>, C<-ddd>) for
+increasing verbosity.
 
 =item B<-n>, B<--dryrun>
 
@@ -289,19 +278,19 @@ Dry-run mode. Show the command without executing.
 
 =over 4
 
-=item B<--fold>, B<--no-fold>
+=item B<--[no-]fold>
 
 Enable or disable line folding for list items.  When enabled, long
 lines in list items are wrapped with proper indentation using
 L<ansifold(1)>.  Default is enabled.
 
-=item B<--table>, B<--no-table>
+=item B<--[no-]table>
 
 Enable or disable table formatting.  When enabled, Markdown tables
 are formatted using L<ansicolumn(1)> for aligned column display.
 Default is enabled.
 
-=item B<--nup>, B<--no-nup>
+=item B<--[no-]nup>
 
 Enable or disable L<nup(1)> for multi-column paged output.  When
 disabled, output goes directly to stdout without formatting.
@@ -348,14 +337,10 @@ Set the border style.
 
 =over 4
 
-=item B<--pager>=I<COMMAND>
+=item B<--[no-]pager>[=I<COMMAND>]
 
-Set the pager command.
-Use C<--pager=> (empty) or C<--no-pager> to disable pager.
-
-=item B<--no-pager>
-
-Disable pager.
+Set the pager command.  Use C<--pager> (without argument) or
+C<--no-pager> to disable pager.
 
 =back
 
@@ -400,7 +385,7 @@ Kazumasa Utashiro
 
 =head1 LICENSE
 
-Copyright 2025 Kazumasa Utashiro.
+Copyright 2025-2026 Kazumasa Utashiro.
 
 This software is released under the MIT License.
 L<https://opensource.org/licenses/MIT>

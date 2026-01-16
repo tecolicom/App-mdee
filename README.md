@@ -9,14 +9,11 @@ mdv - Markdown viewer using greple and nup
 
      -h  --help             show help
          --version          show version
-     -d  --debug            debug mode
+     -d  --debug            debug level (repeatable)
      -n  --dryrun           dry-run mode
-         --fold             enable line folding (default: on)
-         --no-fold          disable line folding
-         --table            enable table formatting (default: on)
-         --no-table         disable table formatting
-         --nup              use nup for paged output (default: on)
-         --no-nup           disable nup, output to stdout
+         --[no-]fold        line folding (default: on)
+         --[no-]table       table formatting (default: on)
+         --[no-]nup         nup paged output (default: on)
      -w  --width=#          fold width (default: 80)
      -C  --pane=#           number of columns
      -R  --row=#            number of rows
@@ -24,8 +21,7 @@ mdv - Markdown viewer using greple and nup
      -P  --page=#           page height in lines
      -S  --pane-width=#     pane width (default: 85)
     --bs --border-style=#   border style
-         --pager=#          pager command (empty to disable)
-         --no-pager         disable pager
+         --[no-]pager[=#]   pager command
 
 # VERSION
 
@@ -60,7 +56,8 @@ It provides colorized display of Markdown files with support for:
 
 - **-d**, **--debug**
 
-    Enable debug mode.
+    Set debug level.  Can be repeated (`-d`, `-dd`, `-ddd`) for
+    increasing verbosity.
 
 - **-n**, **--dryrun**
 
@@ -68,19 +65,19 @@ It provides colorized display of Markdown files with support for:
 
 ## Processing Options
 
-- **--fold**, **--no-fold**
+- **--\[no-\]fold**
 
     Enable or disable line folding for list items.  When enabled, long
     lines in list items are wrapped with proper indentation using
     [ansifold(1)](http://man.he.net/man1/ansifold).  Default is enabled.
 
-- **--table**, **--no-table**
+- **--\[no-\]table**
 
     Enable or disable table formatting.  When enabled, Markdown tables
     are formatted using [ansicolumn(1)](http://man.he.net/man1/ansicolumn) for aligned column display.
     Default is enabled.
 
-- **--nup**, **--no-nup**
+- **--\[no-\]nup**
 
     Enable or disable [nup(1)](http://man.he.net/man1/nup) for multi-column paged output.  When
     disabled, output goes directly to stdout without formatting.
@@ -119,14 +116,10 @@ It provides colorized display of Markdown files with support for:
 
 ## Pager Options
 
-- **--pager**=_COMMAND_
+- **--\[no-\]pager**\[=_COMMAND_\]
 
-    Set the pager command.
-    Use `--pager=` (empty) or `--no-pager` to disable pager.
-
-- **--no-pager**
-
-    Disable pager.
+    Set the pager command.  Use `--pager` (without argument) or
+    `--no-pager` to disable pager.
 
 # EXAMPLES
 
@@ -160,7 +153,7 @@ Kazumasa Utashiro
 
 # LICENSE
 
-Copyright 2025 Kazumasa Utashiro.
+Copyright 2025-2026 Kazumasa Utashiro.
 
 This software is released under the MIT License.
 [https://opensource.org/licenses/MIT](https://opensource.org/licenses/MIT)

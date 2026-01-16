@@ -186,32 +186,46 @@ if (( $# == 0 )); then
     die "stdin mode not supported, please specify file(s)"
 fi
 
-# Quote array elements for display/eval
-quote_array() {
-    local arr=("$@")
-    printf '%q ' "${arr[@]}"
+# Define each command as an array
+declare -a cmd_greple=(greple "${greple_opts[@]}" "$@")
+
+declare -a cmd_fold=(
+    greple
+    -Mtee "&ansifold" --crmode --autoindent="$ITEM_PREFIX" -sw${width} --
+    -E "${ITEM_PREFIX}.*\\n" --crmode --all --need=0 --no-color
+)
+
+declare -a cmd_table=(
+    greple
+    -Mtee::config=discrete "&ansicolumn" -s '|' -o '|' -t --cu=1 --
+    -E '^(\|.+\|\n){3,}' --all --need=0 --no-color
+)
+
+declare -a cmd_table_fix=(
+    perl -pE 's/ /-/g if /^ \| (\s* -+ \s* \|)+ $/x'
+)
+
+declare -a cmd_nup=(nup "${up_opts[@]}")
+
+# Collect pipeline stages
+declare -a stages=(cmd_greple)
+[[ $fold == 1 ]]  && stages+=(cmd_fold)
+[[ $table == 1 ]] && stages+=(cmd_table cmd_table_fix)
+[[ $nup == 1 ]]   && stages+=(cmd_nup)
+
+# Build pipeline string from stages
+quote_cmd() {
+    printf '%q ' "$@"
 }
 
-# Build pipeline dynamically
-pipeline="greple $(quote_array "${greple_opts[@]}") $(quote_array "$@")"
+pipeline=""
+for stage in "${stages[@]}"; do
+    declare -n cmd="$stage"
+    [[ -n $pipeline ]] && pipeline+=" | "
+    pipeline+="$(quote_cmd "${cmd[@]}")"
+done
 
-if [[ $fold == 1 ]]; then
-    pipeline+=" | greple"
-    pipeline+=" -Mtee '&ansifold' --crmode --autoindent=$(printf '%q' "$ITEM_PREFIX") -sw${width} --"
-    pipeline+=" -E $(printf '%q' "${ITEM_PREFIX}.*\\n") --crmode --all --need=0 --no-color"
-fi
-
-if [[ $table == 1 ]]; then
-    pipeline+=" | greple"
-    pipeline+=" -Mtee::config=discrete '&ansicolumn' -s '|' -o '|' -t --cu=1 --"
-    pipeline+=" -E $(printf '%q' '^(\|.+\|\n){3,}') --all --need=0 --no-color"
-    pipeline+=" | perl -pE 's/ /-/g if /^ \\| (\\s* -+ \\s* \\|)+ \$/x'"
-fi
-
-if [[ $nup == 1 ]]; then
-    pipeline+=" | nup $(quote_array "${up_opts[@]}")"
-fi
-
+debug "stages: ${stages[*]}"
 debug "pipeline: $pipeline"
 
 if [[ ${dryrun:-} ]]; then

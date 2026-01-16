@@ -1,5 +1,4 @@
 requires 'perl', 'v5.26';
-requires 'File::Share';
 requires 'Getopt::Long::Bash';
 requires 'App::Greple', '10.02';
 requires 'App::Greple::tee', '1.03';

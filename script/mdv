@@ -99,11 +99,6 @@ it under the same terms as Perl itself.
 [[ $pod =~ Version\ +([0-9.]+) ]] && my_version=${BASH_REMATCH[1]}
 
 ##
-## Load getoptlong.sh from Getopt::Long::Bash distribution
-##
-eval "$(perl -MFile::Share=:all -E 'say dist_file "Getopt-Long-Bash", "getoptlong.sh"' | xargs cat)"
-
-##
 ## Main
 ##
 set -euo pipefail

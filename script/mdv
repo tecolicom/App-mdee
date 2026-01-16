@@ -1,0 +1,167 @@
+#!/usr/bin/env bash
+
+##
+## Bash version check
+##
+if (( BASH_VERSINFO[0] < 4 || ( BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 3 ) )); then
+    echo "Error: $0 requires bash 4.3 or later (current: $BASH_VERSION)" >&2
+    exit 1
+fi
+
+##
+## Helper functions
+##
+define() { IFS='\n' read -r -d '' ${1} || true ; }
+
+myname="${0##*/}"
+
+define pod <<"=cut"
+
+=encoding utf-8
+
+=head1 NAME
+
+mdv - Markdown viewer using greple
+
+=head1 SYNOPSIS
+
+    mdv [ options ] file ...
+
+    Options:
+        -h, --help          show help message
+        -v, --version       show version
+        -w, --width=#       output width (default: 80)
+        -x, --trace         enable trace mode
+        --border-style=#    ansicolumn border style
+        -C, --pane=#        ansicolumn pane option
+        -p, --paragraph     ansicolumn paragraph mode
+
+=head1 VERSION
+
+    Version 0.01
+
+=head1 DESCRIPTION
+
+B<mdv> is a Markdown viewer command using L<greple(1)> for syntax
+highlighting.  It provides colorized output of Markdown files with
+support for:
+
+=over 4
+
+=item * Headers (h1-h5)
+
+=item * Bold text
+
+=item * Inline code (backticks)
+
+=item * Code blocks (fenced with ```)
+
+=item * HTML comments
+
+=item * Tables
+
+=back
+
+Output is processed through L<ansifold(1)> for line wrapping and
+L<ansicolumn(1)> for terminal paging.
+
+=head1 DEPENDENCIES
+
+This command requires the following CPAN modules:
+
+=over 4
+
+=item * L<App::Greple>
+
+=item * L<App::Greple::tee>
+
+=item * L<App::ansifold>
+
+=item * L<App::ansicolumn>
+
+=item * L<Getopt::Long::Bash>
+
+=back
+
+=head1 AUTHOR
+
+Kazumasa Utashiro
+
+=head1 LICENSE
+
+Copyright 2025 Kazumasa Utashiro.
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.
+
+=cut
+
+[[ $pod =~ Version\ +([0-9.]+) ]] && my_version=${BASH_REMATCH[1]}
+
+##
+## Load getoptlong.sh from Getopt::Long::Bash distribution
+##
+eval "$(perl -MFile::Share=:all -E 'say dist_file "Getopt-Long-Bash", "getoptlong.sh"' | xargs cat)"
+
+##
+## Main
+##
+set -euo pipefail
+
+declare -A OPTS=(
+    [ help        | h  !             ]=
+    [ version     | v  !             ]=
+    [ width       | w  :=i           ]=80
+    [ trace       | x  !             ]=
+    [ border-style| bs :>ansicolumn  ]=
+    [ pane        | C  :>ansicolumn  ]=
+    [ paragraph   | p  +>ansicolumn  ]=
+    [ boundary    |    :>ansicolumn  ]=
+)
+declare -a ansicolumn=(--boundary=space)
+
+trace() { [[ $2 ]] && set -x || set +x ; }
+help()    { [[ $2 ]] && { pod2text "$0" ; exit ; } }
+version() { [[ $2 ]] && { echo "$myname version $my_version" ; exit ; } }
+
+. getoptlong.sh OPTS "$@"
+
+if (( $# == 0 )); then
+    echo "Usage: $myname [options] file ..." >&2
+    exit 1
+fi
+
+declare -a grepleopt=(-G --ci=G --all --need=0)
+
+   BASE=NavyBlue
+COMMENT=(--cm "<${BASE}>+r60"       -E '<!--.*?-->')
+   BOLD=(--cm "<${BASE}>D"          -E '\*\*.*?\*\*')
+      H=(--cm "L25DE/<${BASE}>"     -E '^#\h+.*'
+	 --cm "L25DE/<${BASE}>+l10" -E '^##\h+.*'
+	 --cm "L00DN/<${BASE}>=l93" -E '^###\h+.*'
+	 --cm "<${BASE}>UD"         -E '^####\h+.*'
+	 --cm "<${BASE}>+l20;U"     -E '^#####+.*')
+LITERAL=(--cm '/L23,/L23,/L23'      -E '(?<bt>`++)((?:(?!\g{bt}).)++)(\g{bt})')
+  QUOTE=(--cm "L20 , <${BASE}>=l85 , <${BASE}>/L23;E , L20" \
+				    -E '^\h*(?<bt>`{3,}+)(.*)\n((?s:.*?))^\h*(\g{bt})')
+
+for tag in BOLD H LITERAL QUOTE QMARK COMMENT ; do
+    declare -n array=$tag
+    grepleopt+=( "${array[@]}" )
+done
+
+ITEM_PREFIX='^\h*(?:[*-]|\(#+\))\h+'
+
+while (( $# > 0 )) ; do
+    greple "${grepleopt[@]}" "$1" \
+	| greple \
+	    -Mtee \&ansifold --crmode --autoindent="${ITEM_PREFIX}" -sw${width} -- \
+	    -E "${ITEM_PREFIX}.*\n" --crmode --all --need=0 --no-color \
+	| greple \
+	    -Mtee::config=discrete \&ansicolumn -s '|' -o '|' -t --cu=1 -- \
+	    -E '^(\|.+\|\n){3,}' --all --need=0 --no-color \
+	| perl -pE 's/ /-/g if /^ \| (\s* -+ \s* \|)+ $/x' \
+	| ansicolumn -DP -C $((width+5))/,DUP,1,GE,EXCH,1,IF "${ansicolumn[@]}" \
+	| less --snap-to=-1 --file-size -F
+    shift
+done

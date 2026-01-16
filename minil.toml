@@ -1,0 +1,16 @@
+name           = "App-mdv"
+badges         = [ "github-actions/test.yml", "metacpan" ]
+readme_from    = "script/mdv"
+authors_from   = "script/mdv"
+script_files   = [ "script/mdv" ]
+module_maker   = "ModuleBuildTiny"
+static_install = "auto"
+
+[release]
+branch = "main"
+hooks = [
+    "perl -Ilib -MApp::mdv=\\$VERSION -i -pE 's/^\\s*Version \\K([\\d.]+)/$VERSION/' script/mdv",
+]
+
+[unsupported]
+os = [ "MSWin32" ]

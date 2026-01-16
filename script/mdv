@@ -23,6 +23,10 @@ mdv - Markdown viewer using greple and nup
          --version          show version
      -d  --debug            debug mode
      -n  --dryrun           dry-run mode
+     --fold                 enable line folding (default: on)
+         --no-fold          disable line folding
+         --table            enable table formatting (default: on)
+         --no-table         disable table formatting
      -w  --width=#          fold width (default: 80)
      -C  --pane=#           number of columns
      -R  --row=#            number of rows
@@ -71,6 +75,8 @@ END
 
 declare -a up_opts=(--document --no-filename)
 declare width=80
+declare fold=1
+declare table=1
 
 declare -A OPTS=(
     [&REQUIRE]=0.7 [&USAGE]="$USAGE" [&PERMUTE]=
@@ -78,6 +84,8 @@ declare -A OPTS=(
     [      version |     !        # show version      ]=
     [        debug | d            # debug mode        ]=
     [       dryrun | n            # dry-run mode      ]=
+    [         fold |              # line folding      ]=1
+    [        table |              # table formatting  ]=1
     [        width | w  :=i       # fold width        ]=80
     [        pager |    :!        # pager command     ]=
     [         grid | G  :>up_opts # grid layout       ]=
@@ -168,20 +176,39 @@ greple_opts+=(
 # Build command pipeline
 ##############################################################################
 
+# Fold filter: wrap long lines with ansifold
+fold_filter() {
+    if [[ $fold == 1 ]]; then
+        greple \
+            -Mtee \&ansifold --crmode --autoindent="${ITEM_PREFIX}" -sw${width} -- \
+            -E "${ITEM_PREFIX}.*\n" --crmode --all --need=0 --no-color
+    else
+        cat
+    fi
+}
+
+# Table filter: format markdown tables with ansicolumn
+table_filter() {
+    if [[ $table == 1 ]]; then
+        greple \
+            -Mtee::config=discrete \&ansicolumn -s '|' -o '|' -t --cu=1 -- \
+            -E '^(\|.+\|\n){3,}' --all --need=0 --no-color \
+        | perl -pE 's/ /-/g if /^ \| (\s* -+ \s* \|)+ $/x'
+    else
+        cat
+    fi
+}
+
 md_filter() {
     greple "${greple_opts[@]}" "$1" \
-    | greple \
-        -Mtee \&ansifold --crmode --autoindent="${ITEM_PREFIX}" -sw${width} -- \
-        -E "${ITEM_PREFIX}.*\n" --crmode --all --need=0 --no-color \
-    | greple \
-        -Mtee::config=discrete \&ansicolumn -s '|' -o '|' -t --cu=1 -- \
-        -E '^(\|.+\|\n){3,}' --all --need=0 --no-color \
-    | perl -pE 's/ /-/g if /^ \| (\s* -+ \s* \|)+ $/x'
+    | fold_filter \
+    | table_filter
 }
 
 # Build nup command
 declare -a nup_cmd=(nup "${up_opts[@]}")
 
+debug "fold: $fold, table: $table"
 debug "up_opts: ${up_opts[*]}"
 debug "nup_cmd: ${nup_cmd[*]}"
 
@@ -253,9 +280,28 @@ Enable debug mode.
 
 Dry-run mode. Show the command without executing.
 
+=back
+
+=head2 Processing Options
+
+=over 4
+
+=item B<--fold>, B<--no-fold>
+
+Enable or disable line folding for list items.  When enabled, long
+lines in list items are wrapped with proper indentation using
+L<ansifold(1)>.  Default is enabled.
+
+=item B<--table>, B<--no-table>
+
+Enable or disable table formatting.  When enabled, Markdown tables
+are formatted using L<ansicolumn(1)> for aligned column display.
+Default is enabled.
+
 =item B<-w> I<N>, B<--width>=I<N>
 
 Set the fold width for text wrapping. Default is 80.
+Only effective when C<--fold> is enabled.
 
 =back
 
@@ -311,6 +357,8 @@ Disable pager.
     mdv -G2x2 manual.md        # 2x2 grid (4-up)
     mdv -w60 narrow.md         # narrower text width
     mdv --no-pager file.md     # without pager
+    mdv --no-fold file.md      # disable line folding
+    mdv --no-table file.md     # disable table formatting
 
 =head1 DEPENDENCIES
 

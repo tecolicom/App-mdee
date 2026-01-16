@@ -11,6 +11,10 @@ mdv - Markdown viewer using greple and nup
          --version          show version
      -d  --debug            debug mode
      -n  --dryrun           dry-run mode
+     --fold                 enable line folding (default: on)
+         --no-fold          disable line folding
+         --table            enable table formatting (default: on)
+         --no-table         disable table formatting
      -w  --width=#          fold width (default: 80)
      -C  --pane=#           number of columns
      -R  --row=#            number of rows
@@ -60,9 +64,24 @@ It provides colorized display of Markdown files with support for:
 
     Dry-run mode. Show the command without executing.
 
+## Processing Options
+
+- **--fold**, **--no-fold**
+
+    Enable or disable line folding for list items.  When enabled, long
+    lines in list items are wrapped with proper indentation using
+    [ansifold(1)](http://man.he.net/man1/ansifold).  Default is enabled.
+
+- **--table**, **--no-table**
+
+    Enable or disable table formatting.  When enabled, Markdown tables
+    are formatted using [ansicolumn(1)](http://man.he.net/man1/ansicolumn) for aligned column display.
+    Default is enabled.
+
 - **-w** _N_, **--width**=_N_
 
     Set the fold width for text wrapping. Default is 80.
+    Only effective when `--fold` is enabled.
 
 ## Layout Options (passed to nup)
 
@@ -108,6 +127,8 @@ It provides colorized display of Markdown files with support for:
     mdv -G2x2 manual.md        # 2x2 grid (4-up)
     mdv -w60 narrow.md         # narrower text width
     mdv --no-pager file.md     # without pager
+    mdv --no-fold file.md      # disable line folding
+    mdv --no-table file.md     # disable table formatting
 
 # DEPENDENCIES
 

@@ -180,67 +180,45 @@ greple_opts+=(
 # Build command pipeline
 ##############################################################################
 
-# Fold filter: wrap long lines with ansifold
-fold_filter() {
-    if [[ $fold == 1 ]]; then
-        greple \
-            -Mtee \&ansifold --crmode --autoindent="${ITEM_PREFIX}" -sw${width} -- \
-            -E "${ITEM_PREFIX}.*\n" --crmode --all --need=0 --no-color
-    else
-        cat
-    fi
-}
-
-# Table filter: format markdown tables with ansicolumn
-table_filter() {
-    if [[ $table == 1 ]]; then
-        greple \
-            -Mtee::config=discrete \&ansicolumn -s '|' -o '|' -t --cu=1 -- \
-            -E '^(\|.+\|\n){3,}' --all --need=0 --no-color \
-        | perl -pE 's/ /-/g if /^ \| (\s* -+ \s* \|)+ $/x'
-    else
-        cat
-    fi
-}
-
-md_filter() {
-    greple "${greple_opts[@]}" "$1" \
-    | fold_filter \
-    | table_filter
-}
-
-# Build nup command
-declare -a nup_cmd=(nup "${up_opts[@]}")
-
-debug "fold: $fold, table: $table, nup: $nup"
-debug "up_opts: ${up_opts[*]}"
-debug "nup_cmd: ${nup_cmd[*]}"
-
 # Process files
 if (( $# == 0 )); then
     # stdin mode (not supported yet)
     die "stdin mode not supported, please specify file(s)"
 fi
 
-# Output filter: nup or cat
-output_filter() {
-    if [[ ${dryrun:-} ]]; then
-        [[ $nup == 1 ]] && echo "${nup_cmd[*]}" || echo "cat"
-        cat > /dev/null
-    elif [[ $nup == 1 ]]; then
-        "${nup_cmd[@]}"
-    else
-        cat
-    fi
+# Quote array elements for display/eval
+quote_array() {
+    local arr=("$@")
+    printf '%q ' "${arr[@]}"
 }
 
-# Process each file through md_filter and output
-{
-    for file in "$@"; do
-        [[ -f $file ]] || die "file not found: $file"
-        md_filter "$file"
-    done
-} | output_filter
+# Build pipeline dynamically
+pipeline="greple $(quote_array "${greple_opts[@]}") $(quote_array "$@")"
+
+if [[ $fold == 1 ]]; then
+    pipeline+=" | greple"
+    pipeline+=" -Mtee '&ansifold' --crmode --autoindent=$(printf '%q' "$ITEM_PREFIX") -sw${width} --"
+    pipeline+=" -E $(printf '%q' "${ITEM_PREFIX}.*\\n") --crmode --all --need=0 --no-color"
+fi
+
+if [[ $table == 1 ]]; then
+    pipeline+=" | greple"
+    pipeline+=" -Mtee::config=discrete '&ansicolumn' -s '|' -o '|' -t --cu=1 --"
+    pipeline+=" -E $(printf '%q' '^(\|.+\|\n){3,}') --all --need=0 --no-color"
+    pipeline+=" | perl -pE 's/ /-/g if /^ \\| (\\s* -+ \\s* \\|)+ \$/x'"
+fi
+
+if [[ $nup == 1 ]]; then
+    pipeline+=" | nup $(quote_array "${up_opts[@]}")"
+fi
+
+debug "pipeline: $pipeline"
+
+if [[ ${dryrun:-} ]]; then
+    echo "$pipeline"
+else
+    eval "$pipeline"
+fi
 
 : <<'=cut'
 

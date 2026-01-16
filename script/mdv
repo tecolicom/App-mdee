@@ -27,6 +27,8 @@ mdv - Markdown viewer using greple and nup
          --[no-]table       table formatting (default: on)
          --[no-]nup         nup paged output (default: on)
      -w  --width=#          fold width (default: 80)
+     -B  --base-color=#     base color (default: NavyBlue)
+                            (e.g., Red, #FF5733, hsl(0,100,50))
      -C  --pane=#           number of columns
      -R  --row=#            number of rows
      -G  --grid=#           grid layout (e.g., 2x3)
@@ -79,6 +81,7 @@ declare -A OPTS=(
     [        table |              # table formatting  ]=1
     [          nup |              # use nup           ]=1
     [        width | w  :=i       # fold width        ]=80
+    [   base-color | B  :        # base color        ]=NavyBlue
     [        pager |    ?!        # pager command     ]=
     [         grid | G  :>nup_opts # grid layout       ]=
     [         pane | C  :>nup_opts # number of columns ]=
@@ -138,21 +141,26 @@ ITEM_PREFIX='^\h*(?:[*-]|\d+\.)\h+'
 declare -a greple_opts=(-G --ci=G --all --need=0)
 
 # Base color for headers
-BASE=NavyBlue
+# Wrap in <> if it looks like a color name (letters only)
+if [[ $base_color =~ ^[A-Za-z]+$ ]]; then
+    BASE="<$base_color>"
+else
+    BASE=$base_color
+fi
 
 # HTML comments (dimmed)
-greple_opts+=(--cm "<${BASE}>+r60" -E '<!--.*?-->')
+greple_opts+=(--cm "${BASE}+r60" -E '<!--.*?-->')
 
 # Bold text
-greple_opts+=(--cm "<${BASE}>D" -E '\*\*.*?\*\*')
+greple_opts+=(--cm "${BASE}D" -E '\*\*.*?\*\*')
 
 # Headers (h1-h5)
 greple_opts+=(
-    --cm "L25DE/<${BASE}>"     -E '^#\h+.*'
-    --cm "L25DE/<${BASE}>+l10" -E '^##\h+.*'
-    --cm "L00DN/<${BASE}>=l93" -E '^###\h+.*'
-    --cm "<${BASE}>UD"         -E '^####\h+.*'
-    --cm "<${BASE}>+l20;U"     -E '^#####+.*'
+    --cm "L25DE/${BASE}"     -E '^#\h+.*'
+    --cm "L25DE/${BASE}+l10" -E '^##\h+.*'
+    --cm "L00DN/${BASE}=l93" -E '^###\h+.*'
+    --cm "${BASE}UD"         -E '^####\h+.*'
+    --cm "${BASE}+l20;U"     -E '^#####+.*'
 )
 
 # Inline code (backticks)
@@ -160,7 +168,7 @@ greple_opts+=(--cm '/L23,/L23,/L23' -E '(?<bt>`++)((?:(?!\g{bt}).)++)(\g{bt})')
 
 # Code blocks (fenced)
 greple_opts+=(
-    --cm "L20 , <${BASE}>=l85 , <${BASE}>/L23;E , L20" \
+    --cm "L20 , ${BASE}=l85 , ${BASE}/L23;E , L20" \
     -E '^\h*(?<bt>`{3,}+)(.*)\n((?s:.*?))^\h*(\g{bt})'
 )
 
@@ -300,6 +308,23 @@ Default is enabled.
 
 Set the fold width for text wrapping. Default is 80.
 Only effective when C<--fold> is enabled.
+
+=item B<-B> I<COLOR>, B<--base-color>=I<COLOR>
+
+Set the base color for syntax highlighting.  Default is C<NavyBlue>.
+Accepts L<Term::ANSIColor::Concise> color specifications:
+
+=over 4
+
+=item * Color names: C<Red>, C<NavyBlue>, C<DarkGreen>
+
+=item * RGB hex: C<#FF5733>, C<FF5733>
+
+=item * RGB decimal: C<rgb(255,87,51)>
+
+=item * HSL: C<hsl(0,100,50)>
+
+=back
 
 =back
 

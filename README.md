@@ -15,6 +15,8 @@ mdv - Markdown viewer using greple and nup
          --[no-]table       table formatting (default: on)
          --[no-]nup         nup paged output (default: on)
      -w  --width=#          fold width (default: 80)
+     -B  --base-color=#     base color (default: NavyBlue)
+                            (e.g., Red, #FF5733, hsl(0,100,50))
      -C  --pane=#           number of columns
      -R  --row=#            number of rows
      -G  --grid=#           grid layout (e.g., 2x3)
@@ -87,6 +89,16 @@ It provides colorized display of Markdown files with support for:
 
     Set the fold width for text wrapping. Default is 80.
     Only effective when `--fold` is enabled.
+
+- **-B** _COLOR_, **--base-color**=_COLOR_
+
+    Set the base color for syntax highlighting.  Default is `NavyBlue`.
+    Accepts [Term::ANSIColor::Concise](https://metacpan.org/pod/Term%3A%3AANSIColor%3A%3AConcise) color specifications:
+
+    - Color names: `Red`, `NavyBlue`, `DarkGreen`
+    - RGB hex: `#FF5733`, `FF5733`
+    - RGB decimal: `rgb(255,87,51)`
+    - HSL: `hsl(0,100,50)`
 
 ## Layout Options (passed to nup)
 

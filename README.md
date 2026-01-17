@@ -21,6 +21,8 @@ mdee - Markdown, Easy on the Eyes
      -B  --base-color=#     override theme's base color
                             (e.g., <Red>, #FF5733, hsl(0,100,50))
          --list-themes      list built-in themes
+         --enable=#         enable only specified fields
+         --disable=#        disable specified fields
      -C  --pane=#           number of columns
      -R  --row=#            number of rows
      -G  --grid=#           grid layout (e.g., 2x3)
@@ -166,6 +168,21 @@ bold text, etc.).
 - **--list-themes**
 
     List built-in themes with color samples and exit.
+
+- **--enable**=_FIELD,..._
+
+    Enable only specified fields for highlighting.  All other fields are
+    disabled.  Multiple fields can be specified with commas or by repeating
+    the option.
+
+    Available fields: `comment`, `bold`, `strike`, `h1`, `h2`, `h3`,
+    `h4`, `h5`, `inline_code`, `code_block`.
+
+- **--disable**=_FIELD,..._
+
+    Disable specified fields from highlighting.  All other fields remain
+    enabled.  Multiple fields can be specified with commas or by repeating
+    the option.
 
 ## Layout Options (passed to nup)
 

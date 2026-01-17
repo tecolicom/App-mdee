@@ -33,6 +33,8 @@ mdee - Markdown, Easy on the Eyes
      -B  --base-color=#     override theme's base color
                             (e.g., <Red>, #FF5733, hsl(0,100,50))
          --list-themes      list built-in themes
+         --enable=#         enable only specified fields
+         --disable=#        disable specified fields
      -C  --pane=#           number of columns
      -R  --row=#            number of rows
      -G  --grid=#           grid layout (e.g., 2x3)
@@ -90,6 +92,8 @@ declare -A OPTS=(
     [         mode | m  :          # light or dark     ]=
     [   base-color | B  :          # base color        ]=
     [  list-themes |     !         # list themes       ]=
+    [      disable |    @          # disable fields    ]=
+    [       enable |    @          # enable fields     ]=
     [        pager |    ?!         # pager command     ]=
     [         grid | G  :>nup_opts # grid layout       ]=
     [         pane | C  :>nup_opts # number of columns ]=
@@ -131,19 +135,12 @@ declare -A theme_default_dark=(
     [code_block]='L10 , L12 , ${base}/L05;E , L10'
 )
 
-# Active color scheme (initialized from light theme)
+# Active color scheme
 declare -A colors
 
 ##############################################################################
 # Theme functions
 ##############################################################################
-
-# Initialize colors from default light theme
-init_theme() {
-    for key in "${!theme_default_light[@]}"; do
-        colors[$key]="${theme_default_light[$key]}"
-    done
-}
 
 # Load a theme with mode
 # Try theme_${name}_${mode} first, then theme_${name}
@@ -338,9 +335,6 @@ fi
 # Theme setup
 ##############################################################################
 
-# Initialize colors from default light theme
-init_theme
-
 # Load user config (may set default_theme and default_mode)
 load_config
 
@@ -361,6 +355,9 @@ fi
 # Load theme with mode
 load_theme "$theme" "$mode"
 
+# Apply user config color overrides
+load_config
+
 # Override base color if specified
 if [[ -n "$base_color" ]]; then
     colors[base]="$base_color"
@@ -368,6 +365,12 @@ fi
 
 # Expand ${base} references in color values
 expand_theme
+
+# Initialize field hash from colors keys (all enabled by default)
+declare -A field
+for key in "${!colors[@]}"; do
+    [[ $key != base ]] && field[$key]=1
+done
 
 (( debug > 0 )) && {
     echo "debug: color values:" >&2
@@ -380,34 +383,45 @@ expand_theme
 # Markdown highlighting with greple
 ##############################################################################
 
+set_all_fields() {
+    local value=$1
+    for key in "${!field[@]}"; do
+        field[$key]=$value
+    done
+}
+
+# Process --enable / --disable options
+if (( ${#disable[@]} > 0 )); then
+    set_all_fields 1
+    for name in "${disable[@]}"; do
+        [[ -v field[$name] ]] || die "unknown field: $name"
+        field[$name]=
+    done
+elif (( ${#enable[@]} > 0 )); then
+    set_all_fields ""
+    for name in "${enable[@]}"; do
+        [[ -v field[$name] ]] || die "unknown field: $name"
+        field[$name]=1
+    done
+fi
+
 declare -a greple_opts=(-G --ci=G --all --need=0 --filestyle=once)
 
-# HTML comments (dimmed)
-greple_opts+=(--cm "${colors[comment]}" -E '<!--.*?-->')
+add_pattern() {
+    local name=$1 pattern=$2
+    [[ ${field[$name]} ]] && greple_opts+=(--cm "${colors[$name]}" -E "$pattern") || :
+}
 
-# Bold text
-greple_opts+=(--cm "${colors[bold]}" -E '\*\*.*?\*\*')
-
-# Strikethrough
-greple_opts+=(--cm "${colors[strike]}" -E '~~.+?~~')
-
-# Headers (h1-h5)
-greple_opts+=(
-    --cm "${colors[h1]}" -E '^#\h+.*'
-    --cm "${colors[h2]}" -E '^##\h+.*'
-    --cm "${colors[h3]}" -E '^###\h+.*'
-    --cm "${colors[h4]}" -E '^####\h+.*'
-    --cm "${colors[h5]}" -E '^#####+.*'
-)
-
-# Inline code (backticks)
-greple_opts+=(--cm "${colors[inline_code]}" -E '(?<bt>`++)((?:(?!\g{bt}).)++)(\g{bt})')
-
-# Code blocks (fenced)
-greple_opts+=(
-    --cm "${colors[code_block]}" \
-    -E '^\h*(?<bt>`{3,}+)(.*)\n((?s:.*?))^\h*(\g{bt})'
-)
+add_pattern comment   '<!--.*?-->'
+add_pattern bold      '\*\*.*?\*\*'
+add_pattern strike    '~~.+?~~'
+add_pattern h1        '^#\h+.*'
+add_pattern h2        '^##\h+.*'
+add_pattern h3        '^###\h+.*'
+add_pattern h4        '^####\h+.*'
+add_pattern h5        '^#####+.*'
+add_pattern inline_code '(?<bt>`++)((?:(?!\g{bt}).)++)(\g{bt})'
+add_pattern code_block  '^\h*(?<bt>`{3,}+)(.*)\n((?s:.*?))^\h*(\g{bt})'
 
 ##############################################################################
 # Build command pipeline
@@ -641,6 +655,21 @@ of the base color, which requires full color specifications.
 =item B<--list-themes>
 
 List built-in themes with color samples and exit.
+
+=item B<--enable>=I<FIELD,...>
+
+Enable only specified fields for highlighting.  All other fields are
+disabled.  Multiple fields can be specified with commas or by repeating
+the option.
+
+Available fields: C<comment>, C<bold>, C<strike>, C<h1>, C<h2>, C<h3>,
+C<h4>, C<h5>, C<inline_code>, C<code_block>.
+
+=item B<--disable>=I<FIELD,...>
+
+Disable specified fields from highlighting.  All other fields remain
+enabled.  Multiple fields can be specified with commas or by repeating
+the option.
 
 =back
 

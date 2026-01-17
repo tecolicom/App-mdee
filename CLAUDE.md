@@ -27,7 +27,7 @@ Themes are defined as Bash associative arrays:
 - `theme_default_light` - Light mode theme
 - `theme_default_dark` - Dark mode theme
 
-Color specifications use Term::ANSIColor::Concise format:
+Color specifications use [Term::ANSIColor::Concise](https://metacpan.org/pod/Term::ANSIColor::Concise) format:
 - `L00` - `L25`: Gray scale (L00=black, L25=white)
 - `${base}`: Base color placeholder (expanded after loading)
 - `+l10` / `-l10`: Adjust lightness
@@ -128,12 +128,16 @@ Format: `opening_fence , language , body , closing_fence`
 - 3rd: Code body color (with background)
 - 4th: Closing ``` color
 
-Regex pattern:
+Regex pattern ([CommonMark Fenced Code Blocks](https://spec.commonmark.org/0.31.2/#fenced-code-blocks)):
 ```
-^\h*(?<bt>`{3,}+)(.*)\n((?s:.*?))^\h*(\g{bt})
+^ {0,3}(?<bt>`{3,}+|~{3,}+)(.*)\n((?s:.*?))^ {0,3}(\g{bt})
 ```
 
-4 capture groups: opening ```, language, body, closing ```
+- `^ {0,3}`: 0-3 spaces indentation (CommonMark spec)
+- `` `{3,}+|~{3,}+ ``: Backticks or tildes (3+ characters)
+- Closing fence must use same character as opening
+
+4 capture groups: opening fence, language, body, closing fence
 
 ### Inline Code Color Specification
 
@@ -143,7 +147,7 @@ Format: `before , match , after`
 [inline_code]='/L05,/L05,/L05'
 ```
 
-Regex pattern:
+Regex pattern ([CommonMark Code Spans](https://spec.commonmark.org/0.31.2/#code-spans)):
 ```
 (?<bt>`++)((?:(?!\g{bt}).)++)(\g{bt})
 ```
@@ -226,7 +230,7 @@ perl -pE 's/ /-/g if /^ \| (\s* -+ \s* \|)+ $/x'
 
 This replaces spaces with dashes in the `|---|---|` separator row.
 
-### Mode Detection with Getopt::EX::termcolor
+### Mode Detection with [Getopt::EX::termcolor](https://metacpan.org/pod/Getopt::EX::termcolor)
 
 Terminal background luminance is detected via Getopt::EX::termcolor module.
 
@@ -252,7 +256,7 @@ detect_terminal_mode() {
 
 The module sends OSC 11 query to terminal and parses the response to calculate luminance from RGB values.
 
-### Getopt::Long::Bash (getoptlong.sh)
+### [Getopt::Long::Bash](https://metacpan.org/pod/Getopt::Long::Bash) (getoptlong.sh)
 
 Option parsing uses getoptlong.sh from Getopt::Long::Bash module.
 
@@ -283,6 +287,7 @@ Key format: `option_name | short_opt  spec  # comment`
 |`:=i`|Integer|Requires integer argument|
 |`?!`|Optional+Negatable|Optional argument, negatable|
 |`:>array`|Array append|Appends `--option=value` to array|
+|`@`|Array|Array variable, supports comma-separated values|
 
 #### Special Keys
 

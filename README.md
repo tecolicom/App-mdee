@@ -1,4 +1,4 @@
-
+[![Actions Status](https://github.com/tecolicom/App-mdee/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/tecolicom/App-mdee/actions?workflow=test) [![MetaCPAN Release](https://badge.fury.io/pl/App-mdee.svg)](https://metacpan.org/release/App-mdee)
 # NAME
 
 mdee - Markdown, Easy on the Eyes

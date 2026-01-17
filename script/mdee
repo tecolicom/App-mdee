@@ -27,8 +27,11 @@ mdee - Markdown, Easy on the Eyes
          --[no-]table       table formatting (default: on)
          --[no-]nup         nup paged output (default: on)
      -w  --width=#          fold width (default: 80)
-     -B  --base-color=#     base color (default: <NavyBlue>)
+     -t  --theme=#          color theme
+     -m  --mode=#           light or dark (default: light)
+     -B  --base-color=#     override theme's base color
                             (e.g., <Red>, #FF5733, hsl(0,100,50))
+         --list-themes      list built-in themes
      -C  --pane=#           number of columns
      -R  --row=#            number of rows
      -G  --grid=#           grid layout (e.g., 2x3)
@@ -72,7 +75,7 @@ END
 declare -a nup_opts=(--document --no-filename)
 
 declare -A OPTS=(
-    [&REQUIRE]=0.7 [&USAGE]="$USAGE"
+    [&REQUIRE]=0.7.1 [&USAGE]="$USAGE"
     [         help | h   !         # show help         ]=
     [      version |     !         # show version      ]=
     [        debug | d   +         # debug level       ]=0
@@ -81,7 +84,10 @@ declare -A OPTS=(
     [        table |               # table formatting  ]=1
     [          nup |               # use nup           ]=1
     [        width | w  :=i        # fold width        ]=80
-    [   base-color | B  :          # base color        ]='<NavyBlue>'
+    [        theme | t  :          # color theme       ]=default
+    [         mode | m  :          # light or dark     ]=light
+    [   base-color | B  :          # base color        ]=
+    [  list-themes |     !         # list themes       ]=
     [        pager |    ?!         # pager command     ]=
     [         grid | G  :>nup_opts # grid layout       ]=
     [         pane | C  :>nup_opts # number of columns ]=
@@ -90,6 +96,112 @@ declare -A OPTS=(
     [   pane-width | S  :>nup_opts # pane width        ]=
     [ border-style | bs :>nup_opts # border style      ]=
 )
+
+##############################################################################
+# Built-in themes
+##############################################################################
+
+declare -A theme_default_light=(
+    [base]='<NavyBlue>'
+    [comment]='${base}+r60'
+    [bold]='${base}D'
+    [h1]='L25DE/${base}'
+    [h2]='L25DE/${base}+l10'
+    [h3]='L00DN/${base}=l93'
+    [h4]='${base}UD'
+    [h5]='${base}+l20;U'
+    [inline_code]='/L23,/L23,/L23'
+    [code_block]='L20 , ${base}=l85 , ${base}/L23;E , L20'
+)
+
+declare -A theme_default_dark=(
+    [base]='#CCCDFF'
+    [comment]='${base}+r60'
+    [bold]='${base}D'
+    [h1]='L00DE/${base}'
+    [h2]='L00DE/${base}-l3'
+    [h3]='L00DN/${base}-l7'
+    [h4]='${base}UD'
+    [h5]='${base}+l20;U'
+    [inline_code]='/L05,/L05,/L05'
+    [code_block]='L25 , ${base}-l5 , ${base}/L05;E , L25'
+)
+
+# Active color scheme (initialized from light theme)
+declare -A colors
+
+##############################################################################
+# Theme functions
+##############################################################################
+
+# Initialize colors from default light theme
+init_theme() {
+    for key in "${!theme_default_light[@]}"; do
+        colors[$key]="${theme_default_light[$key]}"
+    done
+}
+
+# Load a theme with mode
+# Try theme_${name}_${mode} first, then theme_${name}
+load_theme() {
+    local name=$1
+    local theme_mode=$2
+    local theme_var="theme_${name}_${theme_mode}"
+
+    # Try theme with mode first
+    if declare -p "$theme_var" &>/dev/null; then
+        local -n theme_ref="$theme_var"
+        for key in "${!theme_ref[@]}"; do
+            colors[$key]="${theme_ref[$key]}"
+        done
+        return 0
+    fi
+
+    # Fall back to theme without mode
+    theme_var="theme_$name"
+    if declare -p "$theme_var" &>/dev/null; then
+        local -n theme_ref="$theme_var"
+        for key in "${!theme_ref[@]}"; do
+            colors[$key]="${theme_ref[$key]}"
+        done
+        return 0
+    fi
+
+    die "theme not found: $name"
+}
+
+# Load user config file
+load_config() {
+    local config_file="${XDG_CONFIG_HOME:-$HOME/.config}/mdee/config.sh"
+    if [[ -f "$config_file" ]]; then
+        . "$config_file"
+    fi
+}
+
+# Detect mode from terminal background luminance
+# Returns "dark" if luminance < 50, "light" otherwise
+# Returns empty string if luminance cannot be determined
+detect_terminal_mode() {
+    local lum
+    lum=$(perl -MGetopt::EX::termcolor=luminance -e luminance 2>/dev/null) || return
+    [[ -z "$lum" ]] && return
+
+    if (( lum < 50 )); then
+        echo "dark"
+    else
+        echo "light"
+    fi
+}
+
+# Expand ${base} references in color values
+expand_theme() {
+    local base="${colors[base]}"
+    for key in "${!colors[@]}"; do
+        if [[ "$key" != "base" ]]; then
+            colors[$key]="${colors[$key]//\$\{base\}/$base}"
+        fi
+    done
+}
 
 ##############################################################################
 # Option callbacks
@@ -118,6 +230,86 @@ pager() {
     fi
 }
 
+show_theme_sample() {
+    local name=$1
+    local theme_mode=$2
+    local -A sample_colors
+    local theme_var="theme_${name}_${theme_mode}"
+
+    # Try theme with mode first, then without mode
+    if declare -p "$theme_var" &>/dev/null; then
+        local -n theme_ref="$theme_var"
+        for key in "${!theme_ref[@]}"; do
+            sample_colors[$key]="${theme_ref[$key]}"
+        done
+    else
+        theme_var="theme_$name"
+        if declare -p "$theme_var" &>/dev/null; then
+            local -n theme_ref="$theme_var"
+            for key in "${!theme_ref[@]}"; do
+                sample_colors[$key]="${theme_ref[$key]}"
+            done
+        else
+            return 1
+        fi
+    fi
+
+    # Expand ${base}
+    local base="${sample_colors[base]}"
+    for key in "${!sample_colors[@]}"; do
+        if [[ "$key" != "base" ]]; then
+            sample_colors[$key]="${sample_colors[$key]//\$\{base\}/$base}"
+        fi
+    done
+
+    # Show colored samples
+    # Extract middle part of inline_code (format: before,match,after)
+    local code_color="${sample_colors[inline_code]}"
+    code_color="${code_color#*,}"  # remove before
+    code_color="${code_color%,*}"  # remove after
+
+    # Remove E (Erase Line) from color specs for sample display
+    local h1="${sample_colors[h1]//E/}"
+    local h2="${sample_colors[h2]//E/}"
+    local h3="${sample_colors[h3]//E/}"
+
+    local label="${name}/${theme_mode}"
+    if [[ "$theme_mode" == "dark" ]]; then
+        # Dark mode: show on dark background
+        ansiecho -i 555/000E -f "  %-16s" "$label" \
+                 " " -i "$h1" "# H1" -a 555/000 \
+                 " " -i "$h2" "## H2" -a 555/000 \
+                 " " -i "$h3" "### H3" -a 555/000 \
+                 " " -i "${sample_colors[h4]}" "#### H4" -a 555/000 \
+                 " " -i "${sample_colors[h5]}" "##### H5" -a 555/000 \
+                 " " -i "${sample_colors[bold]}" "**bold**" -a 555/000 \
+                 " " -i "${code_color}" '`code`' -a Z
+    else
+        # Light mode: show on light background
+        ansiecho -i 000/555E -f "  %-16s" "$label" \
+                 " " -i "$h1" "# H1" -a 000/555 \
+                 " " -i "$h2" "## H2" -a 000/555 \
+                 " " -i "$h3" "### H3" -a 000/555 \
+                 " " -i "${sample_colors[h4]}" "#### H4" -a 000/555 \
+                 " " -i "${sample_colors[h5]}" "##### H5" -a 000/555 \
+                 " " -i "${sample_colors[bold]}" "**bold**" -a 000/555 \
+                 " " -i "${code_color}" '`code`' -a Z
+    fi
+}
+
+list_themes() {
+    echo "Built-in themes:"
+    show_theme_sample default light
+    show_theme_sample default dark
+    echo ""
+    echo "Usage: mdee --mode=<light|dark> [--base-color=<color>]"
+    echo ""
+    echo "User config: \${XDG_CONFIG_HOME:-~/.config}/mdee/config.sh"
+    echo "  default_mode='dark'        # set default mode"
+    echo "  colors[base]='<Color>'     # override base color"
+    exit 0
+}
+
 ##############################################################################
 # Parse options
 ##############################################################################
@@ -133,6 +325,48 @@ if (( $# == 0 )) && [[ -t 0 ]]; then
 fi
 
 ##############################################################################
+# Theme setup
+##############################################################################
+
+# Initialize colors from default light theme
+init_theme
+
+# Load user config (may set default_theme and default_mode)
+load_config
+
+# Apply config defaults if options not specified
+if [[ "$theme" == "default" && -n "${default_theme:-}" ]]; then
+    theme="$default_theme"
+fi
+if [[ "$mode" == "light" && -n "${default_mode:-}" ]]; then
+    mode="$default_mode"
+elif [[ "$mode" == "light" ]]; then
+    # Try to detect mode from terminal background
+    detected_mode=$(detect_terminal_mode)
+    if [[ -n "$detected_mode" ]]; then
+        mode="$detected_mode"
+    fi
+fi
+
+# Load theme with mode
+load_theme "$theme" "$mode"
+
+# Override base color if specified
+if [[ -n "$base_color" ]]; then
+    colors[base]="$base_color"
+fi
+
+# Expand ${base} references in color values
+expand_theme
+
+(( debug > 0 )) && {
+    echo "debug: color values:" >&2
+    for key in "${!colors[@]}"; do
+        echo "debug:   $key = ${colors[$key]}" >&2
+    done
+}
+
+##############################################################################
 # Markdown highlighting with greple
 ##############################################################################
 
@@ -140,30 +374,27 @@ ITEM_PREFIX='^\h*(?:[*-]|\d+\.)\h+'
 
 declare -a greple_opts=(-G --ci=G --all --need=0)
 
-# Base color for headers
-BASE=$base_color
-
 # HTML comments (dimmed)
-greple_opts+=(--cm "${BASE}+r60" -E '<!--.*?-->')
+greple_opts+=(--cm "${colors[comment]}" -E '<!--.*?-->')
 
 # Bold text
-greple_opts+=(--cm "${BASE}D" -E '\*\*.*?\*\*')
+greple_opts+=(--cm "${colors[bold]}" -E '\*\*.*?\*\*')
 
 # Headers (h1-h5)
 greple_opts+=(
-    --cm "L25DE/${BASE}"     -E '^#\h+.*'
-    --cm "L25DE/${BASE}+l10" -E '^##\h+.*'
-    --cm "L00DN/${BASE}=l93" -E '^###\h+.*'
-    --cm "${BASE}UD"         -E '^####\h+.*'
-    --cm "${BASE}+l20;U"     -E '^#####+.*'
+    --cm "${colors[h1]}" -E '^#\h+.*'
+    --cm "${colors[h2]}" -E '^##\h+.*'
+    --cm "${colors[h3]}" -E '^###\h+.*'
+    --cm "${colors[h4]}" -E '^####\h+.*'
+    --cm "${colors[h5]}" -E '^#####+.*'
 )
 
 # Inline code (backticks)
-greple_opts+=(--cm '/L23,/L23,/L23' -E '(?<bt>`++)((?:(?!\g{bt}).)++)(\g{bt})')
+greple_opts+=(--cm "${colors[inline_code]}" -E '(?<bt>`++)((?:(?!\g{bt}).)++)(\g{bt})')
 
 # Code blocks (fenced)
 greple_opts+=(
-    --cm "L20 , ${BASE}=l85 , ${BASE}/L23;E , L20" \
+    --cm "${colors[code_block]}" \
     -E '^\h*(?<bt>`{3,}+)(.*)\n((?s:.*?))^\h*(\g{bt})'
 )
 
@@ -205,15 +436,11 @@ declare -a stages=(cmd_greple)
 [[ $nup == 1 ]]   && stages+=(cmd_nup)
 
 # Build pipeline string from stages
-quote_cmd() {
-    printf '%q ' "$@"
-}
-
 pipeline=""
 for stage in "${stages[@]}"; do
     declare -n cmd="$stage"
     [[ -n $pipeline ]] && pipeline+=" | "
-    pipeline+="$(quote_cmd "${cmd[@]}")"
+    pipeline+="$(printf '%q ' "${cmd[@]}")"
 done
 
 (( debug > 0 )) && echo "debug: stages: ${stages[*]}" >&2
@@ -309,16 +536,66 @@ Default is enabled.
 Set the fold width for text wrapping. Default is 80.
 Only effective when C<--fold> is enabled.
 
+=back
+
+=head2 Theme Options
+
+B<mdee> supports color themes for customizing syntax highlighting.
+Themes define colors for various Markdown elements (headers, code blocks,
+bold text, etc.).
+
+=over 4
+
+=item B<-t> I<NAME>, B<--theme>=I<NAME>
+
+Select a color theme.  Default is C<default>.
+
+=item B<-m> I<MODE>, B<--mode>=I<MODE>
+
+Select light or dark mode.  Default is C<light>.
+
+If the terminal supports background color detection (via
+L<Getopt::EX::termcolor>), the mode is automatically selected based on
+terminal luminance.
+
+Each theme has light and dark variants optimized for different terminal
+backgrounds.  The built-in C<default> theme provides:
+
+=over 4
+
+=item C<light> - Navy blue base color for light backgrounds
+
+=item C<dark> - Light blue (#CCCDFF) base color for dark backgrounds
+
+=back
+
+User configuration is loaded from:
+
+    ${XDG_CONFIG_HOME:-~/.config}/mdee/config.sh
+
+This is a shell script that can set defaults and override colors:
+
+    # ~/.config/mdee/config.sh
+    default_mode='dark'              # set default mode
+    colors[base]='<DarkCyan>'        # override base color
+    colors[h1]='L25DE/${base}'       # header with base background
+
+Color specifications use L<Term::ANSIColor::Concise> format.
+The C<FG/BG> notation specifies foreground and background colors
+(e.g., C<L25DE/${base}> means gray foreground on base-colored background).
+The C<${base}> string is expanded to the base color value after loading.
+
 =item B<-B> I<COLOR>, B<--base-color>=I<COLOR>
 
-Set the base color for syntax highlighting.  Default is C<E<lt>NavyBlueE<gt>>.
+Override the theme's base color.  This is useful for quickly adjusting
+the color scheme without creating a custom theme.
 Accepts L<Term::ANSIColor::Concise> color specifications:
 
 =over 4
 
 =item * Color names: C<E<lt>RedE<gt>>, C<E<lt>NavyBlueE<gt>>
 
-=item * RGB hex: C<#FF5733>, C<FF5733>
+=item * RGB hex: C<#FF5733>
 
 =item * RGB decimal: C<rgb(255,87,51)>
 
@@ -329,6 +606,10 @@ Accepts L<Term::ANSIColor::Concise> color specifications:
 B<Note:> Basic ANSI color codes (C<R>, C<G>, C<B>, etc.) are not supported
 because the highlighting variations are created by adjusting lightness
 of the base color, which requires full color specifications.
+
+=item B<--list-themes>
+
+List built-in themes with color samples and exit.
 
 =back
 
@@ -384,6 +665,13 @@ C<--no-pager> to disable pager.
     mdee --no-fold file.md      # disable line folding
     mdee --no-table file.md     # disable table formatting
 
+    # Theme examples
+    mdee --mode=dark file.md             # use dark mode
+    mdee --mode=light file.md            # use light mode
+    mdee -B '<Red>' file.md              # override base color
+    mdee --mode=dark -B '<Cyan>' file.md # dark mode with cyan base
+    mdee --list-themes                   # list available themes
+
 =head1 DEPENDENCIES
 
 This command requires the following:
@@ -400,7 +688,11 @@ This command requires the following:
 
 =item * L<App::nup> - N-up multi-column paged output
 
+=item * L<App::ansiecho> - ANSI color output
+
 =item * L<Getopt::Long::Bash> - bash option parsing
+
+=item * L<Getopt::EX::termcolor> - terminal background detection
 
 =back
 

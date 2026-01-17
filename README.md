@@ -15,8 +15,11 @@ mdee - Markdown, Easy on the Eyes
          --[no-]table       table formatting (default: on)
          --[no-]nup         nup paged output (default: on)
      -w  --width=#          fold width (default: 80)
-     -B  --base-color=#     base color (default: <NavyBlue>)
+     -t  --theme=#          color theme
+     -m  --mode=#           light or dark (default: light)
+     -B  --base-color=#     override theme's base color
                             (e.g., <Red>, #FF5733, hsl(0,100,50))
+         --list-themes      list built-in themes
      -C  --pane=#           number of columns
      -R  --row=#            number of rows
      -G  --grid=#           grid layout (e.g., 2x3)
@@ -95,19 +98,64 @@ dedicated Markdown viewer instead.
     Set the fold width for text wrapping. Default is 80.
     Only effective when `--fold` is enabled.
 
+## Theme Options
+
+**mdee** supports color themes for customizing syntax highlighting.
+Themes define colors for various Markdown elements (headers, code blocks,
+bold text, etc.).
+
+- **-t** _NAME_, **--theme**=_NAME_
+
+    Select a color theme.  Default is `default`.
+
+- **-m** _MODE_, **--mode**=_MODE_
+
+    Select light or dark mode.  Default is `light`.
+
+    If the terminal supports background color detection (via
+    [Getopt::EX::termcolor](https://metacpan.org/pod/Getopt%3A%3AEX%3A%3Atermcolor)), the mode is automatically selected based on
+    terminal luminance.
+
+    Each theme has light and dark variants optimized for different terminal
+    backgrounds.  The built-in `default` theme provides:
+
+    - `light` - Navy blue base color for light backgrounds
+    - `dark` - Light blue (#CCCDFF) base color for dark backgrounds
+
+    User configuration is loaded from:
+
+        ${XDG_CONFIG_HOME:-~/.config}/mdee/config.sh
+
+    This is a shell script that can set defaults and override colors:
+
+        # ~/.config/mdee/config.sh
+        default_mode='dark'              # set default mode
+        colors[base]='<DarkCyan>'        # override base color
+        colors[h1]='L25DE/${base}'       # header with base background
+
+    Color specifications use [Term::ANSIColor::Concise](https://metacpan.org/pod/Term%3A%3AANSIColor%3A%3AConcise) format.
+    The `FG/BG` notation specifies foreground and background colors
+    (e.g., `L25DE/${base}` means gray foreground on base-colored background).
+    The `${base}` string is expanded to the base color value after loading.
+
 - **-B** _COLOR_, **--base-color**=_COLOR_
 
-    Set the base color for syntax highlighting.  Default is `<NavyBlue>`.
+    Override the theme's base color.  This is useful for quickly adjusting
+    the color scheme without creating a custom theme.
     Accepts [Term::ANSIColor::Concise](https://metacpan.org/pod/Term%3A%3AANSIColor%3A%3AConcise) color specifications:
 
     - Color names: `<Red>`, `<NavyBlue>`
-    - RGB hex: `#FF5733`, `FF5733`
+    - RGB hex: `#FF5733`
     - RGB decimal: `rgb(255,87,51)`
     - HSL: `hsl(0,100,50)`
 
     **Note:** Basic ANSI color codes (`R`, `G`, `B`, etc.) are not supported
     because the highlighting variations are created by adjusting lightness
     of the base color, which requires full color specifications.
+
+- **--list-themes**
+
+    List built-in themes with color samples and exit.
 
 ## Layout Options (passed to nup)
 
@@ -153,6 +201,13 @@ dedicated Markdown viewer instead.
     mdee --no-fold file.md      # disable line folding
     mdee --no-table file.md     # disable table formatting
 
+    # Theme examples
+    mdee --mode=dark file.md             # use dark mode
+    mdee --mode=light file.md            # use light mode
+    mdee -B '<Red>' file.md              # override base color
+    mdee --mode=dark -B '<Cyan>' file.md # dark mode with cyan base
+    mdee --list-themes                   # list available themes
+
 # DEPENDENCIES
 
 This command requires the following:
@@ -162,7 +217,9 @@ This command requires the following:
 - [App::ansifold](https://metacpan.org/pod/App%3A%3Aansifold) - ANSI-aware text folding
 - [App::ansicolumn](https://metacpan.org/pod/App%3A%3Aansicolumn) - ANSI-aware column formatting
 - [App::nup](https://metacpan.org/pod/App%3A%3Anup) - N-up multi-column paged output
+- [App::ansiecho](https://metacpan.org/pod/App%3A%3Aansiecho) - ANSI color output
 - [Getopt::Long::Bash](https://metacpan.org/pod/Getopt%3A%3ALong%3A%3ABash) - bash option parsing
+- [Getopt::EX::termcolor](https://metacpan.org/pod/Getopt%3A%3AEX%3A%3Atermcolor) - terminal background detection
 
 # SEE ALSO
 

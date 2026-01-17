@@ -421,7 +421,7 @@ add_pattern h3        '^###\h+.*'
 add_pattern h4        '^####\h+.*'
 add_pattern h5        '^#####+.*'
 add_pattern inline_code '(?<bt>`++)((?:(?!\g{bt}).)++)(\g{bt})'
-add_pattern code_block  '^\h*(?<bt>`{3,}+)(.*)\n((?s:.*?))^\h*(\g{bt})'
+add_pattern code_block  '^ {0,3}(?<bt>`{3,}+|~{3,}+)(.*)\n((?s:.*?))^ {0,3}(\g{bt})'
 
 ##############################################################################
 # Build command pipeline
@@ -505,7 +505,7 @@ It provides colorized display of Markdown files with support for:
 
 =item * Inline code (backticks)
 
-=item * Code blocks (fenced with ```)
+=item * Code blocks (fenced with ``` or ~~~)
 
 =item * HTML comments (dimmed)
 
@@ -810,8 +810,14 @@ Supported Markdown elements:
 - Headers (`# h1` through `##### h5`)
 - Bold text (`**bold**`)
 - Inline code (`` `code` ``)
-- Code blocks (``` fenced ```)
+- Code blocks (fenced with ``` or ~~~)
 - HTML comments (`<!-- comment -->`)
+
+Code block detection follows the CommonMark specification:
+
+- Opening fence: 0-3 spaces indentation, then 3+ backticks or tildes
+- Closing fence: 0-3 spaces indentation, same character, same or more count
+- Backticks and tildes cannot be mixed (``` must close with ```)
 
 =head5 Color Specifications
 

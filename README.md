@@ -45,7 +45,7 @@ It provides colorized display of Markdown files with support for:
 - Headers (h1-h5) with distinct styling
 - Bold text
 - Inline code (backticks)
-- Code blocks (fenced with \`\`\`)
+- Code blocks (fenced with \`\`\` or ~~~)
 - HTML comments (dimmed)
 - Tables (formatted with ansicolumn)
 - List items with proper indentation
@@ -302,8 +302,14 @@ Supported Markdown elements:
 \- Headers (\`# h1\` through \`##### h5\`)
 \- Bold text (\`\*\*bold\*\*\`)
 \- Inline code (\`\` \`code\` \`\`)
-\- Code blocks (\`\`\` fenced \`\`\`)
+\- Code blocks (fenced with \`\`\` or ~~~)
 \- HTML comments (\`&lt;!-- comment -->\`)
+
+Code block detection follows the CommonMark specification:
+
+\- Opening fence: 0-3 spaces indentation, then 3+ backticks or tildes
+\- Closing fence: 0-3 spaces indentation, same character, same or more count
+\- Backticks and tildes cannot be mixed (\`\`\` must close with \`\`\`)
 
 Color SpecificationsColors are specified using [Term::ANSIColor::Concise](https://metacpan.org/pod/Term%3A%3AANSIColor%3A%3AConcise) format.
 The \`--cm\` option maps colors to captured groups.  For example,

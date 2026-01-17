@@ -35,6 +35,33 @@ my $color = '#CCCDFF';
 print "Base color: $color\n";
 ```
 
+Tilde fence example:
+
+~~~python
+def hello():
+    print("Hello, world!")
+~~~
+
+Nested code block (tilde wrapping backticks):
+
+~~~markdown
+Here is how to write a code block:
+
+```bash
+echo "Hello"
+```
+~~~
+
+Four-space indented fence becomes content (CommonMark rule):
+
+```markdown
+- List item with code block:
+
+    ```bash
+    echo "indented code"
+    ```
+```
+
 ## H2: Table Example
 
 |Name|Description|Status|

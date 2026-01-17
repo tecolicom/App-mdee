@@ -4,7 +4,7 @@ requires 'App::Greple::tee', '1.03';
 requires 'App::ansiecho';
 requires 'App::ansifold', '1.34';
 requires 'App::ansicolumn', '1.48';
-requires 'App::nup', '0.99';
+requires 'App::nup', '0.9906';
 requires 'Getopt::Long::Bash', '0.7.1';
 requires 'Getopt::EX::termcolor';
 

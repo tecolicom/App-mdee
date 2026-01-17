@@ -492,34 +492,17 @@ fi
 
 =head1 DESCRIPTION
 
-B<mdee> is a Markdown viewer command that combines L<greple(1)> for
-syntax highlighting with L<nup(1)> for multi-column paged output.
+B<mdee> is a multi-column Markdown viewer with syntax highlighting,
+combining L<greple(1)> for colorization and L<nup(1)> for paged output.
 
-It provides colorized display of Markdown files with support for:
-
-=over 4
-
-=item * Headers (h1-h5) with distinct styling
-
-=item * Bold text
-
-=item * Inline code (backticks)
-
-=item * Code blocks (fenced with ``` or ~~~)
-
-=item * HTML comments (dimmed)
-
-=item * Tables (formatted with ansicolumn)
-
-=item * List items with proper indentation
-
-=back
+Supported elements: headers (h1-h5), bold, strikethrough, inline code,
+code blocks, HTML comments, tables, and list items.
 
 This tool is designed for viewing Markdown files with long lines, such
 as output from LLMs (Large Language Models).  It applies syntax
 highlighting with line folding and table alignment, but does not reflow
 paragraphs with hard line breaks.  If you need a full Markdown renderer,
-you can use other viewers with L<nup(1)> for similar paged output
+use other viewers with L<nup(1)> for paged output
 (e.g., C<nup glow README.md>).
 
 =head1 OPTIONS
@@ -656,6 +639,12 @@ of the base color, which requires full color specifications.
 
 List built-in themes with color samples and exit.
 
+=back
+
+=head2 Highlight Options
+
+=over 4
+
 =item B<--enable>=I<FIELD,...>
 
 Enable only specified fields for highlighting.  All other fields are
@@ -709,8 +698,8 @@ Set the border style.
 
 =item B<--[no-]pager>[=I<COMMAND>]
 
-Set the pager command.  Use C<--pager> (without argument) or
-C<--no-pager> to disable pager.
+Set the pager command.  Use C<--pager=less> to specify a pager,
+or C<--no-pager> to disable paging.
 
 =back
 

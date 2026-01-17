@@ -37,24 +37,17 @@ Version 0.01
 
 # DESCRIPTION
 
-**mdee** is a Markdown viewer command that combines [greple(1)](http://man.he.net/man1/greple) for
-syntax highlighting with [nup(1)](http://man.he.net/man1/nup) for multi-column paged output.
+**mdee** is a multi-column Markdown viewer with syntax highlighting,
+combining [greple(1)](http://man.he.net/man1/greple) for colorization and [nup(1)](http://man.he.net/man1/nup) for paged output.
 
-It provides colorized display of Markdown files with support for:
-
-- Headers (h1-h5) with distinct styling
-- Bold text
-- Inline code (backticks)
-- Code blocks (fenced with \`\`\` or ~~~)
-- HTML comments (dimmed)
-- Tables (formatted with ansicolumn)
-- List items with proper indentation
+Supported elements: headers (h1-h5), bold, strikethrough, inline code,
+code blocks, HTML comments, tables, and list items.
 
 This tool is designed for viewing Markdown files with long lines, such
 as output from LLMs (Large Language Models).  It applies syntax
 highlighting with line folding and table alignment, but does not reflow
 paragraphs with hard line breaks.  If you need a full Markdown renderer,
-you can use other viewers with [nup(1)](http://man.he.net/man1/nup) for similar paged output
+use other viewers with [nup(1)](http://man.he.net/man1/nup) for paged output
 (e.g., `nup glow README.md`).
 
 # OPTIONS
@@ -169,6 +162,8 @@ bold text, etc.).
 
     List built-in themes with color samples and exit.
 
+## Highlight Options
+
 - **--enable**=_FIELD,..._
 
     Enable only specified fields for highlighting.  All other fields are
@@ -214,8 +209,8 @@ bold text, etc.).
 
 - **--\[no-\]pager**\[=_COMMAND_\]
 
-    Set the pager command.  Use `--pager` (without argument) or
-    `--no-pager` to disable pager.
+    Set the pager command.  Use `--pager=less` to specify a pager,
+    or `--no-pager` to disable paging.
 
 # EXAMPLES
 

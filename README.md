@@ -1,11 +1,11 @@
 
 # NAME
 
-mdv - Markdown viewer using greple and nup
+mdee - Markdown, Easy on the Eyes
 
 # SYNOPSIS
 
-    mdv [ options ] file ...
+    mdee [ options ] file ...
 
      -h  --help             show help
          --version          show version
@@ -31,7 +31,7 @@ Version 0.01
 
 # DESCRIPTION
 
-**mdv** is a Markdown viewer command that combines [greple(1)](http://man.he.net/man1/greple) for
+**mdee** is a Markdown viewer command that combines [greple(1)](http://man.he.net/man1/greple) for
 syntax highlighting with [nup(1)](http://man.he.net/man1/nup) for multi-column paged output.
 
 It provides colorized display of Markdown files with support for:
@@ -144,14 +144,14 @@ dedicated Markdown viewer instead.
 
 # EXAMPLES
 
-    mdv README.md              # view markdown file
-    mdv -C2 document.md        # 2-column view
-    mdv -G2x2 manual.md        # 2x2 grid (4-up)
-    mdv -w60 narrow.md         # narrower text width
-    mdv --no-pager file.md     # without pager
-    mdv --no-nup file.md       # output to stdout without nup
-    mdv --no-fold file.md      # disable line folding
-    mdv --no-table file.md     # disable table formatting
+    mdee README.md              # view markdown file
+    mdee -C2 document.md        # 2-column view
+    mdee -G2x2 manual.md        # 2x2 grid (4-up)
+    mdee -w60 narrow.md         # narrower text width
+    mdee --no-pager file.md     # without pager
+    mdee --no-nup file.md       # output to stdout without nup
+    mdee --no-fold file.md      # disable line folding
+    mdee --no-table file.md     # disable table formatting
 
 # DEPENDENCIES
 

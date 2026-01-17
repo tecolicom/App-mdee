@@ -1,7 +1,7 @@
-name           = "App-mdv"
-readme_from    = "script/mdv"
-authors_from   = "script/mdv"
-script_files   = [ "script/mdv" ]
+name           = "App-mdee"
+readme_from    = "script/mdee"
+authors_from   = "script/mdee"
+script_files   = [ "script/mdee" ]
 badges         = [ "github-actions/test", "metacpan" ]
 module_maker   = "ModuleBuildTiny"
 static_install = "auto"
@@ -9,8 +9,8 @@ static_install = "auto"
 [release]
 branch = "main"
 hooks = [
-    "perl -Ilib -MApp::mdv -i -pE 's/^\\s*Version \\K(\\d+(\\.\\d+)*)$/$App::mdv::VERSION/i' script/mdv",
-    "sed -i '' '/^1;$/q' lib/App/mdv.pm && greple -Mperl -h --nocolor :pod script/mdv >> lib/App/mdv.pm",
+    "perl -Ilib -MApp::mdee -i -pE 's/^\\s*Version \\K(\\d+(\\.\\d+)*)$/$App::mdee::VERSION/i' script/mdee",
+    "sed -i '' '/^1;$/q' lib/App/mdee.pm && greple -Mperl -h --nocolor :pod script/mdee >> lib/App/mdee.pm",
 ]
 
 [unsupported]

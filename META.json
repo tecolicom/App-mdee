@@ -1,5 +1,5 @@
 {
-   "abstract" : "Markdown viewer using greple and nup",
+   "abstract" : "Markdown, Easy on the Eyes",
    "author" : [
       "Kazumasa Utashiro"
    ],
@@ -12,7 +12,7 @@
       "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
       "version" : 2
    },
-   "name" : "App-mdv",
+   "name" : "App-mdee",
    "no_index" : {
       "directory" : [
          "t",

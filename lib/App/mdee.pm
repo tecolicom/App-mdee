@@ -1,4 +1,4 @@
-package App::mdv;
+package App::mdee;
 
 our $VERSION = "0.01";
 
@@ -7,7 +7,7 @@ our $VERSION = "0.01";
 
 =head1 NAME
 
-mdv - Markdown viewer using greple and nup
+mdee - Markdown, Easy on the Eyes
 
 =head1 AUTHOR
 

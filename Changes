@@ -2,4 +2,13 @@ Revision history for Perl extension App-mdee
 
 {{$NEXT}}
 
+0.01 2026-01-17T16:39:57Z
+
     - Initial release
+    - Multi-column Markdown viewer with syntax highlighting
+    - Support for headers, bold, strikethrough, inline code, code blocks,
+      HTML comments, tables, and list items
+    - Light/dark theme with automatic terminal detection
+    - Filter mode (-f) for highlight-only output
+    - --enable/--disable options for field control
+    - CommonMark-compliant code block detection (``` and ~~~)

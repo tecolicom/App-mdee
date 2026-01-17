@@ -112,7 +112,7 @@ declare -A theme_default_light=(
     [h4]='${base}UD'
     [h5]='${base}+l20;U'
     [inline_code]='/L23,/L23,/L23'
-    [code_block]='L20 , L20 , ${base}/L23;E , L20'
+    [code_block]='L20 , L18 , ${base}/L23;E , L20'
 )
 
 declare -A theme_default_dark=(
@@ -126,7 +126,7 @@ declare -A theme_default_dark=(
     [h4]='${base}UD'
     [h5]='${base}+l20;U'
     [inline_code]='/L05,/L05,/L05'
-    [code_block]='L10 , L10 , ${base}/L05;E , L10'
+    [code_block]='L10 , L12 , ${base}/L05;E , L10'
 )
 
 # Active color scheme (initialized from light theme)
@@ -372,8 +372,6 @@ expand_theme
 # Markdown highlighting with greple
 ##############################################################################
 
-ITEM_PREFIX='^\h*(?:[*-]|\d+\.)\h+'
-
 declare -a greple_opts=(-G --ci=G --all --need=0)
 
 # HTML comments (dimmed)
@@ -416,10 +414,15 @@ fi
 # Define each command as an array
 declare -a cmd_greple=(greple "${greple_opts[@]}" "$@")
 
+ITEM_PREFIX='^\h*(?:[*-]|\d+\.)\h+'
+DEF_PATTERN='(?:\A|\G\n|\n\n).+\n\n?(:\h+.*\n)'
+AUTOINDENT='^\h*(?:[*-]|\d+\.|:)\h+'
+
 declare -a cmd_fold=(
     greple
-    -Mtee "&ansifold" --crmode --autoindent="$ITEM_PREFIX" -sw${width} --
-    -E "${ITEM_PREFIX}.*\\n" --crmode --all --need=0 --no-color
+    -Mtee "&ansifold" --crmode --autoindent="$AUTOINDENT" -sw${width} --
+    -G -E "${ITEM_PREFIX}.*\\n" -E "${DEF_PATTERN}"
+    --crmode --all --need=0 --no-color
 )
 
 declare -a cmd_table=(

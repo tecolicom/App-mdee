@@ -49,6 +49,18 @@ print "Base color: $color\n";
 - Second item with **bold text**
 - Third item with a longer description that might wrap to multiple lines when displayed in a narrow terminal window
 
+## H2: Definition List Example
+
+greple
+: Pattern matching and highlighting tool with extensive regex support for syntax highlighting
+
+ansifold
+: ANSI-aware text folding utility that wraps long lines while preserving escape sequences and maintaining proper indentation
+
+Term with blank line
+
+: Definition after a blank line with `inline code` and **bold text** that might wrap to multiple lines
+
 <!-- This is an HTML comment that should be dimmed -->
 
 ### H3: Nested Content

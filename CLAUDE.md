@@ -145,18 +145,33 @@ The `-Mtee` module allows greple to pipe matched regions through external comman
 #### Text Folding with ansifold
 
 ```bash
+ITEM_PREFIX='^\h*(?:[*-]|\d+\.)\h+'
+DEF_PATTERN='(?:\A|\G\n|\n\n).+\n\n?(:\h+.*\n)'
+AUTOINDENT='^\h*(?:[*-]|\d+\.|:)\h+'
+
 greple \
-    -Mtee "&ansifold" --crmode --autoindent="$ITEM_PREFIX" -sw${width} -- \
-    -E "${ITEM_PREFIX}.*\\n" --crmode --all --need=0 --no-color
+    -Mtee "&ansifold" --crmode --autoindent="$AUTOINDENT" -sw${width} -- \
+    -GE "${ITEM_PREFIX}.*\\n" -E "${DEF_PATTERN}" \
+    --crmode --all --need=0 --no-color
 ```
 
 - `-Mtee`: Load tee module
 - `"&ansifold"`: Call ansifold as function (not subprocess)
 - `--crmode`: Handle carriage returns
-- `--autoindent="..."`: Auto-indent pattern for list items
+- `--autoindent="..."`: Auto-indent pattern for list items and definitions
 - `-sw${width}`: Silent mode with width
 - `--`: Separator between tee args and greple args
-- `-E "..."`: Pattern to match (list items)
+- `-GE "..."`: Pattern to match list items
+- `-E "..."`: Pattern to match definition lists
+
+##### Definition List Pattern
+
+`DEF_PATTERN='(?:\A|\G\n|\n\n).+\n\n?(:\h+.*\n)'`
+
+- `(?:\A|\G\n|\n\n)`: Start of file, or after previous match, or after blank line
+- `.+\n`: Term line
+- `\n?`: Optional blank line between term and definition
+- `(:\h+.*\n)`: Capture group for definition line (only this part is processed)
 
 #### Table Formatting with ansicolumn
 

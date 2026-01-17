@@ -39,6 +39,7 @@ subtest 'help option' => sub {
     like($out, qr/mdee.*Markdown/i, '--help shows description');
     like($out, qr/--mode/, '--help shows --mode option');
     like($out, qr/--theme/, '--help shows --theme option');
+    like($out, qr/--filter/, '--help shows --filter option');
     like($out, qr/\[no-\]fold/, '--help shows --fold option');
     like($out, qr/\[no-\]table/, '--help shows --table option');
     like($out, qr/\[no-\]nup/, '--help shows --nup option');
@@ -80,6 +81,14 @@ subtest 'no-fold option' => sub {
 subtest 'no-table option' => sub {
     my $out = `$mdee --dryrun --no-table $test_md 2>&1`;
     unlike($out, qr/ansicolumn/, '--no-table excludes ansicolumn from pipeline');
+};
+
+# Test: filter option
+subtest 'filter option' => sub {
+    my $out = `$mdee --dryrun -f $test_md 2>&1`;
+    unlike($out, qr/ansifold/, '-f disables fold');
+    unlike($out, qr/ansicolumn/, '-f disables table');
+    unlike($out, qr/\|\s*nup/, '-f disables nup');
 };
 
 # Test: list-themes option

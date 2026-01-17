@@ -23,6 +23,7 @@ mdee - Markdown, Easy on the Eyes
          --version          show version
      -d  --debug            debug level (repeatable)
      -n  --dryrun           dry-run mode
+     -f  --filter           filter mode (highlight only)
          --[no-]fold        line folding (default: on)
          --[no-]table       table formatting (default: on)
          --[no-]nup         nup paged output (default: on)
@@ -80,12 +81,13 @@ declare -A OPTS=(
     [      version |     !         # show version      ]=
     [        debug | d   +         # debug level       ]=0
     [       dryrun | n             # dry-run mode      ]=
+    [       filter | f   !         # filter mode       ]=
     [         fold |               # line folding      ]=1
     [        table |               # table formatting  ]=1
     [          nup |               # use nup           ]=1
     [        width | w  :=i        # fold width        ]=80
     [        theme | t  :          # color theme       ]=default
-    [         mode | m  :          # light or dark     ]=light
+    [         mode | m  :          # light or dark     ]=
     [   base-color | B  :          # base color        ]=
     [  list-themes |     !         # list themes       ]=
     [        pager |    ?!         # pager command     ]=
@@ -232,6 +234,12 @@ pager() {
     fi
 }
 
+filter() {
+    fold=
+    table=
+    nup=
+}
+
 show_theme_sample() {
     local name=$1
     local theme_mode=$2
@@ -340,13 +348,13 @@ load_config
 if [[ "$theme" == "default" && -n "${default_theme:-}" ]]; then
     theme="$default_theme"
 fi
-if [[ "$mode" == "light" && -n "${default_mode:-}" ]]; then
-    mode="$default_mode"
-elif [[ "$mode" == "light" ]]; then
-    # Try to detect mode from terminal background
-    detected_mode=$(detect_terminal_mode)
-    if [[ -n "$detected_mode" ]]; then
-        mode="$detected_mode"
+# Set mode: explicit option > config default > terminal detection > "light"
+if [[ -z "$mode" ]]; then
+    if [[ -n "${default_mode:-}" ]]; then
+        mode="$default_mode"
+    else
+        mode=$(detect_terminal_mode)
+        : ${mode:=light}
     fi
 fi
 
@@ -407,8 +415,9 @@ greple_opts+=(
 
 # Process files
 if (( $# == 0 )); then
-    # stdin mode (not supported yet)
-    die "stdin mode not supported, please specify file(s)"
+    if [[ ! ${filter:-} ]]; then
+        die "stdin mode not supported without -f option"
+    fi
 fi
 
 # Define each command as an array
@@ -514,6 +523,13 @@ increasing verbosity.
 =item B<-n>, B<--dryrun>
 
 Dry-run mode. Show the command without executing.
+
+=item B<-f>, B<--filter>
+
+Filter mode.  Reads from stdin (or files) and outputs highlighted
+Markdown to stdout.  Disables line folding, table formatting, and
+nup paged output.  Useful for piping Markdown content through mdee
+for syntax highlighting only.
 
 =back
 
@@ -672,6 +688,10 @@ C<--no-pager> to disable pager.
     mdee --no-nup file.md       # output to stdout without nup
     mdee --no-fold file.md      # disable line folding
     mdee --no-table file.md     # disable table formatting
+
+    # Filter mode
+    cat file.md | mdee -f       # highlight stdin
+    mdee -f file.md             # highlight only (no paging)
 
     # Theme examples
     mdee --mode=dark file.md             # use dark mode
@@ -834,7 +854,7 @@ Kazumasa Utashiro
 
 =head1 LICENSE
 
-Copyright 2025-2026 Kazumasa Utashiro.
+Copyright 2026 Kazumasa Utashiro.
 
 This software is released under the MIT License.
 L<https://opensource.org/licenses/MIT>

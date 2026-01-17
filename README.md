@@ -11,6 +11,7 @@ mdee - Markdown, Easy on the Eyes
          --version          show version
      -d  --debug            debug level (repeatable)
      -n  --dryrun           dry-run mode
+     -f  --filter           filter mode (highlight only)
          --[no-]fold        line folding (default: on)
          --[no-]table       table formatting (default: on)
          --[no-]nup         nup paged output (default: on)
@@ -72,6 +73,13 @@ dedicated Markdown viewer instead.
 - **-n**, **--dryrun**
 
     Dry-run mode. Show the command without executing.
+
+- **-f**, **--filter**
+
+    Filter mode.  Reads from stdin (or files) and outputs highlighted
+    Markdown to stdout.  Disables line folding, table formatting, and
+    nup paged output.  Useful for piping Markdown content through mdee
+    for syntax highlighting only.
 
 ## Processing Options
 
@@ -200,6 +208,10 @@ bold text, etc.).
     mdee --no-nup file.md       # output to stdout without nup
     mdee --no-fold file.md      # disable line folding
     mdee --no-table file.md     # disable table formatting
+
+    # Filter mode
+    cat file.md | mdee -f       # highlight stdin
+    mdee -f file.md             # highlight only (no paging)
 
     # Theme examples
     mdee --mode=dark file.md             # use dark mode
@@ -349,7 +361,7 @@ Kazumasa Utashiro
 
 # LICENSE
 
-Copyright 2025-2026 Kazumasa Utashiro.
+Copyright 2026 Kazumasa Utashiro.
 
 This software is released under the MIT License.
 [https://opensource.org/licenses/MIT](https://opensource.org/licenses/MIT)

@@ -69,6 +69,33 @@ flowchart LR
 
 Each stage is optional (`--[no-]fold`, `--[no-]table`, `--[no-]nup`).
 
+### Filter Mode
+
+The `-f` / `--filter` option enables filter mode for simple highlighting:
+
+```bash
+mdee -f file.md           # highlight only (no fold, table, nup)
+cat file.md | mdee -f     # highlight stdin
+mdee -f --fold file.md    # highlight + fold
+```
+
+Implementation uses a callback function:
+
+```bash
+[       filter | f   !         # filter mode       ]=
+
+filter() {
+    fold=
+    table=
+    nup=
+}
+```
+
+- The `!` marker triggers the callback when option is parsed
+- Callback sets fold, table, nup to empty (disabled)
+- Subsequent options (`--fold`, `--table`, `--nup`) can override
+- Order matters: `-f --fold` enables fold, `--fold -f` disables it
+
 ### Greple Options
 
 ```bash

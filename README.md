@@ -43,12 +43,12 @@ combining [greple(1)](http://man.he.net/man1/greple) for colorization and [nup(1
 Supported elements: headers (h1-h5), bold, strikethrough, inline code,
 code blocks, HTML comments, tables, and list items.
 
-This tool is designed for viewing Markdown files with long lines, such
-as output from LLMs (Large Language Models).  It applies syntax
-highlighting with line folding and table alignment, but does not reflow
-paragraphs with hard line breaks.  If you need a full Markdown renderer,
-use other viewers with [nup(1)](http://man.he.net/man1/nup) for paged output
-(e.g., `nup glow README.md`).
+This tool is designed for viewing Markdown not constrained by display
+formatting, such as output from LLMs (Large Language Models).  It applies
+syntax highlighting with line folding and table alignment, but does not
+reflow paragraphs with hard line breaks.  For full Markdown rendering,
+many other viewers are available.  Combine them with [nup(1)](http://man.he.net/man1/nup) for
+similar paged output (e.g., `nup glow README.md`).
 
 # OPTIONS
 

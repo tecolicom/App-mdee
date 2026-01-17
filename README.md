@@ -221,6 +221,124 @@ This command requires the following:
 - [Getopt::Long::Bash](https://metacpan.org/pod/Getopt%3A%3ALong%3A%3ABash) - bash option parsing
 - [Getopt::EX::termcolor](https://metacpan.org/pod/Getopt%3A%3AEX%3A%3Atermcolor) - terminal background detection
 
+# IMPLEMENTATION
+
+**mdee** is implemented as a Bash script that orchestrates multiple
+specialized tools into a unified pipeline.  The architecture follows
+Unix philosophy: each tool does one thing well, and they communicate
+through standard streams.
+
+The overall data flow is:
+
+    Input File
+        |
+        v
+    [greple] --- Syntax Highlighting
+        |
+        v
+    [ansifold] --- Text Folding (optional)
+        |
+        v
+    [ansicolumn] --- Table Formatting (optional)
+        |
+        v
+    [nup] --- Paged Output (optional)
+        |
+        v
+    Terminal/Pager
+
+## Pipeline Architecture
+
+**mdee** dynamically constructs a pipeline based on enabled options.
+Each stage is represented as a Bash array containing the command and
+its arguments.  The \`--dryrun\` option displays the constructed pipeline
+without execution.
+
+### Processing Stages
+
+The pipeline consists of four configurable stages.  Each stage can be
+enabled or disabled independently using \`--\[no-\]fold\`, \`--\[no-\]table\`,
+and \`--\[no-\]nup\` options.
+
+#### Syntax Highlighting
+
+The first stage uses [greple(1)](http://man.he.net/man1/greple) with the \`-G\` (grep mode) and
+\`--ci=G\` (capture index) options to apply different colors to each
+captured group in regular expressions.
+
+Supported Markdown elements:
+
+\- Headers (\`# h1\` through \`##### h5\`)
+\- Bold text (\`\*\*bold\*\*\`)
+\- Inline code (\`\` \`code\` \`\`)
+\- Code blocks (\`\`\` fenced \`\`\`)
+\- HTML comments (\`&lt;!-- comment -->\`)
+
+Color SpecificationsColors are specified using [Term::ANSIColor::Concise](https://metacpan.org/pod/Term%3A%3AANSIColor%3A%3AConcise) format.
+The \`--cm\` option maps colors to captured groups.  For example,
+\`L00DE/${base}\` specifies gray foreground on base-colored background.
+
+The color specification supports modifiers:
+
+\- \`+l10\` / \`-l10\`: Adjust lightness by percentage
+\- \`=l50\`: Set absolute lightness
+\- \`D\`: Bold, \`U\`: Underline, \`E\`: Erase line
+
+Example greple invocation:
+
+    greple -G --ci=G --all --need=0 \
+        --cm 'L00DE/${base}' -E '^#\h+.*' \
+        --cm '${base}D' -E '\*\*.*?\*\*' \
+        file.md
+
+#### Text Folding
+
+The second stage wraps long lines in list items using [ansifold(1)](http://man.he.net/man1/ansifold)
+via [Greple::tee](https://metacpan.org/pod/Greple%3A%3Atee).  It preserves ANSI escape sequences and maintains
+proper indentation for nested lists.
+
+The folding width is controlled by \`--width\` option (default: 80).
+
+#### Table Formatting
+
+The third stage formats Markdown tables using [ansicolumn(1)](http://man.he.net/man1/ansicolumn).
+Tables are detected by the pattern \`^(\\|.+\\|\\n){3,}\` and formatted
+with aligned columns while preserving ANSI colors.
+
+### Output Stage
+
+The final stage uses [nup(1)](http://man.he.net/man1/nup) to provide multi-column paged output.
+Layout options (\`--pane\`, \`--row\`, \`--grid\`, \`--page\`) are passed
+directly to nup.
+
+## Theme System
+
+**mdee** implements a theme system with light and dark mode variants.
+
+### Theme Structure
+
+Each theme is defined as a Bash associative array with color
+definitions for each Markdown element:
+
+    declare -A theme_default_dark=(
+        [base]='#CCCDFF'
+        [h1]='L00DE/${base}'
+        [h2]='L00DE/${base}-l10'
+        ...
+    )
+
+#### Base Color Expansion
+
+The \`${base}\` placeholder in color values is expanded after theme
+loading.  This allows derived colors to be calculated from a single
+base color, making theme customization easier.
+
+#### Terminal Mode Detection
+
+**mdee** uses [Getopt::EX::termcolor](https://metacpan.org/pod/Getopt%3A%3AEX%3A%3Atermcolor) to detect terminal background
+luminance.  If luminance is below 50%, dark mode is automatically
+selected.
+
 # SEE ALSO
 
 [nup(1)](http://man.he.net/man1/nup), [greple(1)](http://man.he.net/man1/greple), [ansifold(1)](http://man.he.net/man1/ansifold), [ansicolumn(1)](http://man.he.net/man1/ansicolumn)

@@ -105,26 +105,28 @@ declare -A theme_default_light=(
     [base]='<NavyBlue>'
     [comment]='${base}+r60'
     [bold]='${base}D'
+    [strike]='X'
     [h1]='L25DE/${base}'
     [h2]='L25DE/${base}+l10'
     [h3]='L00DN/${base}=l93'
     [h4]='${base}UD'
     [h5]='${base}+l20;U'
     [inline_code]='/L23,/L23,/L23'
-    [code_block]='L20 , ${base}=l85 , ${base}/L23;E , L20'
+    [code_block]='L20 , L20 , ${base}/L23;E , L20'
 )
 
 declare -A theme_default_dark=(
     [base]='#CCCDFF'
     [comment]='${base}+r60'
     [bold]='${base}D'
+    [strike]='X'
     [h1]='L00DE/${base}'
-    [h2]='L00DE/${base}-l3'
-    [h3]='L00DN/${base}-l7'
+    [h2]='L00DE/${base}-l10'
+    [h3]='L00DN/${base}-l15'
     [h4]='${base}UD'
     [h5]='${base}+l20;U'
     [inline_code]='/L05,/L05,/L05'
-    [code_block]='L25 , ${base}-l5 , ${base}/L05;E , L25'
+    [code_block]='L10 , L10 , ${base}/L05;E , L10'
 )
 
 # Active color scheme (initialized from light theme)
@@ -379,6 +381,9 @@ greple_opts+=(--cm "${colors[comment]}" -E '<!--.*?-->')
 
 # Bold text
 greple_opts+=(--cm "${colors[bold]}" -E '\*\*.*?\*\*')
+
+# Strikethrough
+greple_opts+=(--cm "${colors[strike]}" -E '~~.+?~~')
 
 # Headers (h1-h5)
 greple_opts+=(
@@ -695,6 +700,126 @@ This command requires the following:
 =item * L<Getopt::EX::termcolor> - terminal background detection
 
 =back
+
+=head1 IMPLEMENTATION
+
+B<mdee> is implemented as a Bash script that orchestrates multiple
+specialized tools into a unified pipeline.  The architecture follows
+Unix philosophy: each tool does one thing well, and they communicate
+through standard streams.
+
+The overall data flow is:
+
+    Input File
+        |
+        v
+    [greple] --- Syntax Highlighting
+        |
+        v
+    [ansifold] --- Text Folding (optional)
+        |
+        v
+    [ansicolumn] --- Table Formatting (optional)
+        |
+        v
+    [nup] --- Paged Output (optional)
+        |
+        v
+    Terminal/Pager
+
+=head2 Pipeline Architecture
+
+B<mdee> dynamically constructs a pipeline based on enabled options.
+Each stage is represented as a Bash array containing the command and
+its arguments.  The `--dryrun` option displays the constructed pipeline
+without execution.
+
+=head3 Processing Stages
+
+The pipeline consists of four configurable stages.  Each stage can be
+enabled or disabled independently using `--[no-]fold`, `--[no-]table`,
+and `--[no-]nup` options.
+
+=head4 Syntax Highlighting
+
+The first stage uses L<greple(1)> with the `-G` (grep mode) and
+`--ci=G` (capture index) options to apply different colors to each
+captured group in regular expressions.
+
+Supported Markdown elements:
+
+- Headers (`# h1` through `##### h5`)
+- Bold text (`**bold**`)
+- Inline code (`` `code` ``)
+- Code blocks (``` fenced ```)
+- HTML comments (`<!-- comment -->`)
+
+=head5 Color Specifications
+
+Colors are specified using L<Term::ANSIColor::Concise> format.
+The `--cm` option maps colors to captured groups.  For example,
+`L00DE/${base}` specifies gray foreground on base-colored background.
+
+The color specification supports modifiers:
+
+- `+l10` / `-l10`: Adjust lightness by percentage
+- `=l50`: Set absolute lightness
+- `D`: Bold, `U`: Underline, `E`: Erase line
+
+Example greple invocation:
+
+    greple -G --ci=G --all --need=0 \
+        --cm 'L00DE/${base}' -E '^#\h+.*' \
+        --cm '${base}D' -E '\*\*.*?\*\*' \
+        file.md
+
+=head4 Text Folding
+
+The second stage wraps long lines in list items using L<ansifold(1)>
+via L<Greple::tee>.  It preserves ANSI escape sequences and maintains
+proper indentation for nested lists.
+
+The folding width is controlled by `--width` option (default: 80).
+
+=head4 Table Formatting
+
+The third stage formats Markdown tables using L<ansicolumn(1)>.
+Tables are detected by the pattern `^(\|.+\|\n){3,}` and formatted
+with aligned columns while preserving ANSI colors.
+
+=head3 Output Stage
+
+The final stage uses L<nup(1)> to provide multi-column paged output.
+Layout options (`--pane`, `--row`, `--grid`, `--page`) are passed
+directly to nup.
+
+=head2 Theme System
+
+B<mdee> implements a theme system with light and dark mode variants.
+
+=head3 Theme Structure
+
+Each theme is defined as a Bash associative array with color
+definitions for each Markdown element:
+
+    declare -A theme_default_dark=(
+        [base]='#CCCDFF'
+        [h1]='L00DE/${base}'
+        [h2]='L00DE/${base}-l10'
+        ...
+    )
+
+=head4 Base Color Expansion
+
+The `${base}` placeholder in color values is expanded after theme
+loading.  This allows derived colors to be calculated from a single
+base color, making theme customization easier.
+
+=head4 Terminal Mode Detection
+
+B<mdee> uses L<Getopt::EX::termcolor> to detect terminal background
+luminance.  If luminance is below 50%, dark mode is automatically
+selected.
 
 =head1 SEE ALSO
 

@@ -24,8 +24,17 @@ mdee (Markdown, Easy on the Eyes) is a Markdown viewer command implemented as a 
 ### Theme System
 
 Themes are defined as Bash associative arrays:
-- `theme_default_light` - Light mode theme
-- `theme_default_dark` - Dark mode theme
+- `theme_default_light` - Light mode theme (full definition)
+- `theme_default_dark` - Dark mode theme (only differences from light)
+
+Dark theme inherits from light theme:
+
+```bash
+# After defining theme_default_dark with only different values
+for k in "${!theme_default_light[@]}"; do
+    [[ -v theme_default_dark[$k] ]] || theme_default_dark[$k]=${theme_default_light[$k]}
+done
+```
 
 Field names are derived from theme keys (excluding `base`):
 
@@ -108,13 +117,14 @@ filter() {
 ### Greple Options
 
 ```bash
-greple_opts=(-G --ci=G --all --need=0)
+greple_opts=(-G --ci=G --all --need=0 --filestyle=once --color=always --prologue "$osc8_prologue")
 ```
 
 - `-G`: Grep mode (line-based matching)
 - `--ci=G`: Capture index mode - each captured group gets separate color
 - `--all`: Output all lines (not just matches)
 - `--need=0`: Output even if no matches
+- `--prologue`: Define functions before processing (used for `osc8` function)
 
 ### Color Mapping with --cm
 
@@ -291,16 +301,46 @@ add_pattern bold '(?<!\\)\*\*.*?(?<!\\)\*\*'
 add_pattern bold '(?<!\\)(?<!\w)__.*?(?<!\\)__(?!\w)'
 
 # Italic: * and _
-add_pattern italic '(?<!\\)(?<!\w)_[^_]+(?<!\\)_(?!\w)'
-add_pattern italic '(?<!\\)(?<!\*)\*(?!\*)[^*]+(?<!\\)\*(?!\*)'
+add_pattern italic '(?<!\\)(?<!\w)_(?:(?!_).)+(?<!\\)_(?!\w)'
+add_pattern italic '(?<!\\)(?<!\*)\*(?:(?!\*).)+(?<!\\)\*(?!\*)'
 ```
 
 Key rules:
 - `(?<!\\)`: Not preceded by backslash (escape handling)
 - `(?<!\w)` / `(?!\w)`: Word boundaries for `_` (prevents `foo_bar_baz` matching)
 - `(?<!\*)` / `(?!\*)`: Not adjacent to `*` (distinguishes `*italic*` from `**bold**`)
+- `(?:(?!\*).)+`: Match any character except `*`, and `.` excludes newlines (single-line only)
 - `__` requires word boundaries (same as `_`)
 - `**` doesn't require word boundaries (can be used mid-word)
+
+### OSC 8 Hyperlinks
+
+Links are converted to [OSC 8 terminal hyperlinks](https://gist.github.com/egmontkob/eb114294efbcd5adb1944c9f3cb5feda) for clickable URLs:
+
+```bash
+# Define osc8 function via --prologue
+osc8_prologue='sub{ sub osc8 { sprintf "\e]8;;%2\$s\e\\%1\$s\e]8;;\e\\", @_ } }'
+
+# Color functions using named captures
+link_func='sub{ s/\[(?<text>.+?)\]\((?<url>.+?)\)/osc8("[$+{text}]",$+{url})/er }'
+image_func='sub{ s/!\[(?<alt>.+?)\]\((?<url>.+?)\)/osc8("![$+{alt}]",$+{url})/er }'
+image_link_func='sub{ s/\[!\[(?<alt>.+?)\]\(.+?\)\]\((?<url>.+?)\)/osc8("![$+{alt}]",$+{url})/er }'
+```
+
+Three link patterns:
+
+| Pattern | Input | Output | Link Target |
+|---------|-------|--------|-------------|
+| link | `[text](url)` | `[text]` | url |
+| image | `![alt](img)` | `![alt]` | img |
+| image_link | `[![alt](img)](url)` | `![alt]` | url |
+
+OSC 8 format: `\e]8;;URL\e\TEXT\e]8;;\e\`
+- `\e]8;;URL\e\` - Start hyperlink with URL
+- `TEXT` - Displayed text
+- `\e]8;;\e\` - End hyperlink
+
+The `osc8` function uses sprintf with positional arguments (`%2$s`, `%1$s`) to reorder text and URL.
 
 ### Mode Detection with [Getopt::EX::termcolor](https://metacpan.org/pod/Getopt::EX::termcolor)
 
@@ -388,6 +428,28 @@ Sources the library with OPTS array name and arguments.
 - App::ansiecho - Color output
 - Getopt::Long::Bash - Option parsing
 - Getopt::EX::termcolor - Terminal detection
+
+## Limitations
+
+### HTML Comments
+
+Only HTML comments starting at the beginning of a line are highlighted. Inline comments are not matched to avoid conflicts with inline code containing comment-like text (e.g., `` `<!-->` ``).
+
+### Emphasis (Bold/Italic)
+
+Emphasis patterns do not span multiple lines. Multi-line bold or italic text is not supported.
+
+### Links
+
+Link patterns do not span multiple lines. The link text and URL must be on the same line.
+
+Reference-style links (`[text][ref]` with `[ref]: url` elsewhere) are not supported.
+
+### OSC 8 Hyperlinks
+
+OSC 8 hyperlinks require terminal support. Compatible terminals include iTerm2, Kitty, WezTerm, Ghostty, and recent versions of GNOME Terminal. Apple's default Terminal.app does not support OSC 8.
+
+When using `less` as pager, version 566 or later is required with `-R` option.
 
 ## Build & Release
 

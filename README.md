@@ -296,18 +296,18 @@ captured group in regular expressions.
 
 Supported Markdown elements:
 
-\- Headers (\`# h1\` through \`###### h6\`)
-\- Bold text (\`\*\*bold\*\*\` or \`\_\_bold\_\_\`)
-\- Italic text (\`\*italic\*\` or \`\_italic\_\`)
-\- Inline code (\`\` \`code\` \`\`)
-\- Code blocks (fenced with \`\`\` or ~~~)
-\- HTML comments (\`&lt;!-- comment -->\`)
+- Headers (`# h1` through `###### h6`)
+- Bold text (`**bold**` or `__bold__`)
+- Italic text (`*italic*` or `_italic_`)
+- Inline code (`` `code` ``)
+- Code blocks (fenced with ```` ``` ```` or `~~~`)
+- HTML comments (`<!-- comment -->`)
 
 Code block detection follows the CommonMark specification:
 
-\- Opening fence: 0-3 spaces indentation, then 3+ backticks or tildes
-\- Closing fence: 0-3 spaces indentation, same character, same or more count
-\- Backticks and tildes cannot be mixed (\`\`\` must close with \`\`\`)
+- Opening fence: 0-3 spaces indentation, then 3+ backticks or tildes
+- Closing fence: 0-3 spaces indentation, same character, same or more count
+- Backticks and tildes cannot be mixed (```` ``` ```` must close with ```` ``` ````)
 
 Color SpecificationsColors are specified using [Term::ANSIColor::Concise](https://metacpan.org/pod/Term%3A%3AANSIColor%3A%3AConcise) format.
 The \`--cm\` option maps colors to captured groups.  For example,
@@ -315,9 +315,9 @@ The \`--cm\` option maps colors to captured groups.  For example,
 
 The color specification supports modifiers:
 
-\- \`+l10\` / \`-l10\`: Adjust lightness by percentage
-\- \`=l50\`: Set absolute lightness
-\- \`D\`: Bold, \`U\`: Underline, \`E\`: Erase line
+- `+l10` / `-l10`: Adjust lightness by percentage
+- `=l50`: Set absolute lightness
+- `D`: Bold, `U`: Underline, `E`: Erase line
 
 Example greple invocation:
 
@@ -373,6 +373,37 @@ base color, making theme customization easier.
 **mdee** uses [Getopt::EX::termcolor](https://metacpan.org/pod/Getopt%3A%3AEX%3A%3Atermcolor) to detect terminal background
 luminance.  If luminance is below 50%, dark mode is automatically
 selected.
+
+# LIMITATIONS
+
+## HTML Comments
+
+Only HTML comments starting at the beginning of a line are highlighted.
+Inline comments are not matched to avoid conflicts with inline code
+containing comment-like text (e.g., `` `<!-->` ``).
+
+## Emphasis
+
+Emphasis patterns (bold and italic) do not span multiple lines.
+Multi-line emphasis text is not supported.
+
+## Links
+
+Link patterns do not span multiple lines.  The link text and URL must
+be on the same line.
+
+Reference-style links (`[text][ref]` with `[ref]: url` elsewhere)
+are not supported.
+
+## OSC 8 Hyperlinks
+
+Links are converted to OSC 8 terminal hyperlinks for clickable URLs.
+This requires terminal support.  Compatible terminals include iTerm2,
+Kitty, WezTerm, Ghostty, and recent versions of GNOME Terminal.
+Apple's default Terminal.app does not support OSC 8.
+
+When using `less` as pager, version 566 or later is required with
+`-R` option.
 
 # SEE ALSO
 

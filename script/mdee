@@ -106,12 +106,21 @@ declare -A OPTS=(
 # Built-in themes
 ##############################################################################
 
+# Common color functions
+osc8_prologue='sub{ sub osc8 { sprintf "\e]8;;%2\$s\e\\%1\$s\e]8;;\e\\", @_ } }'
+link_func='sub{ s/\[(?<text>.+?)\]\((?<url>.+?)\)/osc8("[$+{text}]",$+{url})/er }'
+image_func='sub{ s/!\[(?<alt>.+?)\]\((?<url>.+?)\)/osc8("![$+{alt}]",$+{url})/er }'
+image_link_func='sub{ s/\[!\[(?<alt>.+?)\]\(.+?\)\]\((?<url>.+?)\)/osc8("![$+{alt}]",$+{url})/er }'
+
 declare -A theme_default_light=(
     [base]='<NavyBlue>'
     [comment]='${base}+r60'
     [bold]='${base}D'
     [strike]='X'
     [italic]='I'
+    [link]="$link_func"
+    [image]="$image_func"
+    [image_link]="$image_link_func"
     [h1]='L25DE/${base}'
     [h2]='L25DE/${base}+l10'
     [h3]='L00DN/${base}=l93'
@@ -128,19 +137,15 @@ done
 
 declare -A theme_default_dark=(
     [base]='#CCCDFF'
-    [comment]='${base}+r60'
-    [bold]='${base}D'
-    [strike]='X'
-    [italic]='I'
     [h1]='L00DE/${base}'
     [h2]='L00DE/${base}-l10'
     [h3]='L00DN/${base}-l15'
-    [h4]='${base}UD'
-    [h5]='${base}+l20;U'
-    [h6]='${base}+l20'
     [inline_code]='/L05,/L05,/L05'
     [code_block]='L10 , L12 , ${base}/L05;E , L10'
 )
+for k in "${!theme_default_light[@]}"; do
+    [[ -v theme_default_dark[$k] ]] || theme_default_dark[$k]=${theme_default_light[$k]}
+done
 
 # Active color scheme
 declare -A colors
@@ -386,7 +391,7 @@ done
 # Markdown highlighting with greple
 ##############################################################################
 
-declare -a greple_opts=(-G --ci=G --all --need=0 --filestyle=once --color=always)
+declare -a greple_opts=(-G --ci=G --all --need=0 --filestyle=once --color=always --prologue "$osc8_prologue")
 
 add_pattern() {
     local name=$1 pattern=$2
@@ -395,11 +400,11 @@ add_pattern() {
     [[ $val && $val != 0 ]] && greple_opts+=(--cm "${colors[$name]}" -E "$pattern") || :
 }
 
-add_pattern comment   '<!--.*?-->'
+add_pattern comment   '^<!--(?![->])(?s:.+?)-->'
 add_pattern bold      '(?<!\\)\*\*.*?(?<!\\)\*\*'
 add_pattern bold      '(?<!\\)(?<!\w)__.*?(?<!\\)__(?!\w)'
-add_pattern italic    '(?<!\\)(?<!\w)_[^_]+(?<!\\)_(?!\w)'
-add_pattern italic    '(?<!\\)(?<!\*)\*(?!\*)[^*]+(?<!\\)\*(?!\*)'
+add_pattern italic    '(?<!\\)(?<!\w)_(?:(?!_).)+(?<!\\)_(?!\w)'
+add_pattern italic    '(?<!\\)(?<!\*)\*(?:(?!\*).)+(?<!\\)\*(?!\*)'
 add_pattern strike    '~~.+?~~'
 add_pattern h1        '^#\h+.*'
 add_pattern h2        '^##\h+.*'
@@ -408,6 +413,9 @@ add_pattern h4        '^####\h+.*'
 add_pattern h5        '^#####+.*'
 add_pattern inline_code '(?<bt>`++)((?:(?!\g{bt}).)++)(\g{bt})'
 add_pattern code_block  '^ {0,3}(?<bt>`{3,}+|~{3,}+)(.*)\n((?s:.*?))^ {0,3}(\g{bt})'
+add_pattern image_link  '\[!\[[^\]\n]+\]\([^)\n]+\)\]\(<?[^>)\s\n]+>?\)'
+add_pattern image       '!\[[^\]\n]+\]\(<?[^>)\s\n]+>?\)'
+add_pattern link        '(?<!!)\[[^\]\n]+\]\(<?[^>)\s\n]+>?\)'
 
 ##############################################################################
 # Build command pipeline
@@ -775,18 +783,33 @@ captured group in regular expressions.
 
 Supported Markdown elements:
 
-- Headers (`# h1` through `###### h6`)
-- Bold text (`**bold**` or `__bold__`)
-- Italic text (`*italic*` or `_italic_`)
-- Inline code (`` `code` ``)
-- Code blocks (fenced with ``` or ~~~)
-- HTML comments (`<!-- comment -->`)
+=over 4
+
+=item * Headers (C<# h1> through C<###### h6>)
+
+=item * Bold text (C<**bold**> or C<__bold__>)
+
+=item * Italic text (C<*italic*> or C<_italic_>)
+
+=item * Inline code (C<`code`>)
+
+=item * Code blocks (fenced with C<```> or C<~~~>)
+
+=item * HTML comments (C<< <!-- comment --> >>)
+
+=back
 
 Code block detection follows the CommonMark specification:
 
-- Opening fence: 0-3 spaces indentation, then 3+ backticks or tildes
-- Closing fence: 0-3 spaces indentation, same character, same or more count
-- Backticks and tildes cannot be mixed (``` must close with ```)
+=over 4
+
+=item * Opening fence: 0-3 spaces indentation, then 3+ backticks or tildes
+
+=item * Closing fence: 0-3 spaces indentation, same character, same or more count
+
+=item * Backticks and tildes cannot be mixed (C<```> must close with C<```>)
+
+=back
 
 =head5 Color Specifications
 
@@ -796,9 +819,15 @@ The `--cm` option maps colors to captured groups.  For example,
 
 The color specification supports modifiers:
 
-- `+l10` / `-l10`: Adjust lightness by percentage
-- `=l50`: Set absolute lightness
-- `D`: Bold, `U`: Underline, `E`: Erase line
+=over 4
+
+=item * C<+l10> / C<-l10>: Adjust lightness by percentage
+
+=item * C<=l50>: Set absolute lightness
+
+=item * C<D>: Bold, C<U>: Underline, C<E>: Erase line
+
+=back
 
 Example greple invocation:
 
@@ -854,6 +883,37 @@ base color, making theme customization easier.
 B<mdee> uses L<Getopt::EX::termcolor> to detect terminal background
 luminance.  If luminance is below 50%, dark mode is automatically
 selected.
+
+=head1 LIMITATIONS
+
+=head2 HTML Comments
+
+Only HTML comments starting at the beginning of a line are highlighted.
+Inline comments are not matched to avoid conflicts with inline code
+containing comment-like text (e.g., C<< `<!-->` >>).
+
+=head2 Emphasis
+
+Emphasis patterns (bold and italic) do not span multiple lines.
+Multi-line emphasis text is not supported.
+
+=head2 Links
+
+Link patterns do not span multiple lines.  The link text and URL must
+be on the same line.
+
+Reference-style links (C<[text][ref]> with C<[ref]: url> elsewhere)
+are not supported.
+
+=head2 OSC 8 Hyperlinks
+
+Links are converted to OSC 8 terminal hyperlinks for clickable URLs.
+This requires terminal support.  Compatible terminals include iTerm2,
+Kitty, WezTerm, Ghostty, and recent versions of GNOME Terminal.
+Apple's default Terminal.app does not support OSC 8.
+
+When using C<less> as pager, version 566 or later is required with
+C<-R> option.
 
 =head1 SEE ALSO
 

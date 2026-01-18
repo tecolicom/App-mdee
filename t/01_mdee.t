@@ -147,21 +147,21 @@ subtest 'show option' => sub {
         return () = ($first_cmd // '') =~ /-E/g;
     }
 
-    # all fields enabled by default (13 patterns)
+    # all fields enabled by default (16 patterns)
     my $default = `$mdee --dryrun $test_md 2>&1`;
-    is(count_patterns($default), 13, 'default has 13 patterns');
+    is(count_patterns($default), 16, 'default has 16 patterns');
 
-    # --show italic=0 disables italic (11 patterns: 13 - 2 italic patterns)
+    # --show italic=0 disables italic (14 patterns: 16 - 2 italic patterns)
     my $no_italic = `$mdee --dryrun --show italic=0 $test_md 2>&1`;
-    is(count_patterns($no_italic), 11, '--show italic=0 removes 2 patterns');
+    is(count_patterns($no_italic), 14, '--show italic=0 removes 2 patterns');
 
-    # --show bold=0 disables bold (11 patterns: 13 - 2 bold patterns)
+    # --show bold=0 disables bold (14 patterns: 16 - 2 bold patterns)
     my $no_bold = `$mdee --dryrun --show bold=0 $test_md 2>&1`;
-    is(count_patterns($no_bold), 11, '--show bold=0 removes 2 patterns');
+    is(count_patterns($no_bold), 14, '--show bold=0 removes 2 patterns');
 
-    # --show all enables all fields (13 patterns)
+    # --show all enables all fields (16 patterns)
     my $all = `$mdee --dryrun --show all $test_md 2>&1`;
-    is(count_patterns($all), 13, '--show all has 13 patterns');
+    is(count_patterns($all), 16, '--show all has 16 patterns');
 
     # --show all= --show bold enables only bold (2 patterns)
     my $only_bold = `$mdee --dryrun '--show=all=' --show=bold $test_md 2>&1`;

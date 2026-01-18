@@ -386,7 +386,7 @@ done
 # Markdown highlighting with greple
 ##############################################################################
 
-declare -a greple_opts=(-G --ci=G --all --need=0 --filestyle=once)
+declare -a greple_opts=(-G --ci=G --all --need=0 --filestyle=once --color=always)
 
 add_pattern() {
     local name=$1 pattern=$2

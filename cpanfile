@@ -1,4 +1,4 @@
-requires 'perl', '5.016';
+requires 'perl', '5.024';
 requires 'App::Greple', '10.02';
 requires 'App::Greple::tee', '1.04';
 requires 'App::ansiecho';

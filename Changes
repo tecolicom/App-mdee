@@ -2,6 +2,16 @@ Revision history for Perl extension App-mdee
 
 {{$NEXT}}
 
+0.03 2026-01-18T08:47:55Z
+
+    - Add OSC 8 terminal hyperlinks for links, images, and image links
+    - Fix italic patterns to not match across multiple lines
+    - Restrict comment pattern to line-start only (avoid inline code conflicts)
+    - Fix link patterns to not span multiple lines
+    - Refactor theme: dark theme inherits undefined keys from light theme
+    - Add LIMITATIONS section to documentation
+    - Require Text::ANSI::Fold 2.32 for OSC 8 hyperlink support
+
 0.02 2026-01-18T02:51:12Z
 
     - Replace --enable/--disable with --show option for field visibility control

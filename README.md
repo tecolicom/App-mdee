@@ -21,8 +21,7 @@ mdee - Markdown, Easy on the Eyes
      -B  --base-color=#     override theme's base color
                             (e.g., <Red>, #FF5733, hsl(0,100,50))
          --list-themes      list built-in themes
-         --enable=#         enable only specified fields
-         --disable=#        disable specified fields
+         --show=#           set field visibility (e.g., italic=1)
      -C  --pane=#           number of columns
      -R  --row=#            number of rows
      -G  --grid=#           grid layout (e.g., 2x3)
@@ -40,8 +39,8 @@ Version 0.01
 **mdee** is a multi-column Markdown viewer with syntax highlighting,
 combining [greple(1)](http://man.he.net/man1/greple) for colorization and [nup(1)](http://man.he.net/man1/nup) for paged output.
 
-Supported elements: headers (h1-h5), bold, strikethrough, inline code,
-code blocks, HTML comments, tables, and list items.
+Supported elements: headers (h1-h6), bold, italic, strikethrough,
+inline code, code blocks, HTML comments, tables, and list items.
 
 This tool is designed for viewing Markdown not constrained by display
 formatting, such as output from LLMs (Large Language Models).  It applies
@@ -164,20 +163,23 @@ bold text, etc.).
 
 ## Highlight Options
 
-- **--enable**=_FIELD,..._
+- **--show**=_FIELD_\[=_VALUE_\],...
 
-    Enable only specified fields for highlighting.  All other fields are
-    disabled.  Multiple fields can be specified with commas or by repeating
-    the option.
+    Control field visibility for highlighting.  Empty value or `0` disables
+    the field; any other value (including `1`) enables it.
 
-    Available fields: `comment`, `bold`, `strike`, `h1`, `h2`, `h3`,
-    `h4`, `h5`, `inline_code`, `code_block`.
+        --show italic           # enable italic
+        --show bold=0           # disable bold
+        --show all              # enable all fields
+        --show all= --show bold # disable all, then enable only bold
 
-- **--disable**=_FIELD,..._
+    Multiple fields can be specified with commas or by repeating the option.
+    The special field `all` affects all fields and is processed first.
 
-    Disable specified fields from highlighting.  All other fields remain
-    enabled.  Multiple fields can be specified with commas or by repeating
-    the option.
+    Available fields: `comment`, `bold`, `italic`, `strike`, `h1`,
+    `h2`, `h3`, `h4`, `h5`, `h6`, `inline_code`, `code_block`.
+
+    All fields are enabled by default.
 
 ## Layout Options (passed to nup)
 
@@ -294,8 +296,9 @@ captured group in regular expressions.
 
 Supported Markdown elements:
 
-\- Headers (\`# h1\` through \`##### h5\`)
-\- Bold text (\`\*\*bold\*\*\`)
+\- Headers (\`# h1\` through \`###### h6\`)
+\- Bold text (\`\*\*bold\*\*\` or \`\_\_bold\_\_\`)
+\- Italic text (\`\*italic\*\` or \`\_italic\_\`)
 \- Inline code (\`\` \`code\` \`\`)
 \- Code blocks (fenced with \`\`\` or ~~~)
 \- HTML comments (\`&lt;!-- comment -->\`)

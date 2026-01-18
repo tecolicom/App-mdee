@@ -104,4 +104,38 @@ subtest 'width option' => sub {
     like($out, qr/-sw60/, '--width=60 sets fold width');
 };
 
+# Test: show option
+subtest 'show option' => sub {
+    # Count -E options in first greple command (before first pipe)
+    sub count_patterns {
+        my $out = shift;
+        my ($first_cmd) = $out =~ /^(.*?)\s+\|/s;
+        return () = ($first_cmd // '') =~ /-E/g;
+    }
+
+    # all fields enabled by default (13 patterns)
+    my $default = `$mdee --dryrun $test_md 2>&1`;
+    is(count_patterns($default), 13, 'default has 13 patterns');
+
+    # --show italic=0 disables italic (11 patterns: 13 - 2 italic patterns)
+    my $no_italic = `$mdee --dryrun --show italic=0 $test_md 2>&1`;
+    is(count_patterns($no_italic), 11, '--show italic=0 removes 2 patterns');
+
+    # --show bold=0 disables bold (11 patterns: 13 - 2 bold patterns)
+    my $no_bold = `$mdee --dryrun --show bold=0 $test_md 2>&1`;
+    is(count_patterns($no_bold), 11, '--show bold=0 removes 2 patterns');
+
+    # --show all enables all fields (13 patterns)
+    my $all = `$mdee --dryrun --show all $test_md 2>&1`;
+    is(count_patterns($all), 13, '--show all has 13 patterns');
+
+    # --show all= --show bold enables only bold (2 patterns)
+    my $only_bold = `$mdee --dryrun '--show=all=' --show=bold $test_md 2>&1`;
+    is(count_patterns($only_bold), 2, '--show all= --show bold has 2 patterns');
+
+    # unknown field should error
+    my $unknown = `$mdee --dryrun --show unknown $test_md 2>&1`;
+    like($unknown, qr/unknown field/, '--show unknown produces error');
+};
+
 done_testing;

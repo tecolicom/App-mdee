@@ -1,6 +1,6 @@
 # H1: mdee Test Document
 
-This is a test file for checking **bold text** and `inline code` styles.
+This is a test file for checking **bold text**, __also bold__, _italic text_, *also italic*, and `inline code` styles.
 
 ## H2: Pipeline Architecture
 
@@ -73,7 +73,7 @@ Four-space indented fence becomes content (CommonMark rule):
 ## H2: List Example
 
 - First item with `inline code`
-- Second item with **bold text**
+- Second item with **bold text** and _italic_
 - Third item with a longer description that might wrap to multiple lines when displayed in a narrow terminal window
 
 ## H2: Definition List Example
@@ -92,7 +92,7 @@ Term with blank line
 
 ### H3: Nested Content
 
-Some text with `multiple` inline `code` segments and **bold** words.
+Some text with `multiple` inline `code` segments, **bold** words, and _italic_ text.
 
 #### H4: More Details
 

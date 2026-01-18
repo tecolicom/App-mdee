@@ -33,8 +33,7 @@ mdee - Markdown, Easy on the Eyes
      -B  --base-color=#     override theme's base color
                             (e.g., <Red>, #FF5733, hsl(0,100,50))
          --list-themes      list built-in themes
-         --enable=#         enable only specified fields
-         --disable=#        disable specified fields
+         --show=#           set field visibility (e.g., italic=1)
      -C  --pane=#           number of columns
      -R  --row=#            number of rows
      -G  --grid=#           grid layout (e.g., 2x3)
@@ -76,6 +75,7 @@ Usage: $myname [ options ] file ...
 END
 
 declare -a nup_opts=(--document --no-filename)
+declare -A show=()
 
 declare -A OPTS=(
     [&REQUIRE]=0.7.1 [&USAGE]="$USAGE"
@@ -92,8 +92,7 @@ declare -A OPTS=(
     [         mode | m  :          # light or dark     ]=
     [   base-color | B  :          # base color        ]=
     [  list-themes |     !         # list themes       ]=
-    [      disable |    @          # disable fields    ]=
-    [       enable |    @          # enable fields     ]=
+    [         show |   %!          # field visibility   ]=
     [        pager |    ?!         # pager command     ]=
     [         grid | G  :>nup_opts # grid layout       ]=
     [         pane | C  :>nup_opts # number of columns ]=
@@ -112,25 +111,33 @@ declare -A theme_default_light=(
     [comment]='${base}+r60'
     [bold]='${base}D'
     [strike]='X'
+    [italic]='I'
     [h1]='L25DE/${base}'
     [h2]='L25DE/${base}+l10'
     [h3]='L00DN/${base}=l93'
     [h4]='${base}UD'
     [h5]='${base}+l20;U'
+    [h6]='${base}+l20'
     [inline_code]='/L23,/L23,/L23'
     [code_block]='L20 , L18 , ${base}/L23;E , L20'
 )
+declare -a show_fields=()
+for k in "${!theme_default_light[@]}"; do
+    [[ $k != base ]] && show_fields+=("$k")
+done
 
 declare -A theme_default_dark=(
     [base]='#CCCDFF'
     [comment]='${base}+r60'
     [bold]='${base}D'
     [strike]='X'
+    [italic]='I'
     [h1]='L00DE/${base}'
     [h2]='L00DE/${base}-l10'
     [h3]='L00DN/${base}-l15'
     [h4]='${base}UD'
     [h5]='${base}+l20;U'
+    [h6]='${base}+l20'
     [inline_code]='/L05,/L05,/L05'
     [code_block]='L10 , L12 , ${base}/L05;E , L10'
 )
@@ -174,9 +181,7 @@ load_theme() {
 # Load user config file
 load_config() {
     local config_file="${XDG_CONFIG_HOME:-$HOME/.config}/mdee/config.sh"
-    if [[ -f "$config_file" ]]; then
-        . "$config_file"
-    fi
+    [[ -f "$config_file" ]] && . "$config_file" || :
 }
 
 # Detect mode from terminal background luminance
@@ -185,22 +190,15 @@ load_config() {
 detect_terminal_mode() {
     local lum
     lum=$(perl -MGetopt::EX::termcolor=luminance -e luminance 2>/dev/null) || return
-    [[ -z "$lum" ]] && return
-
-    if (( lum < 50 )); then
-        echo "dark"
-    else
-        echo "light"
-    fi
+    [[ $lum ]] || return
+    (( lum < 50 )) && echo dark || echo light
 }
 
 # Expand ${base} references in color values
 expand_theme() {
     local base="${colors[base]}"
     for key in "${!colors[@]}"; do
-        if [[ "$key" != "base" ]]; then
-            colors[$key]="${colors[$key]//\$\{base\}/$base}"
-        fi
+        [[ $key != base ]] && colors[$key]="${colors[$key]//\$\{base\}/$base}" || :
     done
 }
 
@@ -224,17 +222,28 @@ version() {
 }
 
 pager() {
-    if [[ -n $pager ]]; then
-        nup_opts+=("--pager=$pager")
-    else
-        nup_opts+=("--no-pager")
-    fi
+    [[ $pager ]] && nup_opts+=("--pager=$pager") || nup_opts+=("--no-pager")
 }
 
 filter() {
     fold=
     table=
     nup=
+}
+
+show() {
+    local arg=$2 key val
+    if [[ $arg == *=* ]]; then
+        key=${arg%%=*} val=${arg#*=}
+    else
+        key=$arg val=1
+    fi
+    if [[ $key == all ]]; then
+        for k in "${show_fields[@]}"; do
+            show[$k]=$val
+        done
+    fi
+    # Individual key=value is handled by getoptlong.sh
 }
 
 show_theme_sample() {
@@ -339,18 +348,10 @@ fi
 load_config
 
 # Apply config defaults if options not specified
-if [[ "$theme" == "default" && -n "${default_theme:-}" ]]; then
-    theme="$default_theme"
-fi
+[[ $theme == default && ${default_theme:-} ]] && theme=$default_theme
 # Set mode: explicit option > config default > terminal detection > "light"
-if [[ -z "$mode" ]]; then
-    if [[ -n "${default_mode:-}" ]]; then
-        mode="$default_mode"
-    else
-        mode=$(detect_terminal_mode)
-        : ${mode:=light}
-    fi
-fi
+: ${mode:=${default_mode:-$(detect_terminal_mode)}}
+: ${mode:=light}
 
 # Load theme with mode
 load_theme "$theme" "$mode"
@@ -359,17 +360,19 @@ load_theme "$theme" "$mode"
 load_config
 
 # Override base color if specified
-if [[ -n "$base_color" ]]; then
-    colors[base]="$base_color"
-fi
+[[ $base_color ]] && colors[base]=$base_color
 
 # Expand ${base} references in color values
 expand_theme
 
-# Initialize field hash from colors keys (all enabled by default)
-declare -A field
-for key in "${!colors[@]}"; do
-    [[ $key != base ]] && field[$key]=1
+# Validate --show field names
+is_show_field() {
+    local name=$1
+    for f in "${show_fields[@]}"; do [[ $f == "$name" ]] && return 0; done
+    return 1
+}
+for name in "${!show[@]}"; do
+    [[ $name == all ]] || is_show_field "$name" || die "unknown field: $name"
 done
 
 (( debug > 0 )) && {
@@ -383,37 +386,20 @@ done
 # Markdown highlighting with greple
 ##############################################################################
 
-set_all_fields() {
-    local value=$1
-    for key in "${!field[@]}"; do
-        field[$key]=$value
-    done
-}
-
-# Process --enable / --disable options
-if (( ${#disable[@]} > 0 )); then
-    set_all_fields 1
-    for name in "${disable[@]}"; do
-        [[ -v field[$name] ]] || die "unknown field: $name"
-        field[$name]=
-    done
-elif (( ${#enable[@]} > 0 )); then
-    set_all_fields ""
-    for name in "${enable[@]}"; do
-        [[ -v field[$name] ]] || die "unknown field: $name"
-        field[$name]=1
-    done
-fi
-
 declare -a greple_opts=(-G --ci=G --all --need=0 --filestyle=once)
 
 add_pattern() {
     local name=$1 pattern=$2
-    [[ ${field[$name]} ]] && greple_opts+=(--cm "${colors[$name]}" -E "$pattern") || :
+    # Check show hash: unset=default(on), empty or 0=off, non-empty=on
+    local val=${show[$name]-1}
+    [[ $val && $val != 0 ]] && greple_opts+=(--cm "${colors[$name]}" -E "$pattern") || :
 }
 
 add_pattern comment   '<!--.*?-->'
-add_pattern bold      '\*\*.*?\*\*'
+add_pattern bold      '(?<!\\)\*\*.*?(?<!\\)\*\*'
+add_pattern bold      '(?<!\\)(?<!\w)__.*?(?<!\\)__(?!\w)'
+add_pattern italic    '(?<!\\)(?<!\w)_[^_]+(?<!\\)_(?!\w)'
+add_pattern italic    '(?<!\\)(?<!\*)\*(?!\*)[^*]+(?<!\\)\*(?!\*)'
 add_pattern strike    '~~.+?~~'
 add_pattern h1        '^#\h+.*'
 add_pattern h2        '^##\h+.*'
@@ -428,16 +414,10 @@ add_pattern code_block  '^ {0,3}(?<bt>`{3,}+|~{3,}+)(.*)\n((?s:.*?))^ {0,3}(\g{b
 ##############################################################################
 
 # Process files
-if (( $# == 0 )); then
-    if [[ ! ${filter:-} ]]; then
-        die "stdin mode not supported without -f option"
-    fi
-else
-    # Check if all files exist
-    for file in "$@"; do
-        [[ -e "$file" ]] || die "$file: No such file or directory"
-    done
-fi
+(( $# == 0 )) && [[ ! ${filter:-} ]] && die "stdin mode not supported without -f option"
+for file in "$@"; do
+    [[ -e "$file" ]] || die "$file: No such file or directory"
+done
 
 # Define each command as an array
 declare -a cmd_greple=(greple "${greple_opts[@]}" "$@")
@@ -475,18 +455,14 @@ declare -a stages=(cmd_greple)
 pipeline=""
 for stage in "${stages[@]}"; do
     declare -n cmd="$stage"
-    [[ -n $pipeline ]] && pipeline+=" | "
+    [[ $pipeline ]] && pipeline+=" | "
     pipeline+="$(printf '%q ' "${cmd[@]}")"
 done
 
 (( debug > 0 )) && echo "debug: stages: ${stages[*]}" >&2
 (( debug > 0 )) && echo "debug: pipeline: $pipeline" >&2
 
-if [[ ${dryrun:-} ]]; then
-    echo "$pipeline"
-else
-    eval "$pipeline"
-fi
+[[ ${dryrun:-} ]] && echo "$pipeline" || eval "$pipeline"
 
 : <<'=cut'
 
@@ -495,8 +471,8 @@ fi
 B<mdee> is a multi-column Markdown viewer with syntax highlighting,
 combining L<greple(1)> for colorization and L<nup(1)> for paged output.
 
-Supported elements: headers (h1-h5), bold, strikethrough, inline code,
-code blocks, HTML comments, tables, and list items.
+Supported elements: headers (h1-h6), bold, italic, strikethrough,
+inline code, code blocks, HTML comments, tables, and list items.
 
 This tool is designed for viewing Markdown not constrained by display
 formatting, such as output from LLMs (Large Language Models).  It applies
@@ -645,20 +621,23 @@ List built-in themes with color samples and exit.
 
 =over 4
 
-=item B<--enable>=I<FIELD,...>
+=item B<--show>=I<FIELD>[=I<VALUE>],...
 
-Enable only specified fields for highlighting.  All other fields are
-disabled.  Multiple fields can be specified with commas or by repeating
-the option.
+Control field visibility for highlighting.  Empty value or C<0> disables
+the field; any other value (including C<1>) enables it.
 
-Available fields: C<comment>, C<bold>, C<strike>, C<h1>, C<h2>, C<h3>,
-C<h4>, C<h5>, C<inline_code>, C<code_block>.
+    --show italic           # enable italic
+    --show bold=0           # disable bold
+    --show all              # enable all fields
+    --show all= --show bold # disable all, then enable only bold
 
-=item B<--disable>=I<FIELD,...>
+Multiple fields can be specified with commas or by repeating the option.
+The special field C<all> affects all fields and is processed first.
 
-Disable specified fields from highlighting.  All other fields remain
-enabled.  Multiple fields can be specified with commas or by repeating
-the option.
+Available fields: C<comment>, C<bold>, C<italic>, C<strike>, C<h1>,
+C<h2>, C<h3>, C<h4>, C<h5>, C<h6>, C<inline_code>, C<code_block>.
+
+All fields are enabled by default.
 
 =back
 
@@ -796,8 +775,9 @@ captured group in regular expressions.
 
 Supported Markdown elements:
 
-- Headers (`# h1` through `##### h5`)
-- Bold text (`**bold**`)
+- Headers (`# h1` through `###### h6`)
+- Bold text (`**bold**` or `__bold__`)
+- Italic text (`*italic*` or `_italic_`)
 - Inline code (`` `code` ``)
 - Code blocks (fenced with ``` or ~~~)
 - HTML comments (`<!-- comment -->`)

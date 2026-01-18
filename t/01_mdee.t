@@ -104,6 +104,40 @@ subtest 'width option' => sub {
     like($out, qr/-sw60/, '--width=60 sets fold width');
 };
 
+# Test: tee module with fold (actual execution)
+subtest 'tee fold execution' => sub {
+    # Use a narrow width to force folding of long lines
+    # Line 77 in test.md has a long description that should wrap
+    my $out = `$mdee --no-nup --no-table --fold --width=40 $test_md 2>&1`;
+    is($?, 0, 'mdee with fold exits successfully');
+    # The long line should be wrapped, resulting in more lines than original
+    my @lines = split /\n/, $out;
+    ok(@lines > 10, 'fold produces wrapped output');
+    # Check that ANSI sequences are present (greple highlighting worked)
+    like($out, qr/\e\[/, 'output contains ANSI escape sequences');
+};
+
+# Test: tee module with table (actual execution)
+subtest 'tee table execution' => sub {
+    # Run with table formatting enabled
+    my $out = `$mdee --no-nup --no-fold --table $test_md 2>&1`;
+    is($?, 0, 'mdee with table exits successfully');
+    # Table should be formatted with aligned columns
+    # The separator line |---|---|---| should have consistent dashes
+    like($out, qr/\|-+\|-+\|-+\|/, 'table separator is formatted');
+    # Check that ANSI sequences are present
+    like($out, qr/\e\[/, 'output contains ANSI escape sequences');
+};
+
+# Test: tee module combined (fold + table)
+subtest 'tee combined execution' => sub {
+    my $out = `$mdee --no-nup --fold --table --width=60 $test_md 2>&1`;
+    is($?, 0, 'mdee with fold+table exits successfully');
+    like($out, qr/\e\[/, 'output contains ANSI escape sequences');
+    # Both table formatting and text should be present
+    like($out, qr/greple.*Pattern matching/s, 'table content is present');
+};
+
 # Test: show option
 subtest 'show option' => sub {
     # Count -E options in first greple command (before first pipe)

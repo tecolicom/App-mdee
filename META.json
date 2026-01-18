@@ -43,7 +43,7 @@
       "runtime" : {
          "requires" : {
             "App::Greple" : "10.02",
-            "App::Greple::tee" : "1.03",
+            "App::Greple::tee" : "1.04",
             "App::ansicolumn" : "1.48",
             "App::ansiecho" : "0",
             "App::ansifold" : "1.34",

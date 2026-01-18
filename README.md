@@ -279,19 +279,19 @@ The overall data flow is:
 
 **mdee** dynamically constructs a pipeline based on enabled options.
 Each stage is represented as a Bash array containing the command and
-its arguments.  The \`--dryrun\` option displays the constructed pipeline
+its arguments.  The `--dryrun` option displays the constructed pipeline
 without execution.
 
 ### Processing Stages
 
 The pipeline consists of four configurable stages.  Each stage can be
-enabled or disabled independently using \`--\[no-\]fold\`, \`--\[no-\]table\`,
-and \`--\[no-\]nup\` options.
+enabled or disabled independently using `--[no-]fold`, `--[no-]table`,
+and `--[no-]nup` options.
 
 #### Syntax Highlighting
 
-The first stage uses [greple(1)](http://man.he.net/man1/greple) with the \`-G\` (grep mode) and
-\`--ci=G\` (capture index) options to apply different colors to each
+The first stage uses [greple(1)](http://man.he.net/man1/greple) with the `-G` (grep mode) and
+`--ci=G` (capture index) options to apply different colors to each
 captured group in regular expressions.
 
 Supported Markdown elements:
@@ -309,9 +309,11 @@ Code block detection follows the CommonMark specification:
 - Closing fence: 0-3 spaces indentation, same character, same or more count
 - Backticks and tildes cannot be mixed (```` ``` ```` must close with ```` ``` ````)
 
-Color SpecificationsColors are specified using [Term::ANSIColor::Concise](https://metacpan.org/pod/Term%3A%3AANSIColor%3A%3AConcise) format.
-The \`--cm\` option maps colors to captured groups.  For example,
-\`L00DE/${base}\` specifies gray foreground on base-colored background.
+**Color Specifications**
+
+Colors are specified using [Term::ANSIColor::Concise](https://metacpan.org/pod/Term%3A%3AANSIColor%3A%3AConcise) format.
+The `--cm` option maps colors to captured groups.  For example,
+`L00DE/${base}` specifies gray foreground on base-colored background.
 
 The color specification supports modifiers:
 
@@ -332,18 +334,18 @@ The second stage wraps long lines in list items using [ansifold(1)](http://man.h
 via [Greple::tee](https://metacpan.org/pod/Greple%3A%3Atee).  It preserves ANSI escape sequences and maintains
 proper indentation for nested lists.
 
-The folding width is controlled by \`--width\` option (default: 80).
+The folding width is controlled by `--width` option (default: 80).
 
 #### Table Formatting
 
 The third stage formats Markdown tables using [ansicolumn(1)](http://man.he.net/man1/ansicolumn).
-Tables are detected by the pattern \`^(\\|.+\\|\\n){3,}\` and formatted
+Tables are detected by the pattern `^(\|.+\|\n){3,}` and formatted
 with aligned columns while preserving ANSI colors.
 
 ### Output Stage
 
 The final stage uses [nup(1)](http://man.he.net/man1/nup) to provide multi-column paged output.
-Layout options (\`--pane\`, \`--row\`, \`--grid\`, \`--page\`) are passed
+Layout options (`--pane`, `--row`, `--grid`, `--page`) are passed
 directly to nup.
 
 ## Theme System
@@ -364,7 +366,7 @@ definitions for each Markdown element:
 
 #### Base Color Expansion
 
-The \`${base}\` placeholder in color values is expanded after theme
+The `${base}` placeholder in color values is expanded after theme
 loading.  This allows derived colors to be calculated from a single
 base color, making theme customization easier.
 

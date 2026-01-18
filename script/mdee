@@ -766,19 +766,19 @@ The overall data flow is:
 
 B<mdee> dynamically constructs a pipeline based on enabled options.
 Each stage is represented as a Bash array containing the command and
-its arguments.  The `--dryrun` option displays the constructed pipeline
+its arguments.  The C<--dryrun> option displays the constructed pipeline
 without execution.
 
 =head3 Processing Stages
 
 The pipeline consists of four configurable stages.  Each stage can be
-enabled or disabled independently using `--[no-]fold`, `--[no-]table`,
-and `--[no-]nup` options.
+enabled or disabled independently using C<--[no-]fold>, C<--[no-]table>,
+and C<--[no-]nup> options.
 
 =head4 Syntax Highlighting
 
-The first stage uses L<greple(1)> with the `-G` (grep mode) and
-`--ci=G` (capture index) options to apply different colors to each
+The first stage uses L<greple(1)> with the C<-G> (grep mode) and
+C<--ci=G> (capture index) options to apply different colors to each
 captured group in regular expressions.
 
 Supported Markdown elements:
@@ -811,11 +811,11 @@ Code block detection follows the CommonMark specification:
 
 =back
 
-=head5 Color Specifications
+B<Color Specifications>
 
 Colors are specified using L<Term::ANSIColor::Concise> format.
-The `--cm` option maps colors to captured groups.  For example,
-`L00DE/${base}` specifies gray foreground on base-colored background.
+The C<--cm> option maps colors to captured groups.  For example,
+C<L00DE/${base}> specifies gray foreground on base-colored background.
 
 The color specification supports modifiers:
 
@@ -842,18 +842,18 @@ The second stage wraps long lines in list items using L<ansifold(1)>
 via L<Greple::tee>.  It preserves ANSI escape sequences and maintains
 proper indentation for nested lists.
 
-The folding width is controlled by `--width` option (default: 80).
+The folding width is controlled by C<--width> option (default: 80).
 
 =head4 Table Formatting
 
 The third stage formats Markdown tables using L<ansicolumn(1)>.
-Tables are detected by the pattern `^(\|.+\|\n){3,}` and formatted
+Tables are detected by the pattern C<^(\|.+\|\n){3,}> and formatted
 with aligned columns while preserving ANSI colors.
 
 =head3 Output Stage
 
 The final stage uses L<nup(1)> to provide multi-column paged output.
-Layout options (`--pane`, `--row`, `--grid`, `--page`) are passed
+Layout options (C<--pane>, C<--row>, C<--grid>, C<--page>) are passed
 directly to nup.
 
 =head2 Theme System
@@ -874,7 +874,7 @@ definitions for each Markdown element:
 
 =head4 Base Color Expansion
 
-The `${base}` placeholder in color values is expanded after theme
+The C<${base}> placeholder in color values is expanded after theme
 loading.  This allows derived colors to be calculated from a single
 base color, making theme customization easier.
 

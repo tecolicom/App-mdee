@@ -127,8 +127,8 @@ declare -A theme_default_light=(
     [h4]='${base}UD'
     [h5]='${base}+l20;U'
     [h6]='${base}+l20'
-    [inline_code]='/L23,/L23,/L23'
-    [code_block]='L20 , L18 , ${base}/L23;E , L20'
+    [inline_code]='L15/L23,/L23,L15/L23'
+    [code_block]='L20 , L18 , /L23;E , L20'
 )
 declare -a show_fields=()
 for k in "${!theme_default_light[@]}"; do
@@ -136,12 +136,12 @@ for k in "${!theme_default_light[@]}"; do
 done
 
 declare -A theme_default_dark=(
-    [base]='#CCCDFF'
+    [base]='<NavyBlue>=l80'
     [h1]='L00DE/${base}'
-    [h2]='L00DE/${base}-l10'
-    [h3]='L00DN/${base}-l15'
-    [inline_code]='/L05,/L05,/L05'
-    [code_block]='L10 , L12 , ${base}/L05;E , L10'
+    [h2]='L00DE/${base}-l05'
+    [h3]='L00DN/${base}-l10'
+    [inline_code]='L12/L05,/L05,L12/L05'
+    [code_block]='L10 , L12 , /L05;E , L10'
 )
 for k in "${!theme_default_light[@]}"; do
     [[ -v theme_default_dark[$k] ]] || theme_default_dark[$k]=${theme_default_light[$k]}

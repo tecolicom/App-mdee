@@ -27,12 +27,21 @@ Themes are defined as Bash associative arrays:
 - `theme_default_light` - Light mode theme
 - `theme_default_dark` - Dark mode theme
 
+Field names are derived from theme keys (excluding `base`):
+
+```bash
+declare -a show_fields=()
+for k in "${!theme_default_light[@]}"; do
+    [[ $k != base ]] && show_fields+=("$k")
+done
+```
+
 Color specifications use [Term::ANSIColor::Concise](https://metacpan.org/pod/Term::ANSIColor::Concise) format:
 - `L00` - `L25`: Gray scale (L00=black, L25=white)
 - `${base}`: Base color placeholder (expanded after loading)
 - `+l10` / `-l10`: Adjust lightness
 - `=l50`: Set absolute lightness
-- `D`: Bold, `U`: Underline, `E`: Erase line
+- `D`: Bold, `I`: Italic, `U`: Underline, `E`: Erase line
 - `FG/BG`: Foreground/Background
 
 ## Implementation Notes
@@ -230,6 +239,69 @@ perl -pE 's/ /-/g if /^ \| (\s* -+ \s* \|)+ $/x'
 
 This replaces spaces with dashes in the `|---|---|` separator row.
 
+### Field Visibility with --show Option
+
+The `--show` option controls field visibility using a hash type with callback:
+
+```bash
+declare -A show=()
+
+declare -A OPTS=(
+    [         show |   %!          # field visibility   ]=
+)
+
+show() {
+    local arg=$2 key val
+    if [[ $arg == *=* ]]; then
+        key=${arg%%=*} val=${arg#*=}
+    else
+        key=$arg val=1
+    fi
+    if [[ $key == all ]]; then
+        for k in "${show_fields[@]}"; do
+            show[$k]=$val
+        done
+    fi
+}
+```
+
+- `%!`: Hash type with callback
+- Callback receives `($optname, $arg)` - parse key=value from `$arg`
+- `all` is special: sets all fields to the given value
+- Order matters: `--show all= --show bold` disables all, then enables bold
+- Individual key=value is automatically handled by getoptlong.sh
+
+In `add_pattern`:
+
+```bash
+add_pattern() {
+    local name=$1 pattern=$2
+    local val=${show[$name]-1}  # unset defaults to 1 (enabled)
+    [[ $val && $val != 0 ]] && greple_opts+=(--cm "${colors[$name]}" -E "$pattern") || :
+}
+```
+
+### Emphasis Patterns (CommonMark)
+
+Bold and italic patterns follow [CommonMark emphasis rules](https://spec.commonmark.org/0.31.2/#emphasis-and-strong-emphasis):
+
+```bash
+# Bold: ** and __
+add_pattern bold '(?<!\\)\*\*.*?(?<!\\)\*\*'
+add_pattern bold '(?<!\\)(?<!\w)__.*?(?<!\\)__(?!\w)'
+
+# Italic: * and _
+add_pattern italic '(?<!\\)(?<!\w)_[^_]+(?<!\\)_(?!\w)'
+add_pattern italic '(?<!\\)(?<!\*)\*(?!\*)[^*]+(?<!\\)\*(?!\*)'
+```
+
+Key rules:
+- `(?<!\\)`: Not preceded by backslash (escape handling)
+- `(?<!\w)` / `(?!\w)`: Word boundaries for `_` (prevents `foo_bar_baz` matching)
+- `(?<!\*)` / `(?!\*)`: Not adjacent to `*` (distinguishes `*italic*` from `**bold**`)
+- `__` requires word boundaries (same as `_`)
+- `**` doesn't require word boundaries (can be used mid-word)
+
 ### Mode Detection with [Getopt::EX::termcolor](https://metacpan.org/pod/Getopt::EX::termcolor)
 
 Terminal background luminance is detected via Getopt::EX::termcolor module.
@@ -238,13 +310,8 @@ Terminal background luminance is detected via Getopt::EX::termcolor module.
 detect_terminal_mode() {
     local lum
     lum=$(perl -MGetopt::EX::termcolor=luminance -e luminance 2>/dev/null) || return
-    [[ -z "$lum" ]] && return
-
-    if (( lum < 50 )); then
-        echo "dark"
-    else
-        echo "light"
-    fi
+    [[ $lum ]] || return
+    (( lum < 50 )) && echo dark || echo light
 }
 ```
 
@@ -300,11 +367,7 @@ If a function with the same name as an option exists, it's called after parsing:
 
 ```bash
 pager() {
-    if [[ -n $pager ]]; then
-        nup_opts+=("--pager=$pager")
-    else
-        nup_opts+=("--no-pager")
-    fi
+    [[ $pager ]] && nup_opts+=("--pager=$pager") || nup_opts+=("--no-pager")
 }
 ```
 
@@ -392,11 +455,20 @@ Below the line.
 
 This is ~~deleted text~~ with strikethrough.
 
+### Italic Text
+
+Both syntaxes are supported:
+- *Single asterisks* for italic
+- _Single underscores_ for italic
+
+Underscores require word boundaries: `foo_bar_baz` is not italic.
+
 ### Mixed Formatting
 
 > **Important:** Use `--mode=dark` for dark terminals.
 >
 > ~~Old syntax~~ is deprecated. Use the new **`--theme`** option instead.
+> Also supports *italic* and _emphasis_.
 
 ### Definition-style Content
 

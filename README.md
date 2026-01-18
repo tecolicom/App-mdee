@@ -32,7 +32,7 @@ mdee - Markdown, Easy on the Eyes
 
 # VERSION
 
-Version 0.01
+Version 0.02
 
 # DESCRIPTION
 

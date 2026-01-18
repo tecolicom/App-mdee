@@ -2,6 +2,19 @@ Revision history for Perl extension App-mdee
 
 {{$NEXT}}
 
+0.02 2026-01-18T02:51:12Z
+
+    - Replace --enable/--disable with --show option for field visibility control
+    - Rename underline to italic field, enable by default
+    - Support both *text* and _text_ for italic
+    - Support both **text** and __text__ for bold
+    - Add backslash escape handling for emphasis patterns
+    - Use word boundaries for underscore emphasis (CommonMark compliant)
+    - Add h6 color definition
+    - Add --color=always to greple for consistent output in non-terminal environments
+    - Require App::Greple::tee 1.04
+    - Add tee module execution tests
+
 0.01 2026-01-17T16:39:57Z
 
     - Initial release

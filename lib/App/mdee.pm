@@ -1,6 +1,6 @@
 package App::mdee;
 
-our $VERSION = "0.01";
+our $VERSION = "0.02";
 
 1;
 =encoding utf-8
@@ -27,8 +27,7 @@ mdee - Markdown, Easy on the Eyes
      -B  --base-color=#     override theme's base color
                             (e.g., <Red>, #FF5733, hsl(0,100,50))
          --list-themes      list built-in themes
-         --enable=#         enable only specified fields
-         --disable=#        disable specified fields
+         --show=#           set field visibility (e.g., italic=1)
      -C  --pane=#           number of columns
      -R  --row=#            number of rows
      -G  --grid=#           grid layout (e.g., 2x3)
@@ -39,7 +38,7 @@ mdee - Markdown, Easy on the Eyes
 
 =head1 VERSION
 
-Version 0.01
+Version 0.02
 
 =cut
 =head1 DESCRIPTION
@@ -47,8 +46,8 @@ Version 0.01
 B<mdee> is a multi-column Markdown viewer with syntax highlighting,
 combining L<greple(1)> for colorization and L<nup(1)> for paged output.
 
-Supported elements: headers (h1-h5), bold, strikethrough, inline code,
-code blocks, HTML comments, tables, and list items.
+Supported elements: headers (h1-h6), bold, italic, strikethrough,
+inline code, code blocks, HTML comments, tables, and list items.
 
 This tool is designed for viewing Markdown not constrained by display
 formatting, such as output from LLMs (Large Language Models).  It applies
@@ -197,20 +196,23 @@ List built-in themes with color samples and exit.
 
 =over 4
 
-=item B<--enable>=I<FIELD,...>
+=item B<--show>=I<FIELD>[=I<VALUE>],...
 
-Enable only specified fields for highlighting.  All other fields are
-disabled.  Multiple fields can be specified with commas or by repeating
-the option.
+Control field visibility for highlighting.  Empty value or C<0> disables
+the field; any other value (including C<1>) enables it.
 
-Available fields: C<comment>, C<bold>, C<strike>, C<h1>, C<h2>, C<h3>,
-C<h4>, C<h5>, C<inline_code>, C<code_block>.
+    --show italic           # enable italic
+    --show bold=0           # disable bold
+    --show all              # enable all fields
+    --show all= --show bold # disable all, then enable only bold
 
-=item B<--disable>=I<FIELD,...>
+Multiple fields can be specified with commas or by repeating the option.
+The special field C<all> affects all fields and is processed first.
 
-Disable specified fields from highlighting.  All other fields remain
-enabled.  Multiple fields can be specified with commas or by repeating
-the option.
+Available fields: C<comment>, C<bold>, C<italic>, C<strike>, C<h1>,
+C<h2>, C<h3>, C<h4>, C<h5>, C<h6>, C<inline_code>, C<code_block>.
+
+All fields are enabled by default.
 
 =back
 
@@ -348,8 +350,9 @@ captured group in regular expressions.
 
 Supported Markdown elements:
 
-- Headers (`# h1` through `##### h5`)
-- Bold text (`**bold**`)
+- Headers (`# h1` through `###### h6`)
+- Bold text (`**bold**` or `__bold__`)
+- Italic text (`*italic*` or `_italic_`)
 - Inline code (`` `code` ``)
 - Code blocks (fenced with ``` or ~~~)
 - HTML comments (`<!-- comment -->`)

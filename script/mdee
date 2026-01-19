@@ -77,6 +77,8 @@ END
 declare -a nup_opts=(--document --no-filename)
 declare -A show=()
 
+declare -A adjust=([light]='=l25' [dark]='=l80')
+
 declare -A OPTS=(
     [&REQUIRE]=0.7.1 [&USAGE]="$USAGE"
     [         help | h   !         # show help         ]=
@@ -91,6 +93,7 @@ declare -A OPTS=(
     [        theme | t  :          # color theme       ]=default
     [         mode | m  :          # light or dark     ]=
     [   base-color | B  :          # base color        ]=
+    [       adjust |    %          # color adjustment  ]=
     [  list-themes |     !         # list themes       ]=
     [         show |    %!         # field visibility  ]=
     [        pager |    ?!         # pager command     ]=
@@ -364,7 +367,14 @@ load_theme "$theme" "$mode"
 load_config
 
 # Override base color if specified
-[[ $base_color ]] && colors[base]=$base_color
+# Color names (e.g., Red, NavyBlue) get automatic adjustment
+if [[ $base_color ]]; then
+    if [[ $base_color =~ ^[A-Za-z][A-Za-z0-9_]*$ ]]; then
+        colors[base]="<${base_color}>${adjust[$mode]}"
+    else
+        colors[base]="$base_color"
+    fi
+fi
 
 # Expand ${base} references in color values
 expand_theme

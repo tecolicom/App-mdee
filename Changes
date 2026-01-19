@@ -2,6 +2,12 @@ Revision history for Perl extension App-mdee
 
 {{$NEXT}}
 
+0.05 2026-01-19T09:08:47Z
+
+    - Fix underscore emphasis inside inline code (e.g., `__PERL__`)
+    - Add --adjust option for base color normalization by mode
+    - Color names (Red, brown3, etc.) auto-wrapped with lightness adjustment
+
 0.04 2026-01-19T04:27:03Z
 
     - Keep table formatting enabled in filter mode (-f)

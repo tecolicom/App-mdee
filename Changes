@@ -2,6 +2,14 @@ Revision history for Perl extension App-mdee
 
 {{$NEXT}}
 
+0.04 2026-01-19T04:27:03Z
+
+    - Keep table formatting enabled in filter mode (-f)
+    - Move -f option documentation to Processing Options section
+    - Add INSTALLATION section (Homebrew and CPAN)
+    - Add bulkmode to table processing for better performance
+    - Add "do not edit" comment to lib/App/mdee.pm
+
 0.03 2026-01-18T08:47:55Z
 
     - Add OSC 8 terminal hyperlinks for links, images, and image links

@@ -401,8 +401,8 @@ add_pattern() {
 
 add_pattern comment   '^<!--(?![->])(?s:.+?)-->'
 add_pattern bold      '(?<!\\)\*\*.*?(?<!\\)\*\*'
-add_pattern bold      '(?<!\\)(?<!\w)__.*?(?<!\\)__(?!\w)'
-add_pattern italic    '(?<!\\)(?<!\w)_(?:(?!_).)+(?<!\\)_(?!\w)'
+add_pattern bold      '(?<!\\)(?<![`\w])__.*?(?<!\\)__(?!\w)'
+add_pattern italic    '(?<!\\)(?<![`\w])_(?:(?!_).)+(?<!\\)_(?!\w)'
 add_pattern italic    '(?<!\\)(?<!\*)\*(?:(?!\*).)+(?<!\\)\*(?!\*)'
 add_pattern strike    '~~.+?~~'
 add_pattern h1        '^#\h+.*'

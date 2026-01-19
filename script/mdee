@@ -23,7 +23,7 @@ mdee - Markdown, Easy on the Eyes
          --version          show version
      -d  --debug            debug level (repeatable)
      -n  --dryrun           dry-run mode
-     -f  --filter           filter mode (highlight only)
+     -f  --filter           filter mode (--no-fold --no-nup)
          --[no-]fold        line folding (default: on)
          --[no-]table       table formatting (default: on)
          --[no-]nup         nup paged output (default: on)
@@ -232,7 +232,6 @@ pager() {
 
 filter() {
     fold=
-    table=
     nup=
 }
 
@@ -512,18 +511,18 @@ increasing verbosity.
 
 Dry-run mode. Show the command without executing.
 
-=item B<-f>, B<--filter>
-
-Filter mode.  Reads from stdin (or files) and outputs highlighted
-Markdown to stdout.  Disables line folding, table formatting, and
-nup paged output.  Useful for piping Markdown content through mdee
-for syntax highlighting only.
-
 =back
 
 =head2 Processing Options
 
 =over 4
+
+=item B<-f>, B<--filter>
+
+Filter mode.  Reads from stdin (or files) and outputs highlighted
+Markdown to stdout.  Disables line folding and nup paged output,
+but keeps table formatting enabled.  Useful for piping Markdown
+content through mdee for syntax highlighting.
 
 =item B<--[no-]fold>
 

@@ -94,9 +94,9 @@ Each stage is optional (`--[no-]fold`, `--[no-]table`, `--[no-]nup`).
 The `-f` / `--filter` option enables filter mode for simple highlighting:
 
 ```bash
-mdee -f file.md           # highlight only (no fold, table, nup)
+mdee -f file.md           # highlight + table (no fold, nup)
 cat file.md | mdee -f     # highlight stdin
-mdee -f --fold file.md    # highlight + fold
+mdee -f --fold file.md    # highlight + table + fold
 ```
 
 Implementation uses a callback function:
@@ -106,13 +106,12 @@ Implementation uses a callback function:
 
 filter() {
     fold=
-    table=
     nup=
 }
 ```
 
 - The `!` marker triggers the callback when option is parsed
-- Callback sets fold, table, nup to empty (disabled)
+- Callback sets fold and nup to empty (disabled), table remains enabled
 - Subsequent options (`--fold`, `--table`, `--nup`) can override
 - Order matters: `-f --fold` enables fold, `--fold -f` disables it
 

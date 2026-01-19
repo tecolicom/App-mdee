@@ -6,10 +6,12 @@ mdee (Markdown, Easy on the Eyes) is a Markdown viewer command implemented as a 
 
 ## Project Structure
 
-- `script/mdee` - Main script (Bash)
-- `lib/App/mdee.pm` - Perl module (version info only)
+- `script/mdee` - Main script (Bash) with POD documentation
+- `lib/App/mdee.pm` - Perl module (version info only, generated from script/mdee)
 - `t/` - Test files
 - `t/test.md` - Color test file
+
+**Important:** Documentation (POD) must be written in `script/mdee`. At release time, `minil release` hooks append the POD from `script/mdee` to `lib/App/mdee.pm` (see `minil.toml`).
 
 ## Development
 

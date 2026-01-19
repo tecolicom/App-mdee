@@ -236,6 +236,17 @@ bold text, etc.).
     mdee --mode=dark -B '<Cyan>' file.md # dark mode with cyan base
     mdee --list-themes                   # list available themes
 
+# INSTALLATION
+
+## Homebrew (macOS)
+
+    brew tap tecolicom/tap
+    brew install app-mdee
+
+## CPAN
+
+    cpanm -n App::mdee
+
 # DEPENDENCIES
 
 This command requires the following:

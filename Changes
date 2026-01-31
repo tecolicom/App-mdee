@@ -2,6 +2,12 @@ Revision history for Perl extension App-mdee
 
 {{$NEXT}}
 
+0.07 2026-01-31T14:18:16Z
+
+    - Add --style option for output mode control (nup/pager/cat/filter/raw)
+    - Add invoke wrapper for debug command display (-dd, -ddn)
+    - Refactor pipeline execution from array-based to function-based
+
 0.06 2026-01-19T14:40:36Z
 
     - Change color adjustment from HSL lightness (l) to Lab luminance (y)

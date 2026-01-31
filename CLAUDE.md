@@ -151,13 +151,13 @@ esac
 
 #### Pager Stage
 
-When `style=pager`, a pager command is appended to the pipeline:
+When `style=pager`, the `run_pager` function is appended to the pipeline:
 
 ```bash
-declare -a cmd_pager=()
-if [[ $style == pager ]]; then
-    cmd_pager=(${PAGER:-less})
-fi
+run_pager() { ${PAGER:-less}; }
+
+# Added to stages when style=pager:
+[[ $style == pager ]] && stages+=(run_pager)
 ```
 
 ### Greple Options
@@ -223,15 +223,16 @@ Regex pattern ([CommonMark Code Spans](https://spec.commonmark.org/0.31.2/#code-
 
 Light mode uses light background with dark text:
 ```bash
-[h1]='L25DE/${base}'      # Gray text on base background
-[h2]='L25DE/${base}+l10'  # Lighter background
+[h1]='L25DE/${base}'       # Gray text on base background
+[h2]='L25DE/${base}+y20'   # Lighter background
+[h3]='L25DN/${base}+y30'   # Normal weight, even lighter
 ```
 
 Dark mode uses dark background with light text:
 ```bash
 [h1]='L00DE/${base}'       # Black text on base background
-[h2]='L00DE/${base}-l10'   # Darker background
-[h3]='L00DN/${base}-l15'   # Normal weight, even darker
+[h2]='L00DE/${base}-y15'   # Darker background
+[h3]='L00DN/${base}-y25'   # Normal weight, even darker
 ```
 
 ### Greple::tee Module
@@ -273,11 +274,11 @@ greple \
 
 ```bash
 greple \
-    -Mtee::config=discrete "&ansicolumn" -s '|' -o '|' -t --cu=1 -- \
+    -Mtee::config=discrete,bulkmode "&ansicolumn" -s '|' -o '|' -t --cu=1 -- \
     -E '^(\|.+\|\n){3,}' --all --need=0 --no-color
 ```
 
-- `-Mtee::config=discrete`: Process each match separately
+- `-Mtee::config=discrete,bulkmode`: Process each match separately, in bulk mode
 - `"&ansicolumn"`: Call ansicolumn as function
 - `-s '|'`: Input separator
 - `-o '|'`: Output separator
@@ -287,13 +288,22 @@ greple \
 
 #### Table Separator Fix
 
-After ansicolumn, a perl one-liner fixes the separator line:
+After ansicolumn, a perl script fixes the separator lines within table blocks:
 
 ```bash
-perl -pE 's/ /-/g if /^ \| (\s* -+ \s* \|)+ $/x'
+define fix_table_script <<'EOS'
+    use Term::ANSIColor::Concise "ansi_color";
+    local $_ = do { local $/; <> };
+    s{ ^ (\| ( ( [^|]* \| )+ \n){3,} ) }{
+        $1 =~ s{^( \| (\h* -+ \h* \|)+ )$}{ $1 =~ tr[ ][-]r }xmegr;
+    }xmepg;
+    print;
+EOS
+
+run_table_fix() { perl -E "$fix_table_script"; }
 ```
 
-This replaces spaces with dashes in the `|---|---|` separator row.
+The script slurps the entire input and only modifies separator lines (`|---|---|`) within table blocks (3+ consecutive pipe-delimited rows), replacing spaces with dashes.
 
 ### Field Visibility with --show Option
 
@@ -344,16 +354,16 @@ Bold and italic patterns follow [CommonMark emphasis rules](https://spec.commonm
 ```bash
 # Bold: ** and __
 add_pattern bold '(?<!\\)\*\*.*?(?<!\\)\*\*'
-add_pattern bold '(?<!\\)(?<!\w)__.*?(?<!\\)__(?!\w)'
+add_pattern bold '(?<!\\)(?<![`\w])__.*?(?<!\\)__(?!\w)'
 
 # Italic: * and _
-add_pattern italic '(?<!\\)(?<!\w)_(?:(?!_).)+(?<!\\)_(?!\w)'
+add_pattern italic '(?<!\\)(?<![`\w])_(?:(?!_).)+(?<!\\)_(?!\w)'
 add_pattern italic '(?<!\\)(?<!\*)\*(?:(?!\*).)+(?<!\\)\*(?!\*)'
 ```
 
 Key rules:
 - `(?<!\\)`: Not preceded by backslash (escape handling)
-- `(?<!\w)` / `(?!\w)`: Word boundaries for `_` (prevents `foo_bar_baz` matching)
+- `` (?<![`\w]) `` / `(?!\w)`: Word boundaries for `_` (prevents `foo_bar_baz` matching and avoids matching inside inline code)
 - `(?<!\*)` / `(?!\*)`: Not adjacent to `*` (distinguishes `*italic*` from `**bold**`)
 - `(?:(?!\*).)+`: Match any character except `*`, and `.` excludes newlines (single-line only)
 - `__` requires word boundaries (same as `_`)
@@ -365,12 +375,12 @@ Links are converted to [OSC 8 terminal hyperlinks](https://gist.github.com/egmon
 
 ```bash
 # Define osc8 function via --prologue
-osc8_prologue='sub{ sub osc8 { sprintf "\e]8;;%2\$s\e\\%1\$s\e]8;;\e\\", @_ } }'
+osc8_prologue='sub{ sub osc8 { sprintf "\e]8;;%s\e\\%s\e]8;;\e\\", @_ } }'
 
 # Color functions using named captures
-link_func='sub{ s/\[(?<text>.+?)\]\((?<url>.+?)\)/osc8("[$+{text}]",$+{url})/er }'
-image_func='sub{ s/!\[(?<alt>.+?)\]\((?<url>.+?)\)/osc8("![$+{alt}]",$+{url})/er }'
-image_link_func='sub{ s/\[!\[(?<alt>.+?)\]\(.+?\)\]\((?<url>.+?)\)/osc8("![$+{alt}]",$+{url})/er }'
+    link_func='sub{ s/   \[(?<txt>.+?)\]\((?<url>.+?)\)/osc8($+{url},  "[$+{txt}]")/xer }'
+   image_func='sub{ s/  !\[(?<alt>.+?)\]\((?<url>.+?)\)/osc8($+{url}, "![$+{alt}]")/xer }'
+image_link_func='sub{ s/\[!\[(?<alt>.+?)\]\((?<img>.+?)\)\]\((?<url>.+?)\)/osc8($+{img}, "!") . osc8($+{url}, "[$+{alt}]")/xer }'
 ```
 
 Three link patterns:
@@ -379,14 +389,14 @@ Three link patterns:
 |---------|-------|--------|-------------|
 | link | `[text](url)` | `[text]` | url |
 | image | `![alt](img)` | `![alt]` | img |
-| image_link | `[![alt](img)](url)` | `![alt]` | url |
+| image_link | `[![alt](img)](url)` | `![alt]` | img (for `!`) + url (for `[alt]`) |
 
 OSC 8 format: `\e]8;;URL\e\TEXT\e]8;;\e\`
 - `\e]8;;URL\e\` - Start hyperlink with URL
 - `TEXT` - Displayed text
 - `\e]8;;\e\` - End hyperlink
 
-The `osc8` function uses sprintf with positional arguments (`%2$s`, `%1$s`) to reorder text and URL.
+The `osc8` function takes `(URL, TEXT)` order. The `image_link_func` produces two separate OSC 8 links: `!` linked to the image URL and `[alt]` linked to the outer URL.
 
 ### Mode Detection with [Getopt::EX::termcolor](https://metacpan.org/pod/Getopt::EX::termcolor)
 

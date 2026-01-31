@@ -18,8 +18,10 @@ mdee (Markdown, Easy on the Eyes) is a Markdown viewer command implemented as a 
 ### Testing Colors
 
 ```bash
-./script/mdee t/test.md              # light mode
+./script/mdee t/test.md              # light mode (nup style)
 ./script/mdee --mode=dark t/test.md  # dark mode
+./script/mdee -p t/test.md           # pager style
+./script/mdee -f t/test.md           # filter style (stdout)
 ./script/mdee --list-themes          # show theme samples
 ```
 
@@ -69,11 +71,13 @@ flowchart LR
     C -->|no| E{table?}
     D --> E
     E -->|yes| F[ansicolumn]
-    E -->|no| G{nup?}
+    E -->|no| G{style?}
     F --> G
-    G -->|yes| H[nup]
-    G -->|no| I[stdout]
+    G -->|nup| H[nup]
+    G -->|pager| J[pager]
+    G -->|cat/filter/raw| I[stdout]
     H --> I
+    J --> I
 
     subgraph "Syntax Highlighting"
         B
@@ -84,36 +88,77 @@ flowchart LR
     end
     subgraph "Output"
         H
+        J
     end
 ```
 
-Each stage is optional (`--[no-]fold`, `--[no-]table`, `--[no-]nup`).
+Each stage is controlled by `--style` and individual `--[no-]fold`, `--[no-]table`, `--[no-]nup` options.
 
-### Filter Mode
+### Style System
 
-The `-f` / `--filter` option enables filter mode for simple highlighting:
+The `--style` (`-s`) option controls which pipeline stages are active:
+
+| Style | fold | table | nup | pager | Use case |
+|-------|------|-------|-----|-------|----------|
+| `nup` (default) | on | on | on | - | Multi-column paged output |
+| `pager` | on | on | - | on | Single-column with pager |
+| `cat` | on | on | - | - | Output to stdout |
+| `filter` | - | on | - | - | Piping / stdin |
+| `raw` | - | - | - | - | Highlight only |
+
+Shortcuts: `-f` = `--style=filter`, `-p` = `--style=pager`
 
 ```bash
-mdee -f file.md           # highlight + table (no fold, nup)
-cat file.md | mdee -f     # highlight stdin
-mdee -f --fold file.md    # highlight + table + fold
+mdee -s pager file.md       # fold + table, output to pager
+mdee -f file.md             # table only (filter mode)
+mdee -p file.md             # fold + table + pager
+mdee -f --fold file.md      # filter + fold override
 ```
 
-Implementation uses a callback function:
+#### Implementation
+
+Style defaults are applied after option parsing using a sentinel value:
 
 ```bash
+[        style | s  :          # output style      ]=nup
 [       filter | f   !         # filter mode       ]=
-
-filter() {
-    fold=
-    nup=
-}
+[        plain | p   !         # plain mode        ]=
+[         fold |               # line folding      ]=_
+[        table |               # table formatting  ]=_
+[          nup |               # use nup           ]=_
 ```
 
+- `fold`/`table`/`nup` default to sentinel `_` (not user-set)
+- After getoptlong.sh, style defaults are applied only to sentinel values
+- Explicit `--fold`/`--no-fold` sets the value to `1`/empty, overriding style
+- `filter()` and `plain()` callbacks set `$style` during option parsing
 - The `!` marker triggers the callback when option is parsed
-- Callback sets fold and nup to empty (disabled), table remains enabled
-- Subsequent options (`--fold`, `--table`, `--nup`) can override
-- Order matters: `-f --fold` enables fold, `--fold -f` disables it
+
+```bash
+filter() { style=filter; }
+plain()  { [[ $plain ]] && style=pager || style=nup; }
+
+# After getoptlong.sh:
+case $style in
+    nup)    style_defaults=([fold]=1 [table]=1 [nup]=1) ;;
+    pager)  style_defaults=([fold]=1 [table]=1 [nup]=)  ;;
+    ...
+esac
+[[ $fold  == _ ]] && fold=${style_defaults[fold]}
+[[ $table == _ ]] && table=${style_defaults[table]}
+[[ $nup   == _ ]] && nup=${style_defaults[nup]}
+```
+
+#### Pager Stage
+
+When `style=pager`, a pager command is appended to the pipeline:
+
+```bash
+declare -a cmd_pager=()
+if [[ $style == pager ]]; then
+    cmd_pager=(${PAGER:-less})
+fi
+```
 
 ### Greple Options
 

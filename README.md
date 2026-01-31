@@ -359,9 +359,9 @@ The overall data flow is:
 ## Pipeline Architecture
 
 **mdee** dynamically constructs a pipeline based on enabled options.
-Each stage is represented as a Bash array containing the command and
-its arguments.  The `--dryrun` option displays the constructed pipeline
-without execution.
+Each stage is defined as a Bash function (e.g., `run_greple`,
+`run_fold`).  The `--dryrun` option displays the function-based
+pipeline without execution.
 
 ### Processing Stages
 

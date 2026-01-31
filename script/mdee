@@ -466,25 +466,27 @@ for file in "$@"; do
     [[ -e "$file" ]] || die "$file: No such file or directory"
 done
 
-# Define each command as an array
-declare -a cmd_greple=(greple "${greple_opts[@]}" "$@")
+(( debug > 0 )) && declare -p greple_opts >&2
 
+# Define pipeline stage functions
 ITEM_PREFIX='^\h*(?:[*-]|\d+\.)\h+'
 DEF_PATTERN='(?:\A|\G\n|\n\n).+\n\n?(:\h+.*\n)'
 AUTOINDENT='^\h*(?:[*-]|\d+\.|:)\h+'
 
-declare -a cmd_fold=(
-    greple
-    -Mtee "&ansifold" --crmode --autoindent="$AUTOINDENT" -sw${width} --
-    -G -E "${ITEM_PREFIX}.*\\n" -E "${DEF_PATTERN}"
-    --crmode --all --need=0 --no-color
-)
+run_greple()    { greple "${greple_opts[@]}" "$@"; }
 
-declare -a cmd_table=(
-    greple
-    -Mtee::config=discrete,bulkmode "&ansicolumn" -s '|' -o '|' -t --cu=1 --
-    -E '^(\|.+\|\n){3,}' --all --need=0 --no-color
-)
+run_fold() {
+    greple \
+        -Mtee "&ansifold" --crmode --autoindent="$AUTOINDENT" -sw${width} -- \
+        -G -E "${ITEM_PREFIX}.*\\n" -E "${DEF_PATTERN}" \
+        --crmode --all --need=0 --no-color
+}
+
+run_table() {
+    greple \
+        -Mtee::config=discrete,bulkmode "&ansicolumn" -s '|' -o '|' -t --cu=1 -- \
+        -E '^(\|.+\|\n){3,}' --all --need=0 --no-color
+}
 
 define fix_table_script <<'EOS'
     use Term::ANSIColor::Concise "ansi_color";
@@ -495,37 +497,33 @@ define fix_table_script <<'EOS'
     print;
 EOS
 
-declare -a cmd_table_fix=(
-    perl -E "$fix_table_script"
-)
+run_table_fix() { perl -E "$fix_table_script"; }
 
-declare -a cmd_nup=(nup "${nup_opts[@]}")
+run_nup()   { nup "${nup_opts[@]}"; }
 
-# Pager command for pager/cat style
-declare -a cmd_pager=()
-if [[ $style == pager ]]; then
-    cmd_pager=(${PAGER:-less})
-fi
+run_pager() { ${PAGER:-less}; }
 
 # Collect pipeline stages
-declare -a stages=(cmd_greple)
-[[ $fold  ]] && stages+=(cmd_fold)
-[[ $table ]] && stages+=(cmd_table cmd_table_fix)
-[[ $nup   ]] && stages+=(cmd_nup)
-[[ $style == pager ]] && stages+=(cmd_pager)
+declare -a stages=(run_greple)
+[[ $fold  ]] && stages+=(run_fold)
+[[ $table ]] && stages+=(run_table run_table_fix)
+[[ $nup   ]] && stages+=(run_nup)
+[[ $style == pager ]] && stages+=(run_pager)
 
-# Build pipeline string from stages
-pipeline=""
-for stage in "${stages[@]}"; do
-    declare -n cmd="$stage"
-    [[ $pipeline ]] && pipeline+=" | "
-    pipeline+="$(printf '%q ' "${cmd[@]}")"
+# Build and execute pipeline
+# run_greple needs "$@" for file arguments; other stages read from stdin
+pipeline='run_greple "$@"'
+for stage in "${stages[@]:1}"; do
+    pipeline+=" | $stage"
 done
 
 (( debug > 0 )) && echo "debug: stages: ${stages[*]}" >&2
-(( debug > 0 )) && echo "debug: pipeline: $pipeline" >&2
 
-[[ ${dryrun:-} ]] && echo "$pipeline" || eval "$pipeline"
+if [[ ${dryrun:-} ]]; then
+    echo "$pipeline"
+else
+    eval "$pipeline"
+fi
 
 : <<'=cut'
 
@@ -896,9 +894,9 @@ The overall data flow is:
 =head2 Pipeline Architecture
 
 B<mdee> dynamically constructs a pipeline based on enabled options.
-Each stage is represented as a Bash array containing the command and
-its arguments.  The C<--dryrun> option displays the constructed pipeline
-without execution.
+Each stage is defined as a Bash function (e.g., C<run_greple>,
+C<run_fold>).  The C<--dryrun> option displays the function-based
+pipeline without execution.
 
 =head3 Processing Stages
 

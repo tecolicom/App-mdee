@@ -3,6 +3,10 @@
 
 mdee - Markdown, Easy on the Eyes
 
+<div>
+    <p><img width="750" src="https://raw.githubusercontent.com/tecolicom/App-mdee/main/images/manual.png">
+</div>
+
 # SYNOPSIS
 
     mdee [ options ] file ...

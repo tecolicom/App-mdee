@@ -15,6 +15,12 @@ define pod <<"=cut"
 
 mdee - Markdown, Easy on the Eyes
 
+=begin html
+
+<p><img width="750" src="https://raw.githubusercontent.com/tecolicom/App-mdee/main/images/manual.png">
+
+=end html
+
 =head1 SYNOPSIS
 
     mdee [ options ] file ...

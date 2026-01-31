@@ -466,24 +466,28 @@ for file in "$@"; do
     [[ -e "$file" ]] || die "$file: No such file or directory"
 done
 
-(( debug > 0 )) && declare -p greple_opts >&2
-
 # Define pipeline stage functions
 ITEM_PREFIX='^\h*(?:[*-]|\d+\.)\h+'
 DEF_PATTERN='(?:\A|\G\n|\n\n).+\n\n?(:\h+.*\n)'
 AUTOINDENT='^\h*(?:[*-]|\d+\.|:)\h+'
 
-run_greple()    { greple "${greple_opts[@]}" "$@"; }
+invoke() {
+    (( debug > 1 )) && echo "debug: $(printf '%q ' "$@")" >&2
+    [[ ${dryrun:-} ]] && return
+    "$@"
+}
+
+run_greple()    { invoke greple "${greple_opts[@]}" "$@"; }
 
 run_fold() {
-    greple \
+    invoke greple \
         -Mtee "&ansifold" --crmode --autoindent="$AUTOINDENT" -sw${width} -- \
         -G -E "${ITEM_PREFIX}.*\\n" -E "${DEF_PATTERN}" \
         --crmode --all --need=0 --no-color
 }
 
 run_table() {
-    greple \
+    invoke greple \
         -Mtee::config=discrete,bulkmode "&ansicolumn" -s '|' -o '|' -t --cu=1 -- \
         -E '^(\|.+\|\n){3,}' --all --need=0 --no-color
 }
@@ -497,11 +501,11 @@ define fix_table_script <<'EOS'
     print;
 EOS
 
-run_table_fix() { perl -E "$fix_table_script"; }
+run_table_fix() { invoke perl -E "$fix_table_script"; }
 
-run_nup()   { nup "${nup_opts[@]}"; }
+run_nup()   { invoke nup "${nup_opts[@]}"; }
 
-run_pager() { ${PAGER:-less}; }
+run_pager() { invoke ${PAGER:-less}; }
 
 # Collect pipeline stages
 declare -a stages=(run_greple)
@@ -520,7 +524,13 @@ done
 (( debug > 0 )) && echo "debug: stages: ${stages[*]}" >&2
 
 if [[ ${dryrun:-} ]]; then
-    echo "$pipeline"
+    if (( debug > 1 )); then
+        for stage in "${stages[@]}"; do
+            $stage "$@"
+        done
+    else
+        echo "$pipeline"
+    fi
 else
     eval "$pipeline"
 fi
@@ -558,12 +568,25 @@ Show version.
 
 =item B<-d>, B<--debug>
 
-Set debug level.  Can be repeated (C<-d>, C<-dd>, C<-ddd>) for
-increasing verbosity.
+Set debug level.  Can be repeated for increasing verbosity.
+
+=over 4
+
+=item C<-d>
+
+Show color values and pipeline stage names.
+
+=item C<-dd>
+
+Above, plus full command lines for each pipeline stage.
+
+=back
 
 =item B<-n>, B<--dryrun>
 
-Dry-run mode. Show the command without executing.
+Dry-run mode. Show the pipeline without executing.
+With C<-dd>, shows expanded command lines for each stage instead
+of function names.
 
 =back
 

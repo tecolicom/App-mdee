@@ -69,12 +69,21 @@ similar paged output (e.g., `nup glow README.md`).
 
 - **-d**, **--debug**
 
-    Set debug level.  Can be repeated (`-d`, `-dd`, `-ddd`) for
-    increasing verbosity.
+    Set debug level.  Can be repeated for increasing verbosity.
+
+    - `-d`
+
+        Show color values and pipeline stage names.
+
+    - `-dd`
+
+        Above, plus full command lines for each pipeline stage.
 
 - **-n**, **--dryrun**
 
-    Dry-run mode. Show the command without executing.
+    Dry-run mode. Show the pipeline without executing.
+    With `-dd`, shows expanded command lines for each stage instead
+    of function names.
 
 ## Processing Options
 

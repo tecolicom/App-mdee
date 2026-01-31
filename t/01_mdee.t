@@ -196,30 +196,32 @@ subtest 'tee combined execution' => sub {
 
 # Test: show option
 subtest 'show option' => sub {
-    # Count -E options in greple_opts from declare -p debug output
+    # Count -E options in run_greple debug line (identified by --ci=G)
     sub count_patterns {
         my $out = shift;
-        return () = $out =~ /\]="-E"/g;
+        my ($line) = $out =~ /^(debug: greple\h.*--ci=G\h.*)/m;
+        return 0 unless $line;
+        return () = $line =~ /\h-E\h/g;
     }
 
     # all fields enabled by default (16 patterns)
-    my $default = `$mdee --debug --dryrun $test_md 2>&1`;
+    my $default = `$mdee -ddn $test_md 2>&1`;
     is(count_patterns($default), 16, 'default has 16 patterns');
 
     # --show italic=0 disables italic (14 patterns: 16 - 2 italic patterns)
-    my $no_italic = `$mdee --debug --dryrun --show italic=0 $test_md 2>&1`;
+    my $no_italic = `$mdee -ddn --show italic=0 $test_md 2>&1`;
     is(count_patterns($no_italic), 14, '--show italic=0 removes 2 patterns');
 
     # --show bold=0 disables bold (14 patterns: 16 - 2 bold patterns)
-    my $no_bold = `$mdee --debug --dryrun --show bold=0 $test_md 2>&1`;
+    my $no_bold = `$mdee -ddn --show bold=0 $test_md 2>&1`;
     is(count_patterns($no_bold), 14, '--show bold=0 removes 2 patterns');
 
     # --show all enables all fields (16 patterns)
-    my $all = `$mdee --debug --dryrun --show all $test_md 2>&1`;
+    my $all = `$mdee -ddn --show all $test_md 2>&1`;
     is(count_patterns($all), 16, '--show all has 16 patterns');
 
     # --show all= --show bold enables only bold (2 patterns)
-    my $only_bold = `$mdee --debug --dryrun '--show=all=' --show=bold $test_md 2>&1`;
+    my $only_bold = `$mdee -ddn '--show=all=' --show=bold $test_md 2>&1`;
     is(count_patterns($only_bold), 2, '--show all= --show bold has 2 patterns');
 
     # unknown field should error

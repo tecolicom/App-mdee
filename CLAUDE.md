@@ -154,11 +154,31 @@ esac
 When `style=pager`, the `run_pager` function is appended to the pipeline:
 
 ```bash
-run_pager() { ${PAGER:-less}; }
+run_pager() { invoke ${PAGER:-less}; }
 
 # Added to stages when style=pager:
 [[ $style == pager ]] && stages+=(run_pager)
 ```
+
+#### Command Invocation Wrapper
+
+All `run_XXX` functions use `invoke` to execute commands. When `debug > 1` (`-dd`), it prints the full command with quoted arguments to stderr. In dryrun mode, `invoke` skips execution:
+
+```bash
+invoke() {
+    (( debug > 1 )) && echo "debug: $(printf '%q ' "$@")" >&2
+    [[ ${dryrun:-} ]] && return
+    "$@"
+}
+```
+
+Debug levels:
+- `-d` (`debug > 0`): color values, pipeline stage names
+- `-dd` (`debug > 1`): above + full command lines for each pipeline stage
+
+Dryrun combinations:
+- `-dn`: show pipeline as function names (e.g., `run_greple "$@" | run_fold | ...`)
+- `-ddn`: show expanded command lines for each stage without executing
 
 ### Greple Options
 
@@ -300,7 +320,7 @@ define fix_table_script <<'EOS'
     print;
 EOS
 
-run_table_fix() { perl -E "$fix_table_script"; }
+run_table_fix() { invoke perl -E "$fix_table_script"; }
 ```
 
 The script slurps the entire input and only modifies separator lines (`|---|---|`) within table blocks (3+ consecutive pipe-delimited rows), replacing spaces with dashes.

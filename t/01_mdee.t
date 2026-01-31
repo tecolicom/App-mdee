@@ -91,6 +91,58 @@ subtest 'filter option' => sub {
     unlike($out, qr/\|\s*nup/, '-f disables nup');
 };
 
+# Test: style option
+subtest 'style option' => sub {
+    my $nup = `$mdee --dryrun --style=nup $test_md 2>&1`;
+    like($nup, qr/ansifold/, '--style=nup includes fold');
+    like($nup, qr/ansicolumn/, '--style=nup includes table');
+    like($nup, qr/\|\s*nup\b/, '--style=nup includes nup');
+
+    my $pager = `$mdee --dryrun --style=pager $test_md 2>&1`;
+    like($pager, qr/ansifold/, '--style=pager includes fold');
+    like($pager, qr/ansicolumn/, '--style=pager includes table');
+    unlike($pager, qr/\|\s*nup\b/, '--style=pager excludes nup');
+    like($pager, qr/less/, '--style=pager includes pager');
+
+    my $cat = `$mdee --dryrun --style=cat $test_md 2>&1`;
+    like($cat, qr/ansifold/, '--style=cat includes fold');
+    like($cat, qr/ansicolumn/, '--style=cat includes table');
+    unlike($cat, qr/\|\s*nup\b/, '--style=cat excludes nup');
+
+    my $filter = `$mdee --dryrun --style=filter $test_md 2>&1`;
+    unlike($filter, qr/ansifold/, '--style=filter excludes fold');
+    like($filter, qr/ansicolumn/, '--style=filter includes table');
+    unlike($filter, qr/\|\s*nup\b/, '--style=filter excludes nup');
+
+    my $raw = `$mdee --dryrun --style=raw $test_md 2>&1`;
+    unlike($raw, qr/ansifold/, '--style=raw excludes fold');
+    unlike($raw, qr/ansicolumn/, '--style=raw excludes table');
+    unlike($raw, qr/\|\s*nup\b/, '--style=raw excludes nup');
+
+    my $bogus = `$mdee --dryrun --style=bogus $test_md 2>&1`;
+    like($bogus, qr/unknown style/, '--style=bogus produces error');
+};
+
+# Test: plain option
+subtest 'plain option' => sub {
+    my $out = `$mdee --dryrun -p $test_md 2>&1`;
+    like($out, qr/ansifold/, '-p includes fold');
+    like($out, qr/ansicolumn/, '-p includes table');
+    unlike($out, qr/\|\s*nup\b/, '-p excludes nup');
+    like($out, qr/less/, '-p includes pager');
+};
+
+# Test: style override
+subtest 'style override' => sub {
+    my $out = `$mdee --dryrun -f --fold $test_md 2>&1`;
+    like($out, qr/ansifold/, '-f --fold enables fold');
+    unlike($out, qr/\|\s*nup\b/, '-f --fold keeps nup disabled');
+
+    my $out2 = `$mdee --dryrun -p --no-fold $test_md 2>&1`;
+    unlike($out2, qr/ansifold/, '-p --no-fold disables fold');
+    like($out2, qr/less/, '-p --no-fold keeps pager');
+};
+
 # Test: list-themes option
 subtest 'list-themes option' => sub {
     my $out = `$mdee --list-themes 2>&1`;

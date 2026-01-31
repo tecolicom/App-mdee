@@ -11,7 +11,9 @@ mdee - Markdown, Easy on the Eyes
          --version          show version
      -d  --debug            debug level (repeatable)
      -n  --dryrun           dry-run mode
-     -f  --filter           filter mode (--no-fold --no-nup)
+     -s  --style=#          output style (nup/pager/cat/filter/raw)
+     -f  --filter           shortcut for --style=filter
+     -p  --plain             shortcut for --style=pager
          --[no-]fold        line folding (default: on)
          --[no-]table       table formatting (default: on)
          --[no-]nup         nup paged output (default: on)
@@ -72,12 +74,34 @@ similar paged output (e.g., `nup glow README.md`).
 
 ## Processing Options
 
+- **-s** _STYLE_, **--style**=_STYLE_
+
+    Set the output style.  Default is `nup`.  Available styles:
+
+    - `nup` - Full pipeline: fold + table + nup paged output (default)
+    - `pager` - Fold + table, output to pager (`$PAGER` or `less`)
+    - `cat` - Fold + table, output to stdout
+    - `filter` - Table only (no fold, no nup), suitable for piping
+    - `raw` - Highlight only (no fold, no table, no nup)
+
+    The style sets the initial state of `--fold`, `--table`, and
+    `--nup` options.  Subsequent options can override individual
+    settings:
+
+        mdee -s filter --fold file.md    # filter + fold
+        mdee -p --no-fold file.md        # pager without fold
+
 - **-f**, **--filter**
 
-    Filter mode.  Reads from stdin (or files) and outputs highlighted
-    Markdown to stdout.  Disables line folding and nup paged output,
-    but keeps table formatting enabled.  Useful for piping Markdown
-    content through mdee for syntax highlighting.
+    Shortcut for `--style=filter`.  Reads from stdin (or files) and
+    outputs highlighted Markdown to stdout.  Disables line folding and
+    nup paged output, but keeps table formatting enabled.  Useful for
+    piping Markdown content through mdee for syntax highlighting.
+
+- **-p**, **--plain**
+
+    Shortcut for `--style=pager`.  Enables fold and table formatting,
+    outputs through a pager (`$PAGER` or `less`) instead of nup.
 
 - **--\[no-\]fold**
 
@@ -254,9 +278,20 @@ bold text, etc.).
     mdee --no-fold file.md      # disable line folding
     mdee --no-table file.md     # disable table formatting
 
-    # Filter mode
-    cat file.md | mdee -f       # highlight stdin
+    # Output styles
+    mdee -s pager file.md       # fold + table, output to pager
+    mdee -s cat file.md         # fold + table, output to stdout
+    mdee -s filter file.md      # table only, no fold/nup
+    mdee -s raw file.md         # highlight only
+
+    # Style shortcuts
+    mdee -p file.md             # same as --style=pager
+    cat file.md | mdee -f       # highlight stdin (filter mode)
     mdee -f file.md             # highlight only (no paging)
+
+    # Override individual settings
+    mdee -f --fold file.md      # filter + fold
+    mdee -p --no-fold file.md   # pager without fold
 
     # Theme examples
     mdee --mode=dark file.md             # use dark mode
@@ -310,7 +345,9 @@ The overall data flow is:
     [ansicolumn] --- Table Formatting (optional)
         |
         v
-    [nup] --- Paged Output (optional)
+    [nup] --- Paged Output (nup style)
+        |         or
+    [pager] --- Pager Output (pager style)
         |
         v
     Terminal/Pager

@@ -31,14 +31,33 @@ Themes are defined as Bash associative arrays:
 - `theme_default_light` - Light mode theme (full definition, includes `[base]`)
 - `theme_default_dark` - Dark mode theme (only differences from light, includes `[base]`)
 
-Dark theme inherits from light theme:
+Dark theme inherits from light theme automatically in `load_theme()`.
+
+### External Theme Files
+
+Themes can be provided as external Bash scripts. Search order:
+
+1. User theme: `${XDG_CONFIG_HOME:-$HOME/.config}/mdee/theme/NAME.sh`
+2. Share theme: `$share_dir/theme/NAME.sh` (installed via distribution or `../share` in development)
+3. In-memory variables (built-in themes, config.sh definitions)
+
+Theme file format (`declare -gA` for global scope from within functions):
 
 ```bash
-# After defining theme_default_dark with only different values
-for k in "${!theme_default_light[@]}"; do
-    [[ -v theme_default_dark[$k] ]] || theme_default_dark[$k]=${theme_default_light[$k]}
-done
+# share/theme/warm.sh
+declare -gA theme_warm_light=(
+    [base]='<Coral>=y25'
+    [bold]='${base}D'
+    ...all fields...
+)
+declare -gA theme_warm_dark=(
+    [base]='<Coral>=y80'
+    [h1]='L00DE/${base}'
+    ...differences only (inherits from light)...
+)
 ```
+
+The `find_share_dir()` function discovers the installed share directory via `@INC`, with a development fallback to `$0/../share`.
 
 Field names are derived from theme keys (excluding `base`):
 

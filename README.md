@@ -22,7 +22,7 @@ mdee - Markdown, Easy on the Eyes
      -m  --mode=#           light or dark (default: light)
      -B  --base-color=#     override theme's base color
                             (e.g., Ivory, #780043, (120,0,67))
-         --list-themes      list built-in themes
+         --list-themes      list available themes
          --show=#           set field visibility (e.g., italic=1)
      -C  --pane=#           number of columns
      -R  --row=#            number of rows
@@ -147,7 +147,33 @@ bold text, etc.).
 
 - **-t** _NAME_, **--theme**=_NAME_
 
-    Select a color theme.  Default is `default`.
+    Select a color theme.  Default is `default`.  Theme files are
+    searched in the following order:
+
+    - 1. User theme directory: `${XDG_CONFIG_HOME:-~/.config}/mdee/theme/NAME.sh`
+    - 2. Share theme directory: installed with the distribution under `auto/share/dist/App-mdee/theme/`
+    - 3. In-memory variables (built-in themes and themes defined in config.sh)
+
+    Theme files are Bash scripts that define associative arrays using
+    `declare -gA`.  Each theme should define a light variant with all
+    fields, and optionally a dark variant with only the differences
+    (dark inherits undefined fields from light):
+
+        # theme/mytheme.sh
+        declare -gA theme_mytheme_light=(
+            [base]='<DarkCyan>=y25'
+            [bold]='${base}D'
+            [h1]='L25DE/${base}'
+            ...all fields...
+        )
+        declare -gA theme_mytheme_dark=(
+            [base]='<DarkCyan>=y80'
+            [h1]='L00DE/${base}'
+            ...differences only...
+        )
+
+    The variable names must follow the pattern `theme_NAME_light` and
+    `theme_NAME_dark` (or `theme_NAME` for a mode-independent theme).
 
 - **-m** _MODE_, **--mode**=_MODE_
 
@@ -175,8 +201,6 @@ bold text, etc.).
         default[style]='pager'           # set default style
         default[width]=100               # set default fold width
         default[base_color]='DarkCyan'   # set default base color
-        colors[base]='<DarkCyan>'        # override base color directly
-        colors[h1]='L25DE/${base}'       # header with base background
 
     The `default` associative array supports the following keys:
 
@@ -186,15 +210,35 @@ bold text, etc.).
     - `default[width]` - Corresponds to `--width` (e.g., `100`)
     - `default[base_color]` - Corresponds to `--base-color` (e.g., `DarkCyan`)
 
-    Custom themes can be defined as associative arrays.  The config file
-    is sourced at global scope, so `declare -A` creates global variables:
+    **Overriding theme colors**
 
-        declare -A theme_mytheme_light=(
-            [base]='<DarkCyan>=y25'
-            [h1]='L25DE/${base}'
-            [bold]='${base}D'
-            ...
-        )
+    There are three ways to customize colors in config.sh, each operating
+    at a different level:
+
+    - **Theme definition (partial)** - modify specific keys before loading:
+
+            theme_default_light[base]='<DarkCyan>=y25'  # change base only
+            theme_default_dark[h1]='L00DE/${base}'      # change h1 only
+
+        Since `${base}` references are expanded after loading, changing the
+        base color automatically affects all derived colors (h1, h2, bold, etc.).
+
+    - **Final color override** - set after theme loading:
+
+            colors[base]='<DarkCyan>'        # override base color directly
+            colors[h1]='L25DE/<DarkCyan>'    # override h1 (fully expanded)
+
+        The `colors` array holds the final color values.  The `${base}`
+        placeholder is NOT expanded in these values, so use literal colors.
+
+    - **Full theme definition** - define a complete custom theme:
+
+            declare -A theme_mytheme_light=(
+                [base]='<DarkCyan>=y25'
+                [h1]='L25DE/${base}'
+                [bold]='${base}D'
+                ...
+            )
 
     Color specifications use [Term::ANSIColor::Concise](https://metacpan.org/pod/Term%3A%3AANSIColor%3A%3AConcise) format.
     The `FG/BG` notation specifies foreground and background colors
@@ -246,7 +290,7 @@ bold text, etc.).
 
 - **--list-themes**
 
-    List built-in themes with color samples and exit.
+    List available themes with color samples and exit.
 
 ## Highlight Options
 

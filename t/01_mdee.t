@@ -146,8 +146,15 @@ subtest 'style override' => sub {
 # Test: list-themes option
 subtest 'list-themes option' => sub {
     my $out = `$mdee --list-themes 2>&1`;
-    like($out, qr/Built-in themes/i, '--list-themes shows themes');
+    like($out, qr/Available themes/i, '--list-themes shows themes');
     like($out, qr/default/, '--list-themes shows default theme');
+};
+
+# Test: theme name listing (-t ?)
+subtest 'theme name listing' => sub {
+    my $out = `$mdee --theme='?' 2>&1`;
+    is($?, 0, '--theme=? exits successfully');
+    like($out, qr/^default$/m, '--theme=? lists default theme');
 };
 
 # Test: width option
@@ -319,6 +326,74 @@ CONF
         like($out, qr/Ivory/, '--base-color overrides config colors[base]');
         unlike($out, qr/Crimson/, '--base-color takes priority over config');
     }
+};
+
+# Test: external theme file loading
+subtest 'external theme file' => sub {
+    use File::Temp qw(tempdir);
+    my $tmpdir = tempdir(CLEANUP => 1);
+    my $theme_dir = "$tmpdir/mdee/theme";
+    system("mkdir -p $theme_dir") == 0 or die "mkdir failed";
+
+    # Create a test theme file
+    open my $fh, '>', "$theme_dir/testtheme.sh" or die;
+    print $fh <<'THEME';
+declare -gA theme_testtheme_light=(
+    [base]='<Crimson>=y25'
+    [comment]='${base}+r60'
+    [bold]='${base}D'
+    [strike]='X'
+    [italic]='I'
+    [link]="$link_func"
+    [image]="$image_func"
+    [image_link]="$image_link_func"
+    [h1]='L25DE/${base}'
+    [h2]='L25DE/${base}+y20'
+    [h3]='L25DN/${base}+y30'
+    [h4]='${base}UD'
+    [h5]='${base}+y20;U'
+    [h6]='${base}+y20'
+    [inline_code]='L15/L23,/L23,L15/L23'
+    [code_block]='L20 , L18 , /L23;E , L20'
+)
+declare -gA theme_testtheme_dark=(
+    [base]='<Crimson>=y80'
+    [h1]='L00DE/${base}'
+    [h2]='L00DE/${base}-y15'
+    [h3]='L00DN/${base}-y25'
+    [inline_code]='L12/L05,/L05,L12/L05'
+    [code_block]='L10 , L12 , /L05;E , L10'
+)
+THEME
+    close $fh;
+
+    # Test loading external theme
+    my $out = `XDG_CONFIG_HOME=$tmpdir $mdee -d --dryrun --mode=light --theme=testtheme $test_md 2>&1`;
+    is($?, 0, 'external theme loads successfully');
+    like($out, qr/Crimson/, 'external theme base color is applied');
+
+    # Test dark mode with external theme (inherits from light)
+    my $dark = `XDG_CONFIG_HOME=$tmpdir $mdee -d --dryrun --mode=dark --theme=testtheme $test_md 2>&1`;
+    is($?, 0, 'external dark theme loads successfully');
+    like($dark, qr/Crimson/, 'external dark theme has base color');
+
+    # Test --list-themes shows external theme
+    my $list = `XDG_CONFIG_HOME=$tmpdir $mdee --list-themes 2>&1`;
+    like($list, qr/testtheme/, '--list-themes shows external theme');
+
+    # Test nonexistent theme produces error
+    my $err = `XDG_CONFIG_HOME=$tmpdir $mdee --dryrun --mode=light --theme=nonexistent $test_md 2>&1`;
+    isnt($?, 0, 'nonexistent theme fails');
+    like($err, qr/theme not found/, 'nonexistent theme produces error');
+};
+
+# Test: share directory theme loading (warm theme)
+subtest 'share theme warm' => sub {
+    my $share = File::Spec->rel2abs('share/theme/warm.sh');
+    plan skip_all => 'share/theme/warm.sh not found' unless -f $share;
+    my $out = `$mdee -d --dryrun --mode=light --theme=warm $test_md 2>&1`;
+    is($?, 0, 'warm theme loads successfully');
+    like($out, qr/Coral/, 'warm theme uses Coral base color');
 };
 
 done_testing;

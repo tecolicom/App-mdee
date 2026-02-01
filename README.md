@@ -3,10 +3,6 @@
 
 mdee - Markdown, Easy on the Eyes
 
-<div>
-    <p><img width="750" src="https://raw.githubusercontent.com/tecolicom/App-mdee/main/images/manual.png">
-</div>
-
 # SYNOPSIS
 
     mdee [ options ] file ...
@@ -41,6 +37,10 @@ mdee - Markdown, Easy on the Eyes
 Version 0.07
 
 # DESCRIPTION
+
+<div>
+    <p><img width="750" src="https://raw.githubusercontent.com/tecolicom/App-mdee/main/images/manual.png">
+</div>
 
 **mdee** is a multi-column Markdown viewer with syntax highlighting,
 combining [greple(1)](http://man.he.net/man1/greple) for colorization and [nup(1)](http://man.he.net/man1/nup) for paged output.
@@ -171,9 +171,30 @@ bold text, etc.).
     This is a shell script that can set defaults and override colors:
 
         # ~/.config/mdee/config.sh
-        default_mode='dark'              # set default mode
-        colors[base]='<DarkCyan>'        # override base color
+        default[mode]='dark'             # set default mode
+        default[style]='pager'           # set default style
+        default[width]=100               # set default fold width
+        default[base_color]='DarkCyan'   # set default base color
+        colors[base]='<DarkCyan>'        # override base color directly
         colors[h1]='L25DE/${base}'       # header with base background
+
+    The `default` associative array supports the following keys:
+
+    - `default[mode]` - Corresponds to `--mode` (e.g., `dark`, `light`)
+    - `default[theme]` - Corresponds to `--theme` (e.g., `default`)
+    - `default[style]` - Corresponds to `--style` (e.g., `pager`, `cat`)
+    - `default[width]` - Corresponds to `--width` (e.g., `100`)
+    - `default[base_color]` - Corresponds to `--base-color` (e.g., `DarkCyan`)
+
+    Custom themes can be defined as associative arrays.  The config file
+    is sourced at global scope, so `declare -A` creates global variables:
+
+        declare -A theme_mytheme_light=(
+            [base]='<DarkCyan>=y25'
+            [h1]='L25DE/${base}'
+            [bold]='${base}D'
+            ...
+        )
 
     Color specifications use [Term::ANSIColor::Concise](https://metacpan.org/pod/Term%3A%3AANSIColor%3A%3AConcise) format.
     The `FG/BG` notation specifies foreground and background colors
@@ -216,8 +237,8 @@ bold text, etc.).
     The automatic luminance adjustment values can be customized with the
     `--adjust` option:
 
-        --adjust 'light==y30'      # use =y30 instead of =y25 for light mode
-        --adjust 'dark==y70'       # use =y70 instead of =y80 for dark mode
+        --adjust light='=y30'      # use =y30 instead of =y25 for light mode
+        --adjust dark='=y70'       # use =y70 instead of =y80 for dark mode
 
     **Note**: Basic ANSI color codes (`R`, `G`, `B`, etc.) cannot be used
     because heading variations require luminance adjustment, which only works
@@ -363,7 +384,7 @@ The overall data flow is:
     [pager] --- Pager Output (pager style)
         |
         v
-    Terminal/Pager
+    Terminal
 
 ## Pipeline Architecture
 

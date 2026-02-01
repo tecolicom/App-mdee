@@ -15,12 +15,6 @@ define pod <<"=cut"
 
 mdee - Markdown, Easy on the Eyes
 
-=begin html
-
-<p><img width="750" src="https://raw.githubusercontent.com/tecolicom/App-mdee/main/images/manual.png">
-
-=end html
-
 =head1 SYNOPSIS
 
     mdee [ options ] file ...
@@ -84,6 +78,7 @@ END
 
 declare -a nup_opts=(--document --no-filename)
 declare -A show=()
+declare -A default=()
 
 declare -A adjust=([light]='=y25' [dark]='=y80')
 
@@ -93,16 +88,16 @@ declare -A OPTS=(
     [      version |     !         # show version      ]=
     [        debug | d  +          # debug level       ]=0
     [       dryrun | n             # dry-run mode      ]=
-    [        style | s  :          # output style      ]=nup
+    [        style | s  :          # output style      ]=
     [       filter | f   !         # filter mode       ]=
     [        plain | p   !         # plain mode        ]=
     [         fold |               # line folding      ]=_
     [        table |               # table formatting  ]=_
     [          nup |               # use nup           ]=_
-    [        width | w  :=i        # fold width        ]=80
+    [        width | w  :=i        # fold width        ]=0
     [        theme | t  :          # color theme       ]=default
     [         mode | m  :          # light or dark     ]=
-    [   base-color | B  :          # base color        ]=RoyalBlue
+    [   base-color | B  :          # base color        ]=
     [       adjust |    %          # color adjustment  ]=
     [  list-themes |     !         # list themes       ]=
     [         show |    %!         # field visibility  ]=
@@ -126,6 +121,7 @@ declare -A OPTS=(
 image_link_func='sub{ s/\[!\[(?<alt>.+?)\]\((?<img>.+?)\)\]\((?<url>.+?)\)/osc8($+{img}, "!") . osc8($+{url}, "[$+{alt}]")/xer }'
 
 declare -A theme_default_light=(
+           [base]='<RoyalBlue>=y25'
         [comment]='${base}+r60'
            [bold]='${base}D'
          [strike]='X'
@@ -148,6 +144,7 @@ for k in "${!theme_default_light[@]}"; do
 done
 
 declare -A theme_default_dark=(
+           [base]='<RoyalBlue>=y80'
              [h1]='L00DE/${base}'
              [h2]='L00DE/${base}-y15'
              [h3]='L00DN/${base}-y25'
@@ -194,11 +191,8 @@ load_theme() {
     die "theme not found: $name"
 }
 
-# Load user config file
-load_config() {
-    local config_file="${XDG_CONFIG_HOME:-$HOME/.config}/mdee/config.sh"
-    [[ -f "$config_file" ]] && . "$config_file" || :
-}
+# User config file path
+config_file="${XDG_CONFIG_HOME:-$HOME/.config}/mdee/config.sh"
 
 # Detect mode from terminal background luminance
 # Returns "dark" if luminance < 50, "light" otherwise
@@ -288,7 +282,7 @@ show_theme_sample() {
         fi
     fi
 
-    # Expand ${base} - use default if not defined in theme
+    # Expand ${base} - theme should define base, fall back to default
     local base="${sample_colors[base]:-<RoyalBlue>${adjust[$theme_mode]}}"
     for key in "${!sample_colors[@]}"; do
         if [[ "$key" != "base" ]]; then
@@ -339,7 +333,7 @@ list_themes() {
     echo "Usage: mdee --mode=<light|dark> [--base-color=<color>]"
     echo ""
     echo "User config: \${XDG_CONFIG_HOME:-~/.config}/mdee/config.sh"
-    echo "  default_mode='dark'        # set default mode"
+    echo "  default[mode]='dark'       # set default mode"
     echo "  colors[base]='<Color>'     # override base color"
     exit 0
 }
@@ -351,8 +345,35 @@ list_themes() {
 . getoptlong.sh OPTS "$@"
 
 ##############################################################################
+# Main
+##############################################################################
+
+if (( $# == 0 )) && [[ -t 0 ]]; then
+    help
+fi
+
+##############################################################################
+# Theme setup
+##############################################################################
+
+# Load user config (may set default[theme], default[mode], default[style], etc.)
+[[ -f "$config_file" ]] && . "$config_file" || :
+
+# Apply config defaults if options not specified
+[[ $theme == default && ${default[theme]:-} ]] && theme=${default[theme]}
+# Set mode: explicit option > config default > terminal detection > "light"
+: ${mode:=${default[mode]:-$(detect_terminal_mode)}}
+: ${mode:=light}
+
+##############################################################################
 # Apply style defaults for fold/table/nup
 ##############################################################################
+
+# Apply style default: explicit option > config default > "nup"
+: ${style:=${default[style]:-nup}}
+
+# Apply width default: explicit option (non-zero) > config default > 80
+(( width == 0 )) && width=${default[width]:-80}
 
 # Style determines default values for fold, table, nup.
 # Sentinel "_" means not explicitly set by user.
@@ -369,36 +390,16 @@ esac
 [[ $table == _ ]] && table=${style_defaults[table]}
 [[ $nup   == _ ]] && nup=${style_defaults[nup]}
 
-##############################################################################
-# Main
-##############################################################################
-
-if (( $# == 0 )) && [[ -t 0 ]]; then
-    help
-fi
-
-##############################################################################
-# Theme setup
-##############################################################################
-
-# Load user config (may set default_theme and default_mode)
-load_config
-
-# Apply config defaults if options not specified
-[[ $theme == default && ${default_theme:-} ]] && theme=$default_theme
-# Set mode: explicit option > config default > terminal detection > "light"
-: ${mode:=${default_mode:-$(detect_terminal_mode)}}
-: ${mode:=light}
-
 # Load theme with mode
 load_theme "$theme" "$mode"
 
 # Apply user config color overrides
-load_config
+[[ -f "$config_file" ]] && . "$config_file" || :
 
-# Override base color if specified
-# Color names (e.g., Red, NavyBlue) get automatic adjustment
+# Override base color if specified via --base-color or default[base_color]
+: ${base_color:=${default[base_color]:-}}
 if [[ $base_color ]]; then
+    # Color names (e.g., Red, NavyBlue) get automatic adjustment
     if [[ $base_color =~ ^[A-Za-z][A-Za-z0-9_]*$ ]]; then
         colors[base]="<${base_color}>${adjust[$mode]}"
     else
@@ -538,6 +539,12 @@ fi
 : <<'=cut'
 
 =head1 DESCRIPTION
+
+=begin html
+
+<p><img width="750" src="https://raw.githubusercontent.com/tecolicom/App-mdee/main/images/manual.png">
+
+=end html
 
 B<mdee> is a multi-column Markdown viewer with syntax highlighting,
 combining L<greple(1)> for colorization and L<nup(1)> for paged output.
@@ -695,9 +702,38 @@ User configuration is loaded from:
 This is a shell script that can set defaults and override colors:
 
     # ~/.config/mdee/config.sh
-    default_mode='dark'              # set default mode
-    colors[base]='<DarkCyan>'        # override base color
+    default[mode]='dark'             # set default mode
+    default[style]='pager'           # set default style
+    default[width]=100               # set default fold width
+    default[base_color]='DarkCyan'   # set default base color
+    colors[base]='<DarkCyan>'        # override base color directly
     colors[h1]='L25DE/${base}'       # header with base background
+
+The C<default> associative array supports the following keys:
+
+=over 4
+
+=item C<default[mode]> - Corresponds to C<--mode> (e.g., C<dark>, C<light>)
+
+=item C<default[theme]> - Corresponds to C<--theme> (e.g., C<default>)
+
+=item C<default[style]> - Corresponds to C<--style> (e.g., C<pager>, C<cat>)
+
+=item C<default[width]> - Corresponds to C<--width> (e.g., C<100>)
+
+=item C<default[base_color]> - Corresponds to C<--base-color> (e.g., C<DarkCyan>)
+
+=back
+
+Custom themes can be defined as associative arrays.  The config file
+is sourced at global scope, so C<declare -A> creates global variables:
+
+    declare -A theme_mytheme_light=(
+        [base]='<DarkCyan>=y25'
+        [h1]='L25DE/${base}'
+        [bold]='${base}D'
+        ...
+    )
 
 Color specifications use L<Term::ANSIColor::Concise> format.
 The C<FG/BG> notation specifies foreground and background colors
@@ -740,8 +776,8 @@ B<Customizing the default adjustment>:
 The automatic luminance adjustment values can be customized with the
 C<--adjust> option:
 
-    --adjust 'light==y30'      # use =y30 instead of =y25 for light mode
-    --adjust 'dark==y70'       # use =y70 instead of =y80 for dark mode
+    --adjust light='=y30'      # use =y30 instead of =y25 for light mode
+    --adjust dark='=y70'       # use =y70 instead of =y80 for dark mode
 
 B<Note>: Basic ANSI color codes (C<R>, C<G>, C<B>, etc.) cannot be used
 because heading variations require luminance adjustment, which only works
@@ -912,7 +948,7 @@ The overall data flow is:
     [pager] --- Pager Output (pager style)
         |
         v
-    Terminal/Pager
+    Terminal
 
 =head2 Pipeline Architecture
 

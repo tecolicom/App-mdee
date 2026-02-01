@@ -13,12 +13,6 @@ our $VERSION = "0.07";
 
 mdee - Markdown, Easy on the Eyes
 
-=begin html
-
-<p><img width="750" src="https://raw.githubusercontent.com/tecolicom/App-mdee/main/images/manual.png">
-
-=end html
-
 =head1 SYNOPSIS
 
     mdee [ options ] file ...
@@ -54,6 +48,12 @@ Version 0.07
 
 =cut
 =head1 DESCRIPTION
+
+=begin html
+
+<p><img width="750" src="https://raw.githubusercontent.com/tecolicom/App-mdee/main/images/manual.png">
+
+=end html
 
 B<mdee> is a multi-column Markdown viewer with syntax highlighting,
 combining L<greple(1)> for colorization and L<nup(1)> for paged output.

@@ -229,4 +229,96 @@ subtest 'show option' => sub {
     like($unknown, qr/unknown field/, '--show unknown produces error');
 };
 
+# Test: config file defaults
+subtest 'config file defaults' => sub {
+    use File::Temp qw(tempdir);
+    my $tmpdir = tempdir(CLEANUP => 1);
+    my $config_dir = "$tmpdir/mdee";
+    mkdir $config_dir;
+
+    # Test default[style]
+    {
+        open my $fh, '>', "$config_dir/config.sh" or die;
+        print $fh "default[style]='pager'\n";
+        close $fh;
+        my $out = `XDG_CONFIG_HOME=$tmpdir $mdee --dryrun --mode=light $test_md 2>&1`;
+        like($out, qr/run_pager/, 'default[style]=pager adds pager');
+        unlike($out, qr/run_nup/, 'default[style]=pager removes nup');
+    }
+
+    # Test default[width]
+    {
+        open my $fh, '>', "$config_dir/config.sh" or die;
+        print $fh "default[width]=40\n";
+        close $fh;
+        my $out = `XDG_CONFIG_HOME=$tmpdir $mdee -ddn --mode=light $test_md 2>&1`;
+        like($out, qr/-sw40\b/, 'default[width]=40 sets fold width');
+    }
+
+    # Test default[base_color]
+    {
+        open my $fh, '>', "$config_dir/config.sh" or die;
+        print $fh "default[base_color]='Crimson'\n";
+        close $fh;
+        my $out = `XDG_CONFIG_HOME=$tmpdir $mdee -d --dryrun --mode=light $test_md 2>&1`;
+        like($out, qr/Crimson/, 'default[base_color]=Crimson is applied');
+    }
+
+    # Test command-line overrides config defaults
+    {
+        open my $fh, '>', "$config_dir/config.sh" or die;
+        print $fh "default[style]='pager'\ndefault[width]=40\n";
+        close $fh;
+        my $out = `XDG_CONFIG_HOME=$tmpdir $mdee --dryrun --mode=light -s nup -w 120 $test_md 2>&1`;
+        like($out, qr/run_nup/, '-s nup overrides default[style]=pager');
+    }
+
+    # Test custom theme defined in config.sh
+    {
+        open my $fh, '>', "$config_dir/config.sh" or die;
+        print $fh <<'CONF';
+declare -A theme_custom_light=(
+    [base]='<DarkCyan>=y25'
+    [comment]='${base}+r60'
+    [bold]='${base}D'
+    [strike]='X'
+    [italic]='I'
+    [link]="$link_func"
+    [image]="$image_func"
+    [image_link]="$image_link_func"
+    [h1]='L25DE/${base}'
+    [h2]='L25DE/${base}+y20'
+    [h3]='L25DN/${base}+y30'
+    [h4]='${base}UD'
+    [h5]='${base}+y20;U'
+    [h6]='${base}+y20'
+    [inline_code]='L15/L23,/L23,L15/L23'
+    [code_block]='L20 , L18 , /L23;E , L20'
+)
+CONF
+        close $fh;
+        my $out = `XDG_CONFIG_HOME=$tmpdir $mdee -d --dryrun --mode=light --theme=custom $test_md 2>&1`;
+        like($out, qr/DarkCyan/, 'custom theme from config.sh is loaded');
+    }
+
+    # Test colors[base] override in config.sh
+    {
+        open my $fh, '>', "$config_dir/config.sh" or die;
+        print $fh "colors[base]='<Crimson>=y25'\n";
+        close $fh;
+        my $out = `XDG_CONFIG_HOME=$tmpdir $mdee -d --dryrun --mode=light $test_md 2>&1`;
+        like($out, qr/Crimson/, 'colors[base] override in config.sh works');
+    }
+
+    # Test --base-color overrides config colors[base]
+    {
+        open my $fh, '>', "$config_dir/config.sh" or die;
+        print $fh "colors[base]='<Crimson>=y25'\n";
+        close $fh;
+        my $out = `XDG_CONFIG_HOME=$tmpdir $mdee -d --dryrun --mode=light -B Ivory $test_md 2>&1`;
+        like($out, qr/Ivory/, '--base-color overrides config colors[base]');
+        unlike($out, qr/Crimson/, '--base-color takes priority over config');
+    }
+};
+
 done_testing;

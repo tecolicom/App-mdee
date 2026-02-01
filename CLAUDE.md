@@ -28,8 +28,8 @@ mdee (Markdown, Easy on the Eyes) is a Markdown viewer command implemented as a 
 ### Theme System
 
 Themes are defined as Bash associative arrays:
-- `theme_default_light` - Light mode theme (full definition)
-- `theme_default_dark` - Dark mode theme (only differences from light)
+- `theme_default_light` - Light mode theme (full definition, includes `[base]`)
+- `theme_default_dark` - Dark mode theme (only differences from light, includes `[base]`)
 
 Dark theme inherits from light theme:
 
@@ -56,6 +56,30 @@ Color specifications use [Term::ANSIColor::Concise](https://metacpan.org/pod/Ter
 - `=l50`: Set absolute lightness
 - `D`: Bold, `I`: Italic, `U`: Underline, `E`: Erase line
 - `FG/BG`: Foreground/Background
+
+### User Configuration
+
+Config file: `${XDG_CONFIG_HOME:-~/.config}/mdee/config.sh`
+
+The config file is sourced at global scope (not inside a function), so `declare -A` creates global variables. This allows custom themes to be defined in config.sh.
+
+The `default` associative array supports:
+
+| Key | Option | Example |
+|-----|--------|---------|
+| `default[mode]` | `--mode` | `dark` |
+| `default[theme]` | `--theme` | `custom` |
+| `default[style]` | `--style` | `pager` |
+| `default[width]` | `--width` | `100` |
+| `default[base_color]` | `--base-color` | `DarkCyan` |
+
+Priority: command-line option > config default > built-in default.
+
+The `--base-color` option default is empty (no override). Base color is determined by:
+1. `--base-color` option (highest priority)
+2. `default[base_color]` in config.sh
+3. `colors[base]` override in config.sh
+4. Theme's `[base]` key (e.g., `<RoyalBlue>=y25` for light)
 
 ## Implementation Notes
 

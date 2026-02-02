@@ -470,9 +470,6 @@ if [[ -f "$theme" ]]; then
 fi
 load_theme "$theme" "$mode"
 
-# Apply user config color overrides
-[[ -f "$config_file" ]] && . "$config_file" || :
-
 # Override base color if specified via --base-color or default[base_color]
 : ${base_color:=${default[base_color]:-}}
 if [[ $base_color ]]; then
@@ -527,7 +524,8 @@ add_pattern h1        '^#\h+.*'
 add_pattern h2        '^##\h+.*'
 add_pattern h3        '^###\h+.*'
 add_pattern h4        '^####\h+.*'
-add_pattern h5        '^#####+.*'
+add_pattern h5        '^#####\h+.*'
+add_pattern h6        '^######+.*'
 add_pattern inline_code '(?<bt>`++)((?:(?!\g{bt}).)++)(\g{bt})'
 add_pattern code_block  '^ {0,3}(?<bt>`{3,}+|~{3,}+)(.*)\n((?s:.*?))^ {0,3}(\g{bt})'
 add_pattern image_link  '\[!\[[^\]\n]+\]\([^)\n]+\)\]\(<?[^>)\s\n]+>?\)'
@@ -834,8 +832,7 @@ The C<default> associative array supports the following keys:
 
 B<Overriding theme colors>
 
-There are three ways to customize colors in config.sh, each operating
-at a different level:
+There are two ways to customize colors in config.sh:
 
 =over 4
 
@@ -846,14 +843,6 @@ at a different level:
 
 Since C<${base}> references are expanded after loading, changing the
 base color automatically affects all derived colors (h1, h2, bold, etc.).
-
-=item B<Final color override> - set after theme loading:
-
-    colors[base]='<DarkCyan>'        # override base color directly
-    colors[h1]='L25DE/<DarkCyan>'    # override h1 (fully expanded)
-
-The C<colors> array holds the final color values.  The C<${base}>
-placeholder is NOT expanded in these values, so use literal colors.
 
 =item B<Full theme definition> - define a complete custom theme:
 
@@ -938,7 +927,8 @@ Multiple fields can be specified with commas or by repeating the option.
 The special field C<all> affects all fields and is processed first.
 
 Available fields: C<comment>, C<bold>, C<italic>, C<strike>, C<h1>,
-C<h2>, C<h3>, C<h4>, C<h5>, C<h6>, C<inline_code>, C<code_block>.
+C<h2>, C<h3>, C<h4>, C<h5>, C<h6>, C<inline_code>, C<code_block>,
+C<link>, C<image>, C<image_link>.
 
 All fields are enabled by default.
 
@@ -1248,7 +1238,7 @@ When using C<less> as pager, version 566 or later is required with
 C<-R> option.
 
 For OSC 8 specification, see:
-L<https://gist.github.com/egmontkob/eb114294efbcd5adb1944c9f3cb5fedd>
+L<https://gist.github.com/egmontkob/eb114294efbcd5adb1944c9f3cb5feda>
 
 =head1 SEE ALSO
 

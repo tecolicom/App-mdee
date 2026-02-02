@@ -211,21 +211,25 @@ subtest 'show option' => sub {
         return () = $line =~ /\h-E\h/g;
     }
 
-    # all fields enabled by default (16 patterns)
+    # all fields enabled by default (17 patterns)
     my $default = `$mdee -ddn $test_md 2>&1`;
-    is(count_patterns($default), 16, 'default has 16 patterns');
+    is(count_patterns($default), 17, 'default has 17 patterns');
 
-    # --show italic=0 disables italic (14 patterns: 16 - 2 italic patterns)
+    # --show italic=0 disables italic (15 patterns: 17 - 2 italic patterns)
     my $no_italic = `$mdee -ddn --show italic=0 $test_md 2>&1`;
-    is(count_patterns($no_italic), 14, '--show italic=0 removes 2 patterns');
+    is(count_patterns($no_italic), 15, '--show italic=0 removes 2 patterns');
 
-    # --show bold=0 disables bold (14 patterns: 16 - 2 bold patterns)
+    # --show bold=0 disables bold (15 patterns: 17 - 2 bold patterns)
     my $no_bold = `$mdee -ddn --show bold=0 $test_md 2>&1`;
-    is(count_patterns($no_bold), 14, '--show bold=0 removes 2 patterns');
+    is(count_patterns($no_bold), 15, '--show bold=0 removes 2 patterns');
 
-    # --show all enables all fields (16 patterns)
+    # --show all enables all fields (17 patterns)
     my $all = `$mdee -ddn --show all $test_md 2>&1`;
-    is(count_patterns($all), 16, '--show all has 16 patterns');
+    is(count_patterns($all), 17, '--show all has 17 patterns');
+
+    # --show h6=0 disables h6 (16 patterns: 17 - 1 h6 pattern)
+    my $no_h6 = `$mdee -ddn --show h6=0 $test_md 2>&1`;
+    is(count_patterns($no_h6), 16, '--show h6=0 removes 1 pattern');
 
     # --show all= --show bold enables only bold (2 patterns)
     my $only_bold = `$mdee -ddn '--show=all=' --show=bold $test_md 2>&1`;
@@ -308,22 +312,22 @@ CONF
         like($out, qr/DarkCyan/, 'custom theme from config.sh is loaded');
     }
 
-    # Test colors[base] override in config.sh
+    # Test theme partial override in config.sh
     {
         open my $fh, '>', "$config_dir/config.sh" or die;
-        print $fh "colors[base]='<Crimson>=y25'\n";
+        print $fh "theme_default_light[base]='<Crimson>=y25'\n";
         close $fh;
         my $out = `XDG_CONFIG_HOME=$tmpdir $mdee -d --dryrun --mode=light $test_md 2>&1`;
-        like($out, qr/Crimson/, 'colors[base] override in config.sh works');
+        like($out, qr/Crimson/, 'theme partial override in config.sh works');
     }
 
-    # Test --base-color overrides config colors[base]
+    # Test --base-color overrides config theme override
     {
         open my $fh, '>', "$config_dir/config.sh" or die;
-        print $fh "colors[base]='<Crimson>=y25'\n";
+        print $fh "theme_default_light[base]='<Crimson>=y25'\n";
         close $fh;
         my $out = `XDG_CONFIG_HOME=$tmpdir $mdee -d --dryrun --mode=light -B Ivory $test_md 2>&1`;
-        like($out, qr/Ivory/, '--base-color overrides config colors[base]');
+        like($out, qr/Ivory/, '--base-color overrides config theme override');
         unlike($out, qr/Crimson/, '--base-color takes priority over config');
     }
 };
@@ -380,6 +384,11 @@ THEME
     # Test --list-themes shows external theme
     my $list = `XDG_CONFIG_HOME=$tmpdir $mdee --list-themes 2>&1`;
     like($list, qr/testtheme/, '--list-themes shows external theme');
+
+    # Test --theme=FILE (file path direct loading)
+    my $out_file = `XDG_CONFIG_HOME=$tmpdir $mdee -d --dryrun --mode=light --theme=$theme_dir/testtheme.sh $test_md 2>&1`;
+    is($?, 0, '--theme=FILE loads successfully');
+    like($out_file, qr/Crimson/, '--theme=FILE applies theme colors');
 
     # Test nonexistent theme produces error
     my $err = `XDG_CONFIG_HOME=$tmpdir $mdee --dryrun --mode=light --theme=nonexistent $test_md 2>&1`;

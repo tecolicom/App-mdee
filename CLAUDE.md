@@ -97,8 +97,7 @@ Priority: command-line option > config default > built-in default.
 The `--base-color` option default is empty (no override). Base color is determined by:
 1. `--base-color` option (highest priority)
 2. `default[base_color]` in config.sh
-3. `colors[base]` override in config.sh
-4. Theme's `[base]` key (e.g., `<RoyalBlue>=y25` for light)
+3. Theme's `[base]` key (e.g., `<RoyalBlue>=y25` for light)
 
 ## Implementation Notes
 

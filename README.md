@@ -212,8 +212,7 @@ bold text, etc.).
 
     **Overriding theme colors**
 
-    There are three ways to customize colors in config.sh, each operating
-    at a different level:
+    There are two ways to customize colors in config.sh:
 
     - **Theme definition (partial)** - modify specific keys before loading:
 
@@ -222,14 +221,6 @@ bold text, etc.).
 
         Since `${base}` references are expanded after loading, changing the
         base color automatically affects all derived colors (h1, h2, bold, etc.).
-
-    - **Final color override** - set after theme loading:
-
-            colors[base]='<DarkCyan>'        # override base color directly
-            colors[h1]='L25DE/<DarkCyan>'    # override h1 (fully expanded)
-
-        The `colors` array holds the final color values.  The `${base}`
-        placeholder is NOT expanded in these values, so use literal colors.
 
     - **Full theme definition** - define a complete custom theme:
 
@@ -308,7 +299,8 @@ bold text, etc.).
     The special field `all` affects all fields and is processed first.
 
     Available fields: `comment`, `bold`, `italic`, `strike`, `h1`,
-    `h2`, `h3`, `h4`, `h5`, `h6`, `inline_code`, `code_block`.
+    `h2`, `h3`, `h4`, `h5`, `h6`, `inline_code`, `code_block`,
+    `link`, `image`, `image_link`.
 
     All fields are enabled by default.
 
@@ -570,7 +562,7 @@ When using `less` as pager, version 566 or later is required with
 `-R` option.
 
 For OSC 8 specification, see:
-[https://gist.github.com/egmontkob/eb114294efbcd5adb1944c9f3cb5fedd](https://gist.github.com/egmontkob/eb114294efbcd5adb1944c9f3cb5fedd)
+[https://gist.github.com/egmontkob/eb114294efbcd5adb1944c9f3cb5feda](https://gist.github.com/egmontkob/eb114294efbcd5adb1944c9f3cb5feda)
 
 # SEE ALSO
 

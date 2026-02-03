@@ -1,6 +1,6 @@
 requires 'perl', '5.024';
 
-requires 'Text::ANSI::Fold', '2.3303';
+requires 'Text::ANSI::Fold', '2.3304';
 requires 'URI::Escape';
 
 requires 'App::ansiecho';

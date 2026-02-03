@@ -2,6 +2,12 @@ Revision history for Perl extension App-mdee
 
 {{$NEXT}}
 
+0.09 2026-02-03T07:01:50Z
+
+    - Update display name to em·dee and improve documentation
+    - Update dependencies: Text::ANSI::Fold 2.3303, App::ansifold 1.35, App::ansicolumn 1.51
+    - Update screenshot images
+
 0.08 2026-02-02T07:41:42Z
 
     - Support custom themes and config defaults via default[] array

@@ -11,7 +11,7 @@ our $VERSION = "0.08";
 
 =head1 NAME
 
-mdee - Markdown, Easy on the Eyes
+mdee - em·dee, Markdown Easy on the Eyes
 
 =head1 SYNOPSIS
 

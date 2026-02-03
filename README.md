@@ -62,7 +62,7 @@ Supported elements: headers (h1-h6), bold, italic, strikethrough,
 inline code, code blocks, HTML comments, tables, and list items.
 
 <div>
-    <p><img width="750" src="https://raw.githubusercontent.com/tecolicom/App-mdee/main/images/manual.png">
+    <p><img width="750" src="https://raw.githubusercontent.com/tecolicom/App-mdee/main/images/3-column.png">
 </div>
 
 # OPTIONS

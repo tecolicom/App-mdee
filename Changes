@@ -2,6 +2,11 @@ Revision history for Perl extension App-mdee
 
 {{$NEXT}}
 
+0.10 2026-02-03T12:23:51Z
+
+    - URI-encode URLs in OSC 8 hyperlinks for spec compliance
+    - Require Text::ANSI::Fold 2.3304
+
 0.09 2026-02-03T07:01:50Z
 
     - Update display name to em·dee and improve documentation

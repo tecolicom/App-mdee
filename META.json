@@ -52,6 +52,7 @@
             "Getopt::Long::Bash" : "v0.7.1",
             "Term::ANSIColor::Concise" : "3.02",
             "Text::ANSI::Fold" : "2.3303",
+            "URI::Escape" : "0",
             "perl" : "5.024"
          }
       },

@@ -71,12 +71,7 @@ fi
 ##############################################################################
 
 find_share_dir() {
-    perl -MFile::Spec -e '
-        for (@INC) {
-            my $d = File::Spec->catdir($_, qw(auto share dist App-mdee));
-            if (-d $d) { print $d; exit }
-        }
-    ' 2>/dev/null
+    perl -MFile::Share=dist_dir -e 'print dist_dir("App-mdee")' 2>/dev/null
 }
 
 # User theme directory

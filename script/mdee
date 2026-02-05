@@ -544,9 +544,9 @@ for file in "$@"; do
 done
 
 # Define pipeline stage functions
-ITEM_PREFIX='^\h*(?:[*-]|\d+\.)\h+'
+ITEM_PREFIX='^\h*(?:[*-]|(?:\d+|#)[.)])\h+'
 DEF_PATTERN='(?:\A|\G\n|\n\n).+\n\n?(:\h+.*\n)'
-AUTOINDENT='^\h*(?:[*-]|\d+\.|:)\h+'
+AUTOINDENT='^\h*(?:[*-]|(?:\d+|#)[.)]|:)\h+'
 
 invoke() {
     (( debug > 1 )) && echo "debug: $(printf '%q ' "$@")" >&2
@@ -735,6 +735,9 @@ outputs through a pager (C<$PAGER> or C<less>) instead of nup.
 Enable or disable line folding for list items.  When enabled, long
 lines in list items are wrapped with proper indentation using
 L<ansifold(1)|App::ansifold>.  Default is enabled.
+
+Supported list markers: C<*>, C<->, C<1.>, C<1)>, C<#.>, C<#)>.
+The C<#.> and C<#)> forms are Pandoc's auto-numbered list syntax.
 
 =item B<--[no-]table>
 
@@ -1167,6 +1170,9 @@ Example greple invocation:
 The second stage wraps long lines in list items using L<ansifold(1)|App::ansifold>
 via L<Greple::tee>.  It preserves ANSI escape sequences and maintains
 proper indentation for nested lists.
+
+Recognized list markers include C<*>, C<->, C<1.>, C<1)>, C<#.>,
+and C<#)>.  The C<#> marker is Pandoc's auto-numbered list syntax.
 
 The folding width is controlled by C<--width> option (default: 80).
 

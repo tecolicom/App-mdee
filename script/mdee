@@ -22,6 +22,7 @@ mdee - em·dee, Markdown Easy on the Eyes
      -h  --help             show help
          --version          show version
      -d  --debug            debug level (repeatable)
+     -x  --[no-]trace       trace mode (set -x)
      -n  --dryrun           dry-run mode
      -s  --style=#          output style (nup/pager/cat/filter/raw)
      -f  --filter           shortcut for --style=filter
@@ -128,6 +129,7 @@ declare -A OPTS=(
     [         help | h   !         # show help         ]=
     [      version |     !         # show version      ]=
     [        debug | d  +          # debug level       ]=0
+    [        trace | x   !         # trace mode        ]=
     [       dryrun | n             # dry-run mode      ]=
     [        style | s  :          # output style      ]=
     [       filter | f   !         # filter mode       ]=
@@ -294,6 +296,10 @@ filter() {
 
 plain() {
     [[ $plain ]] && style=pager || style=nup
+}
+
+trace() {
+    [[ $trace ]] && set -x || set +x
 }
 
 show() {
@@ -668,6 +674,12 @@ Show color values and pipeline stage names.
 Above, plus full command lines for each pipeline stage.
 
 =back
+
+=item B<-x>, B<--trace>, B<--no-trace>
+
+Enable or disable shell trace mode (C<set -x>).  Useful for
+debugging script execution.  Can be toggled: C<-x --no-x> enables
+then disables tracing.
 
 =item B<-n>, B<--dryrun>
 

@@ -1140,31 +1140,6 @@ Code block detection follows the CommonMark specification:
 
 =back
 
-B<Color Specifications>
-
-Colors are specified using L<Term::ANSIColor::Concise> format.
-The C<--cm> option maps colors to captured groups.  For example,
-C<L00DE/${base}> specifies gray foreground on base-colored background.
-
-The color specification supports modifiers:
-
-=over 4
-
-=item * C<+y10> / C<-y10>: Adjust luminance by percentage
-
-=item * C<=y50>: Set absolute luminance
-
-=item * C<D>: Bold, C<U>: Underline, C<E>: Erase line
-
-=back
-
-Example greple invocation:
-
-    greple -G --ci=G --all --need=0 \
-        --cm 'L00DE/${base}' -E '^#\h+.*' \
-        --cm '${base}D' -E '\*\*.*?\*\*' \
-        file.md
-
 =head4 Text Folding
 
 The second stage wraps long lines in list items using L<ansifold(1)|App::ansifold>
@@ -1212,7 +1187,25 @@ after theme loading.  The base color is determined by the
 C<--base-color> option (default: RoyalBlue) with automatic luminance
 adjustment based on mode (C<=y25> for light, C<=y80> for dark).
 
-=head4 Terminal Mode Detection
+=head3 Color Specifications
+
+Colors are specified using L<Term::ANSIColor::Concise> format.
+The C<--cm> option maps colors to captured groups.  For example,
+C<L00DE/${base}> specifies gray foreground on base-colored background.
+
+The color specification supports modifiers:
+
+=over 4
+
+=item * C<+y10> / C<-y10>: Adjust luminance by percentage
+
+=item * C<=y50>: Set absolute luminance
+
+=item * C<D>: Bold, C<U>: Underline, C<E>: Erase line
+
+=back
+
+=head3 Terminal Mode Detection
 
 B<em·dee> uses L<Getopt::EX::termcolor> to detect terminal background
 luminance.  If luminance is below 50%, dark mode is automatically

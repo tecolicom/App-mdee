@@ -195,6 +195,27 @@ declare -A theme_default_dark=(
      [code_block]='L10 , L12 , /L05;E , L10'
 )
 
+# Markup patterns (name-pattern pairs, processed by add_pattern)
+declare -a markup_default=(
+    comment      '^<!--(?![->])(?s:.+?)-->'
+    bold         '(?<!\\)\*\*.*?(?<!\\)\*\*'
+    bold         '(?<!\\)(?<![`\w])__.*?(?<!\\)__(?!\w)'
+    italic       '(?<!\\)(?<![`\w])_(?:(?!_).)+(?<!\\)_(?!\w)'
+    italic       '(?<!\\)(?<!\*)\*(?:(?!\*).)+(?<!\\)\*(?!\*)'
+    strike       '~~.+?~~'
+    h1           '^#\h+.*'
+    h2           '^##\h+.*'
+    h3           '^###\h+.*'
+    h4           '^####\h+.*'
+    h5           '^#####\h+.*'
+    h6           '^######+.*'
+    inline_code  '(?<bt>`++)((?:(?!\g{bt}).)++)(\g{bt})'
+    code_block   '^ {0,3}(?<bt>`{3,}+|~{3,}+)(.*)\n((?s:.*?))^ {0,3}(\g{bt})'
+    image_link   '\[!\[[^\]\n]+\]\([^)\n]+\)\]\(<?[^>)\s\n]+>?\)'
+    image        '!\[[^\]\n]+\]\(<?[^>)\s\n]+>?\)'
+    link         '(?<!!)\[[^\]\n]+\]\(<?[^>)\s\n]+>?\)'
+)
+
 # Active color scheme
 declare -A colors
 
@@ -515,23 +536,21 @@ add_pattern() {
     [[ $val && $val != 0 ]] && greple_opts+=(--cm "${colors[$name]}" -E "$pattern") || :
 }
 
-add_pattern comment   '^<!--(?![->])(?s:.+?)-->'
-add_pattern bold      '(?<!\\)\*\*.*?(?<!\\)\*\*'
-add_pattern bold      '(?<!\\)(?<![`\w])__.*?(?<!\\)__(?!\w)'
-add_pattern italic    '(?<!\\)(?<![`\w])_(?:(?!_).)+(?<!\\)_(?!\w)'
-add_pattern italic    '(?<!\\)(?<!\*)\*(?:(?!\*).)+(?<!\\)\*(?!\*)'
-add_pattern strike    '~~.+?~~'
-add_pattern h1        '^#\h+.*'
-add_pattern h2        '^##\h+.*'
-add_pattern h3        '^###\h+.*'
-add_pattern h4        '^####\h+.*'
-add_pattern h5        '^#####\h+.*'
-add_pattern h6        '^######+.*'
-add_pattern inline_code '(?<bt>`++)((?:(?!\g{bt}).)++)(\g{bt})'
-add_pattern code_block  '^ {0,3}(?<bt>`{3,}+|~{3,}+)(.*)\n((?s:.*?))^ {0,3}(\g{bt})'
-add_pattern image_link  '\[!\[[^\]\n]+\]\([^)\n]+\)\]\(<?[^>)\s\n]+>?\)'
-add_pattern image       '!\[[^\]\n]+\]\(<?[^>)\s\n]+>?\)'
-add_pattern link        '(?<!!)\[[^\]\n]+\]\(<?[^>)\s\n]+>?\)'
+markup=("${markup_default[@]}")
+
+markup_pattern() {
+    local name=$1 result=""
+    for ((i=0; i<${#markup[@]}; i+=2)); do
+        if [[ ${markup[i]} == "$name" ]]; then
+            result+="${result:+|}${markup[i+1]}"
+        fi
+    done
+    echo "$result"
+}
+
+for ((i=0; i<${#markup[@]}; i+=2)); do
+    add_pattern "${markup[i]}" "${markup[i+1]}"
+done
 
 ##############################################################################
 # Build command pipeline
@@ -559,6 +578,8 @@ run_greple()    { invoke greple "${greple_opts[@]}" "$@"; }
 run_fold() {
     invoke greple \
         -Mtee "&ansifold" --crmode --autoindent="$AUTOINDENT" -sw${width} -- \
+        --exclude "$(markup_pattern code_block)" \
+        --exclude "$(markup_pattern comment)" \
         -G -E "${ITEM_PREFIX}.*\\n" -E "${DEF_PATTERN}" \
         --crmode --all --need=0 --no-color
 }

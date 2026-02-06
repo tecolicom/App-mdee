@@ -304,15 +304,22 @@ The `-Mtee` module allows greple to pipe matched regions through external comman
 #### Text Folding with ansifold
 
 ```bash
-ITEM_PREFIX='^\h*(?:[*-]|\d+\.)\h+'
+ITEM_PREFIX='^\h*(?:[*-]|(?:\d+|#)[.)])\h+'
 DEF_PATTERN='(?:\A|\G\n|\n\n).+\n\n?(:\h+.*\n)'
-AUTOINDENT='^\h*(?:[*-]|\d+\.|:)\h+'
+TABLE_PATTERN='^ {0,3}(\|.+\|\n){3,}'
+AUTOINDENT='^\h*(?:[*-]|(?:\d+|#)[.)]|:)\h+|^\h+'
 
 greple \
     -Mtee "&ansifold" --crmode --autoindent="$AUTOINDENT" -sw${width} -- \
-    -GE "${ITEM_PREFIX}.*\\n" -E "${DEF_PATTERN}" \
+    --exclude "$(markup_pattern code_block)" \
+    --exclude "$(markup_pattern comment)" \
+    --exclude "${TABLE_PATTERN}" \
+    -G -E "${ITEM_PREFIX}.*\\n" -E "${DEF_PATTERN}" \
     --crmode --all --need=0 --no-color
 ```
+
+- `--exclude`: Exclude code blocks, comments, and tables from fold processing
+- `markup_pattern()`: Extracts patterns from `markup_default` array by name
 
 - `-Mtee`: Load tee module
 - `"&ansifold"`: Call ansifold as function (not subprocess)
@@ -346,7 +353,7 @@ greple \
 - `-o '|'`: Output separator
 - `-t`: Table mode (auto-determine column widths)
 - `--cu=1`: Column unit (minimum column width)
-- `-E '^(\|.+\|\n){3,}'`: Match 3+ consecutive table rows
+- `-E "${TABLE_PATTERN}"`: Match 3+ consecutive table rows (0-3 spaces indent allowed)
 
 #### Table Separator Fix
 
@@ -568,6 +575,16 @@ Emphasis patterns do not span multiple lines. Multi-line bold or italic text is 
 Link patterns do not span multiple lines. The link text and URL must be on the same line.
 
 Reference-style links (`[text][ref]` with `[ref]: url` elsewhere) are not supported.
+
+### Indented Line Folding (TODO)
+
+Lines starting with whitespace are not currently folded. Adding `^\h+.*\n` to the fold target would enable autoindent-aware wrapping, but the following issues must be resolved first:
+
+1. **Pandoc non-pipe tables**: Simple tables, grid tables, and multiline tables use lines starting with spaces/dashes. These would be incorrectly folded. Pandoc table detection and exclusion is needed before enabling indented line folding.
+
+2. **List continuation lines**: Indented continuation lines (without list markers) may be intentionally formatted across multiple lines. Folding them would merge separate items.
+
+The `AUTOINDENT` pattern already includes `|^\h+` in preparation. The `--exclude` mechanism (using `markup_pattern()`) is in place for code blocks and comments. Table exclusion uses `TABLE_PATTERN` variable.
 
 ### OSC 8 Hyperlinks
 

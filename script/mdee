@@ -565,7 +565,8 @@ done
 # Define pipeline stage functions
 ITEM_PREFIX='^\h*(?:[*-]|(?:\d+|#)[.)])\h+'
 DEF_PATTERN='(?:\A|\G\n|\n\n).+\n\n?(:\h+.*\n)'
-AUTOINDENT='^\h*(?:[*-]|(?:\d+|#)[.)]|:)\h+'
+TABLE_PATTERN='^ {0,3}(\|.+\|\n){3,}'
+AUTOINDENT='^\h*(?:[*-]|(?:\d+|#)[.)]|:)\h+|^\h+'
 
 invoke() {
     (( debug > 1 )) && echo "debug: $(printf '%q ' "$@")" >&2
@@ -580,6 +581,7 @@ run_fold() {
         -Mtee "&ansifold" --crmode --autoindent="$AUTOINDENT" -sw${width} -- \
         --exclude "$(markup_pattern code_block)" \
         --exclude "$(markup_pattern comment)" \
+        --exclude "${TABLE_PATTERN}" \
         -G -E "${ITEM_PREFIX}.*\\n" -E "${DEF_PATTERN}" \
         --crmode --all --need=0 --no-color
 }
@@ -587,7 +589,7 @@ run_fold() {
 run_table() {
     invoke greple \
         -Mtee::config=discrete,bulkmode "&ansicolumn" -s '|' -o '|' -t --cu=1 -- \
-        -E '^(\|.+\|\n){3,}' --all --need=0 --no-color
+        -E "${TABLE_PATTERN}" --all --need=0 --no-color
 }
 
 define fix_table_script <<'EOS'

@@ -580,6 +580,26 @@ When using `less` as pager, version 566 or later is required with
 For OSC 8 specification, see:
 [https://gist.github.com/egmontkob/eb114294efbcd5adb1944c9f3cb5feda](https://gist.github.com/egmontkob/eb114294efbcd5adb1944c9f3cb5feda)
 
+## Less Environment Variables
+
+When `less` is used as pager (either directly via `--style=pager` or
+through `nup`), the following environment variables affect behavior.
+**mdee** sets defaults for these when they are not already defined:
+
+- `LESS`
+
+    Default: `-R`.  The `-R` option is required for ANSI color
+    sequences to be displayed correctly.
+
+- `LESSANSIENDCHARS`
+
+    Default: `mK`.  This tells `less` to recognize ANSI sequences
+    ending with `m` (SGR color) and `K` (erase line).  The erase line
+    sequence is used for background color rendering.
+
+If you already have these variables set in your environment, **mdee**
+does not override them.
+
 # SEE ALSO
 
 [nup(1)](https://metacpan.org/pod/App%3A%3Anup), [greple(1)](https://metacpan.org/pod/App%3A%3AGreple), [ansifold(1)](https://metacpan.org/pod/App%3A%3Aansifold), [ansicolumn(1)](https://metacpan.org/pod/App%3A%3Aansicolumn)

@@ -198,9 +198,18 @@ When `style=pager`, the `run_pager` function is appended to the pipeline:
 ```bash
 run_pager() { invoke ${PAGER:-less}; }
 
+# Set defaults for less environment
+export LESS="${LESS:--R}"
+export LESSANSIENDCHARS="${LESSANSIENDCHARS:-mK}"
+
 # Added to stages when style=pager:
 [[ $style == pager ]] && stages+=(run_pager)
 ```
+
+- `LESS=-R`: Required for ANSI color sequences (set when `LESS` is not defined)
+- `LESSANSIENDCHARS=mK`: Recognize SGR (`m`) and erase line (`K`) sequences (set when not defined)
+- These affect both direct pager mode and `nup` (which invokes `less` internally)
+- User's existing environment settings are not overridden
 
 #### Command Invocation Wrapper
 

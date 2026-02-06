@@ -422,17 +422,20 @@ Bold and italic patterns follow [CommonMark emphasis rules](https://spec.commonm
 
 ```bash
 # Bold: ** and __
-add_pattern bold '(?<!\\)\*\*.*?(?<!\\)\*\*'
-add_pattern bold '(?<!\\)(?<![`\w])__.*?(?<!\\)__(?!\w)'
+add_pattern bold '(?<![\\`])\*\*.*?(?<!\\)\*\*'
+add_pattern bold '(?<![\\`\w])__.*?(?<!\\)__(?!\w)'
 
 # Italic: * and _
-add_pattern italic '(?<!\\)(?<![`\w])_(?:(?!_).)+(?<!\\)_(?!\w)'
-add_pattern italic '(?<!\\)(?<!\*)\*(?:(?!\*).)+(?<!\\)\*(?!\*)'
+add_pattern italic '(?<![\\`\w])_(?:(?!_).)+(?<!\\)_(?!\w)'
+add_pattern italic '(?<![\\`\*])\*(?:(?!\*).)+(?<!\\)\*(?!\*)'
+
+# Strikethrough
+add_pattern strike '(?<![\\`])~~.+?(?<!\\)~~'
 ```
 
 Key rules:
-- `(?<!\\)`: Not preceded by backslash (escape handling)
-- `` (?<![`\w]) `` / `(?!\w)`: Word boundaries for `_` (prevents `foo_bar_baz` matching and avoids matching inside inline code)
+- `(?<!\\)` / `` (?<![\\`]) ``: Not preceded by backslash or backtick (escape handling and inline code protection)
+- `` (?<![\\`\w]) `` / `(?!\w)`: Word boundaries for `_`/`__` (prevents `foo_bar_baz` matching and avoids matching inside inline code)
 - `(?<!\*)` / `(?!\*)`: Not adjacent to `*` (distinguishes `*italic*` from `**bold**`)
 - `(?:(?!\*).)+`: Match any character except `*`, and `.` excludes newlines (single-line only)
 - `__` requires word boundaries (same as `_`)

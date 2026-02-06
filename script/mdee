@@ -195,8 +195,9 @@ declare -A theme_default_dark=(
      [code_block]='L10 , L12 , /L05;E , L10'
 )
 
-# Markup patterns (name-pattern pairs, processed by add_pattern)
-declare -a markup_default=(
+# Patterns (name-pattern pairs)
+declare -a patterns_default=(
+    # Highlighting patterns (used with colors)
     comment      '^<!--(?![->])(?s:.+?)-->'
     bold         '(?<!\\)\*\*.*?(?<!\\)\*\*'
     bold         '(?<!\\)(?<![`\w])__.*?(?<!\\)__(?!\w)'
@@ -214,6 +215,11 @@ declare -a markup_default=(
     image_link   '\[!\[[^\]\n]+\]\([^)\n]+\)\]\(<?[^>)\s\n]+>?\)'
     image        '!\[[^\]\n]+\]\(<?[^>)\s\n]+>?\)'
     link         '(?<!!)\[[^\]\n]+\]\(<?[^>)\s\n]+>?\)'
+    table        '^ {0,3}(\|.+\|\n){3,}'
+    # Folding patterns (used without colors)
+    item_prefix  '^\h*(?:[*-]|(?:\d+|#)[.)])\h+'
+    def_pattern  '(?:\A|\G\n|\n\n).+\n\n?(:\h+.*\n)'
+    autoindent   '^\h*(?:[*-]|(?:\d+|#)[.)]|:)\h+|^\h+'
 )
 
 # Active color scheme
@@ -536,20 +542,15 @@ add_pattern() {
     [[ $val && $val != 0 ]] && greple_opts+=(--cm "${colors[$name]}" -E "$pattern") || :
 }
 
-markup=("${markup_default[@]}")
+patterns=("${patterns_default[@]}")
 
-markup_pattern() {
-    local name=$1 result=""
-    for ((i=0; i<${#markup[@]}; i+=2)); do
-        if [[ ${markup[i]} == "$name" ]]; then
-            result+="${result:+|}${markup[i+1]}"
-        fi
-    done
-    echo "$result"
-}
-
-for ((i=0; i<${#markup[@]}; i+=2)); do
-    add_pattern "${markup[i]}" "${markup[i+1]}"
+# Build associative array (join patterns with same name using |)
+declare -A pattern
+for ((i=0; i<${#patterns[@]}; i+=2)); do
+    name=${patterns[i]}
+    [[ -v pattern[$name] ]] && pattern[$name]+='|'
+    pattern[$name]+=${patterns[i+1]}
+    [[ ${colors[$name]:-} ]] && add_pattern "$name" "${patterns[i+1]}"
 done
 
 ##############################################################################
@@ -563,11 +564,6 @@ for file in "$@"; do
 done
 
 # Define pipeline stage functions
-ITEM_PREFIX='^\h*(?:[*-]|(?:\d+|#)[.)])\h+'
-DEF_PATTERN='(?:\A|\G\n|\n\n).+\n\n?(:\h+.*\n)'
-TABLE_PATTERN='^ {0,3}(\|.+\|\n){3,}'
-AUTOINDENT='^\h*(?:[*-]|(?:\d+|#)[.)]|:)\h+|^\h+'
-
 invoke() {
     (( debug > 1 )) && echo "debug: $(printf '%q ' "$@")" >&2
     [[ ${dryrun:-} ]] && return
@@ -578,18 +574,18 @@ run_greple()    { invoke greple "${greple_opts[@]}" "$@"; }
 
 run_fold() {
     invoke greple \
-        -Mtee "&ansifold" --crmode --autoindent="$AUTOINDENT" -sw${width} -- \
-        --exclude "$(markup_pattern code_block)" \
-        --exclude "$(markup_pattern comment)" \
-        --exclude "${TABLE_PATTERN}" \
-        -G -E "${ITEM_PREFIX}.*\\n" -E "${DEF_PATTERN}" \
+        -Mtee "&ansifold" --crmode --autoindent="${pattern[autoindent]}" -sw${width} -- \
+        --exclude "${pattern[code_block]}" \
+        --exclude "${pattern[comment]}" \
+        --exclude "${pattern[table]}" \
+        -G -E "${pattern[item_prefix]}.*\\n" -E "${pattern[def_pattern]}" \
         --crmode --all --need=0 --no-color
 }
 
 run_table() {
     invoke greple \
         -Mtee::config=discrete,bulkmode "&ansicolumn" -s '|' -o '|' -t --cu=1 -- \
-        -E "${TABLE_PATTERN}" --all --need=0 --no-color
+        -E "${pattern[table]}" --all --need=0 --no-color
 }
 
 define fix_table_script <<'EOS'

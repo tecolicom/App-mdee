@@ -4,7 +4,7 @@ package App::mdee;
 # POD documentation is appended from script/mdee at release time.
 # See minil.toml for details.
 
-our $VERSION = "0.11";
+our $VERSION = "0.12";
 
 1;
 =encoding utf-8
@@ -45,7 +45,7 @@ mdee - em·dee, Markdown Easy on the Eyes
 
 =head1 VERSION
 
-Version 0.11
+Version 0.12
 
 =cut
 =head1 DESCRIPTION
@@ -689,6 +689,30 @@ C<-R> option.
 
 For OSC 8 specification, see:
 L<https://gist.github.com/egmontkob/eb114294efbcd5adb1944c9f3cb5feda>
+
+=head2 Less Environment Variables
+
+When C<less> is used as pager (either directly via C<--style=pager> or
+through C<nup>), the following environment variables affect behavior.
+B<mdee> sets defaults for these when they are not already defined:
+
+=over 4
+
+=item C<LESS>
+
+Default: C<-R>.  The C<-R> option is required for ANSI color
+sequences to be displayed correctly.
+
+=item C<LESSANSIENDCHARS>
+
+Default: C<mK>.  This tells C<less> to recognize ANSI sequences
+ending with C<m> (SGR color) and C<K> (erase line).  The erase line
+sequence is used for background color rendering.
+
+=back
+
+If you already have these variables set in your environment, B<mdee>
+does not override them.
 
 =head1 SEE ALSO
 

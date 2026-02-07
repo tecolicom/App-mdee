@@ -134,19 +134,19 @@ flowchart LR
     end
 ```
 
-Each stage is controlled by `--style` and individual `--[no-]fold`, `--[no-]table`, `--[no-]nup` options.
+Each stage is controlled by `--style` and individual `--[no-]fold`, `--[no-]table`, `--[no-]rule`, `--[no-]nup` options.
 
 ### Style System
 
 The `--style` (`-s`) option controls which pipeline stages are active:
 
-| Style | fold | table | nup | pager | Use case |
-|-------|------|-------|-----|-------|----------|
-| `nup` (default) | on | on | on | - | Multi-column paged output |
-| `pager` | on | on | - | on | Single-column with pager |
-| `cat` | on | on | - | - | Output to stdout |
-| `filter` | - | on | - | - | Piping / stdin |
-| `raw` | - | - | - | - | Highlight only |
+| Style | fold | table | rule | nup | pager | Use case |
+|-------|------|-------|------|-----|-------|----------|
+| `nup` (default) | on | on | on | on | - | Multi-column paged output |
+| `pager` | on | on | on | - | on | Single-column with pager |
+| `cat` | on | on | on | - | - | Output to stdout |
+| `filter` | - | on | on | - | - | Piping / stdin |
+| `raw` | - | - | - | - | - | Highlight only |
 
 Shortcuts: `-f` = `--style=filter`, `-p` = `--style=pager`
 
@@ -168,9 +168,10 @@ Style defaults are applied after option parsing using a sentinel value:
 [         fold |               # line folding      ]=_
 [        table |               # table formatting  ]=_
 [          nup |               # use nup           ]=_
+[         rule |               # table rule lines  ]=_
 ```
 
-- `fold`/`table`/`nup` default to sentinel `_` (not user-set)
+- `fold`/`table`/`nup`/`rule` default to sentinel `_` (not user-set)
 - After getoptlong.sh, style defaults are applied only to sentinel values
 - Explicit `--fold`/`--no-fold` sets the value to `1`/empty, overriding style
 - `filter()` and `plain()` callbacks set `$style` during option parsing
@@ -182,13 +183,15 @@ plain()  { [[ $plain ]] && style=pager || style=nup; }
 
 # After getoptlong.sh:
 case $style in
-    nup)    style_defaults=([fold]=1 [table]=1 [nup]=1) ;;
-    pager)  style_defaults=([fold]=1 [table]=1 [nup]=)  ;;
+    nup)    style_defaults=([fold]=1 [table]=1 [nup]=1 [rule]=1) ;;
+    pager)  style_defaults=([fold]=1 [table]=1 [nup]=  [rule]=1) ;;
     ...
 esac
 [[ $fold  == _ ]] && fold=${style_defaults[fold]}
 [[ $table == _ ]] && table=${style_defaults[table]}
 [[ $nup   == _ ]] && nup=${style_defaults[nup]}
+[[ $rule  == _ ]] && rule=${style_defaults[rule]}
+[[ ${rule:-} ]] && rule='│'
 ```
 
 #### Pager Stage
@@ -351,15 +354,17 @@ greple \
 #### Table Formatting with ansicolumn
 
 ```bash
-greple \
-    -Mtee::config=discrete,bulkmode "&ansicolumn" -s '|' -o '|' -t --cu=1 -- \
-    -E "${pattern[table]}" --all --need=0 --no-color
+run_table() {
+    invoke greple \
+        -Mtee::config=discrete,bulkmode "&ansicolumn" -s '|' -o "${rule:-|}" -t --cu=1 -- \
+        -E "${pattern[table]}" --all --need=0 --no-color
+}
 ```
 
 - `-Mtee::config=discrete,bulkmode`: Process each match separately, in bulk mode
 - `"&ansicolumn"`: Call ansicolumn as function
 - `-s '|'`: Input separator
-- `-o '|'`: Output separator
+- `-o "${rule:-|}"`: Output separator (`│` when rule is enabled, `|` otherwise)
 - `-t`: Table mode (auto-determine column widths)
 - `--cu=1`: Column unit (minimum column width)
 - `-E "${pattern[table]}"`: Match 3+ consecutive table rows (0-3 spaces indent allowed)
@@ -370,18 +375,30 @@ After ansicolumn, a perl script fixes the separator lines within table blocks:
 
 ```bash
 define fix_table_script <<'EOS'
-    use Term::ANSIColor::Concise "ansi_color";
+    use utf8;
+    my $rule = shift @ARGV;
+    my $sep = $rule || '\|';
     local $_ = do { local $/; <> };
-    s{ ^ (\| ( ( [^|]* \| )+ \n){3,} ) }{
-        $1 =~ s{^( \| (\h* -+ \h* \|)+ )$}{ $1 =~ tr[ ][-]r }xmegr;
+    s{ ^ ($sep ( ( (?:(?!$sep).)*  $sep )+ \n){3,} ) }{
+        $1 =~ s{^$sep((?:\h* -+ \h* $sep)*\h* -+ \h*)$sep$}{
+            $rule
+            ? "├" . ($1 =~ tr[│ -][┼──]r) . "┤"
+            : "|" . ($1 =~ tr[ ][-]r) . "|"
+        }xmegr;
     }xmepg;
     print;
 EOS
 
-run_table_fix() { invoke perl -E "$fix_table_script"; }
+run_table_fix() { invoke perl -CSA -E "$fix_table_script" "${rule:-}"; }
 ```
 
-The script slurps the entire input and only modifies separator lines (`|---|---|`) within table blocks (3+ consecutive pipe-delimited rows), replacing spaces with dashes.
+- `$rule`: Receives `│` (rule enabled) or empty (disabled) from bash `${rule:-}`
+- `$sep`: `│` or `\|` (regex pattern for separator matching)
+- Outer `s///`: Identifies table blocks (3+ consecutive separator-delimited rows)
+- Inner `s///`: Fixes separator lines within each table block
+- Rule mode: `tr[│ -][┼──]` converts middle part, wrapped with `├`/`┤`
+- Non-rule mode: `tr[ ][-]` replaces spaces with dashes, wrapped with `|`
+- `perl -CSA`: UTF-8 handling for STDIN/STDOUT/STDERR and @ARGV
 
 ### Field Visibility with --show Option
 

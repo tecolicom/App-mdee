@@ -18,6 +18,7 @@ mdee - em·dee, Markdown Easy on the Eyes
          --[no-]fold        line folding (default: on)
          --[no-]table       table formatting (default: on)
          --[no-]nup         nup paged output (default: on)
+         --[no-]rule        use Unicode rules for tables (default: on)
      -w  --width=#          fold width (default: 80)
      -t  --theme=#          color theme
      -m  --mode=#           light or dark (default: light)
@@ -153,6 +154,14 @@ inline code, code blocks, HTML comments, tables, and list items.
     Enable or disable [nup(1)](https://metacpan.org/pod/App%3A%3Anup) for multi-column paged output.  When
     disabled, output goes directly to stdout without formatting.
     Default is enabled.
+
+- **--\[no-\]rule**
+
+    Enable or disable Unicode rule characters for table borders.
+    When enabled, ASCII pipe characters (`|`) are replaced with
+    Unicode box-drawing characters (`│`, `├`, `┤`, `┼`) and
+    dashes (`-`) in separator lines are replaced with horizontal
+    rules (`─`).  Default is enabled.
 
 - **-w** _N_, **--width**=_N_
 

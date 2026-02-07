@@ -4,7 +4,7 @@ package App::mdee;
 # POD documentation is appended from script/mdee at release time.
 # See minil.toml for details.
 
-our $VERSION = "0.12";
+our $VERSION = "0.13";
 
 1;
 =encoding utf-8
@@ -28,6 +28,7 @@ mdee - em·dee, Markdown Easy on the Eyes
          --[no-]fold        line folding (default: on)
          --[no-]table       table formatting (default: on)
          --[no-]nup         nup paged output (default: on)
+         --[no-]rule        use Unicode rules for tables (default: on)
      -w  --width=#          fold width (default: 80)
      -t  --theme=#          color theme
      -m  --mode=#           light or dark (default: light)
@@ -45,7 +46,7 @@ mdee - em·dee, Markdown Easy on the Eyes
 
 =head1 VERSION
 
-Version 0.12
+Version 0.13
 
 =cut
 =head1 DESCRIPTION
@@ -184,6 +185,14 @@ Default is enabled.
 Enable or disable L<nup(1)|App::nup> for multi-column paged output.  When
 disabled, output goes directly to stdout without formatting.
 Default is enabled.
+
+=item B<--[no-]rule>
+
+Enable or disable Unicode rule characters for table borders.
+When enabled, ASCII pipe characters (C<|>) are replaced with
+Unicode box-drawing characters (C<│>, C<├>, C<┤>, C<┼>) and
+dashes (C<->) in separator lines are replaced with horizontal
+rules (C<─>).  Default is enabled.
 
 =item B<-w> I<N>, B<--width>=I<N>
 

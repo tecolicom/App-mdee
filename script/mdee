@@ -589,7 +589,6 @@ run_table() {
 }
 
 define fix_table_script <<'EOS'
-    use Term::ANSIColor::Concise "ansi_color";
     local $_ = do { local $/; <> };
     s{ ^ (\| ( ( [^|]* \| )+ \n){3,} ) }{
         $1 =~ s{^( \| (\h* -+ \h* \|)+ )$}{ $1 =~ tr[ ][-]r }xmegr;

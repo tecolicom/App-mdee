@@ -783,8 +783,8 @@ comma-separated names or by repeating the option.  Each theme is
 applied in order as a transformation to the default theme:
 
     mdee --theme=warm file.md             # warm base color
-    mdee --theme=warm,closing file.md     # warm + closing hashes
-    mdee --theme=warm --theme=closing     # same effect
+    mdee --theme=warm,hashed file.md     # warm + closing hashes
+    mdee --theme=warm --theme=hashed     # same effect
 
 Theme files are searched in the following order:
 
@@ -803,7 +803,7 @@ and/or C<theme_dark> arrays directly:
     theme_light[base]='<Coral>=y25'
     theme_dark[base]='<Coral>=y80'
 
-    # theme/closing.sh — append closing hashes to h3-h6
+    # theme/hashed.sh — append closing hashes to h3-h6
     for _mode in light dark; do
         declare -n _theme="theme_${_mode}"
         _theme[h3]+=';sub{s/(?<!#)$/ ###/r}'
@@ -955,7 +955,7 @@ This is a shell script that can set defaults and override colors:
 
     # ~/.config/mdee/config.sh
     default[mode]='dark'             # set default mode
-    default[theme]='warm,closing'    # set default theme(s)
+    default[theme]='warm,hashed'     # set default theme(s)
     default[style]='pager'           # set default style
     default[width]=100               # set default fold width
     default[base_color]='DarkCyan'   # set default base color
@@ -966,7 +966,7 @@ The C<default> associative array supports the following keys:
 
 =item C<default[mode]> - Corresponds to C<--mode> (e.g., C<dark>, C<light>)
 
-=item C<default[theme]> - Corresponds to C<--theme> (e.g., C<warm>, C<warm,closing>)
+=item C<default[theme]> - Corresponds to C<--theme> (e.g., C<warm>, C<warm,hashed>)
 
 =item C<default[style]> - Corresponds to C<--style> (e.g., C<pager>, C<cat>)
 
@@ -1033,7 +1033,7 @@ The C<${base}> string is expanded to the base color value after loading.
     mdee -B Ivory file.md                  # override base color
     mdee --mode=dark -B '#780043' file.md  # dark mode with burgundy
     mdee --theme=warm file.md              # warm (Coral) base color
-    mdee --theme=warm,closing file.md      # warm + closing hashes
+    mdee --theme=warm,hashed file.md      # warm + closing hashes
     mdee --list-themes                     # list available themes
 
 =head1 INSTALLATION

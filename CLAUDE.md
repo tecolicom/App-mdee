@@ -56,7 +56,7 @@ theme_dark[base]='<Coral>=y80'
 ```
 
 ```bash
-# share/theme/closing.sh — append closing hashes to h3-h6
+# share/theme/hashed.sh — append closing hashes to h3-h6
 for _mode in light dark; do
     declare -n _theme="theme_${_mode}"
     _theme[h3]+=';sub{s/(?<!#)$/ ###/r}'
@@ -71,8 +71,8 @@ done
 The `--theme` option is an array (`@` type), supporting comma-separated values and repeated options. Themes are applied in order, each modifying `theme_light`/`theme_dark`:
 
 ```bash
-mdee --theme=warm,closing file.md    # Coral base + closing hashes
-mdee --theme=warm --theme=closing    # same effect
+mdee --theme=warm,hashed file.md    # Coral base + closing hashes
+mdee --theme=warm --theme=hashed    # same effect
 ```
 
 Processing flow:

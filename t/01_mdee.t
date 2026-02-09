@@ -347,12 +347,12 @@ CONF
     # Test default[theme] with comma-separated themes
     {
         open my $fh, '>', "$config_dir/config.sh" or die;
-        print $fh "default[theme]='warm,closing'\n";
+        print $fh "default[theme]='warm,hashed'\n";
         close $fh;
         my $out = `XDG_CONFIG_HOME=$tmpdir $mdee -d --dryrun --mode=light $test_md 2>&1`;
-        is($?, 0, 'default[theme]=warm,closing loads successfully');
-        like($out, qr/Coral/, 'default[theme]=warm,closing applies warm');
-        like($out, qr/sub\{/, 'default[theme]=warm,closing applies closing');
+        is($?, 0, 'default[theme]=warm,hashed loads successfully');
+        like($out, qr/Coral/, 'default[theme]=warm,hashed applies warm');
+        like($out, qr/sub\{/, 'default[theme]=warm,hashed applies hashed');
     }
 
     # Test --theme overrides default[theme]
@@ -360,9 +360,9 @@ CONF
         open my $fh, '>', "$config_dir/config.sh" or die;
         print $fh "default[theme]='warm'\n";
         close $fh;
-        my $out = `XDG_CONFIG_HOME=$tmpdir $mdee -d --dryrun --mode=light --theme=closing $test_md 2>&1`;
+        my $out = `XDG_CONFIG_HOME=$tmpdir $mdee -d --dryrun --mode=light --theme=hashed $test_md 2>&1`;
         unlike($out, qr/Coral/, '--theme overrides default[theme]');
-        like($out, qr/RoyalBlue/, '--theme=closing uses default base color');
+        like($out, qr/RoyalBlue/, '--theme=hashed uses default base color');
     }
 
     # Test --base-color overrides config theme override

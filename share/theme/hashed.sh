@@ -1,4 +1,4 @@
-# Closing theme - append closing sequence of hashes to h3-h6
+# Hashed theme - append closing hashes to h3-h6
 for _mode in light dark; do
     declare -n _theme="theme_${_mode}"
     _theme[h3]+=';sub{s/(?<!#)$/ ###/r}'

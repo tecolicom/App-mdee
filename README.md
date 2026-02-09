@@ -181,8 +181,8 @@ bold text, etc.).
     applied in order as a transformation to the default theme:
 
         mdee --theme=warm file.md             # warm base color
-        mdee --theme=warm,closing file.md     # warm + closing hashes
-        mdee --theme=warm --theme=closing     # same effect
+        mdee --theme=warm,hashed file.md     # warm + closing hashes
+        mdee --theme=warm --theme=hashed     # same effect
 
     Theme files are searched in the following order:
 
@@ -196,7 +196,7 @@ bold text, etc.).
         theme_light[base]='<Coral>=y25'
         theme_dark[base]='<Coral>=y80'
 
-        # theme/closing.sh — append closing hashes to h3-h6
+        # theme/hashed.sh — append closing hashes to h3-h6
         for _mode in light dark; do
             declare -n _theme="theme_${_mode}"
             _theme[h3]+=';sub{s/(?<!#)$/ ###/r}'
@@ -329,7 +329,7 @@ This is a shell script that can set defaults and override colors:
 
     # ~/.config/mdee/config.sh
     default[mode]='dark'             # set default mode
-    default[theme]='warm,closing'    # set default theme(s)
+    default[theme]='warm,hashed'     # set default theme(s)
     default[style]='pager'           # set default style
     default[width]=100               # set default fold width
     default[base_color]='DarkCyan'   # set default base color
@@ -337,7 +337,7 @@ This is a shell script that can set defaults and override colors:
 The `default` associative array supports the following keys:
 
 - `default[mode]` - Corresponds to `--mode` (e.g., `dark`, `light`)
-- `default[theme]` - Corresponds to `--theme` (e.g., `warm`, `warm,closing`)
+- `default[theme]` - Corresponds to `--theme` (e.g., `warm`, `warm,hashed`)
 - `default[style]` - Corresponds to `--style` (e.g., `pager`, `cat`)
 - `default[width]` - Corresponds to `--width` (e.g., `100`)
 - `default[base_color]` - Corresponds to `--base-color` (e.g., `DarkCyan`)
@@ -399,7 +399,7 @@ The `${base}` string is expanded to the base color value after loading.
     mdee -B Ivory file.md                  # override base color
     mdee --mode=dark -B '#780043' file.md  # dark mode with burgundy
     mdee --theme=warm file.md              # warm (Coral) base color
-    mdee --theme=warm,closing file.md      # warm + closing hashes
+    mdee --theme=warm,hashed file.md      # warm + closing hashes
     mdee --list-themes                     # list available themes
 
 # INSTALLATION

@@ -77,7 +77,7 @@ mdee --theme=warm --theme=hashed    # same effect
 
 Processing flow:
 1. Each theme file is sourced in order (modifies `theme_light`/`theme_dark`)
-2. `load_theme "default" "$mode"` copies the final result to `colors[]`
+2. `load_theme "$mode"` copies the final result to `colors[]`
 3. `expand_theme` expands `${base}` references
 
 #### Theme File Locations

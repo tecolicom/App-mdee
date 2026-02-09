@@ -159,7 +159,7 @@ declare -A OPTS=(
 ##############################################################################
 
 # Common color functions
-  osc8_prologue='sub{ use URI::Escape; sub osc8 { sprintf "\e]8;;%s\e\\%s\e]8;;\e\\", uri_escape_utf8($_[0]), $_[1] } }'
+  osc8_prologue='sub{ use URI::Escape; sub osc8 { sprintf "\e]8;;%s\e\\%s\e]8;;\e\\", uri_escape_utf8($_[0], "^\\x20-\\x7e"), $_[1] } }'
       link_func='sub{ s/   \[(?<txt>.+?)\]\((?<url>.+?)\)/osc8($+{url},  "[$+{txt}]")/xer }'
      image_func='sub{ s/  !\[(?<alt>.+?)\]\((?<url>.+?)\)/osc8($+{url}, "![$+{alt}]")/xer }'
 image_link_func='sub{ s/\[!\[(?<alt>.+?)\]\((?<img>.+?)\)\]\((?<url>.+?)\)/osc8($+{img}, "!") . osc8($+{url}, "[$+{alt}]")/xer }'
@@ -238,47 +238,9 @@ declare -A colors
 # Theme functions
 ##############################################################################
 
-# Resolve theme variable name for given name and mode.
-# Ensures the theme is loaded from file if needed, applies dark inheritance,
-# and sets _resolved_var to the resolved variable name.
-# Returns 1 if the theme is not found.
-resolve_theme() {
-    local name=$1
-    local theme_mode=$2
-    # Built-in default uses theme_light/theme_dark (no "default" in name)
-    local prefix; [[ $name == default ]] && prefix=theme || prefix="theme_${name}"
-    local theme_var="${prefix}_${theme_mode}"
-    local light_var="${prefix}_light"
-
-    # If theme variable doesn't exist in memory, try loading from file
-    if ! declare -p "$theme_var" &>/dev/null && ! declare -p "$prefix" &>/dev/null; then
-        load_theme_file "$name" || return 1
-    fi
-
-    # Dark inherits from light (generalized for all themes)
-    if [[ $theme_mode == dark ]] && declare -p "$light_var" &>/dev/null && declare -p "$theme_var" &>/dev/null; then
-        local -n _light_ref="$light_var"
-        local -n _dark_ref="$theme_var"
-        for key in "${!_light_ref[@]}"; do
-            [[ -v _dark_ref[$key] ]] || _dark_ref[$key]=${_light_ref[$key]}
-        done
-    fi
-
-    # Try theme with mode first, fall back to theme without mode
-    if declare -p "$theme_var" &>/dev/null; then
-        _resolved_var="$theme_var"
-    elif declare -p "$prefix" &>/dev/null; then
-        _resolved_var="$prefix"
-    else
-        return 1
-    fi
-}
-
-# Load a theme into the colors array
+# Load theme_light or theme_dark into the colors array
 load_theme() {
-    local name=$1 theme_mode=$2
-    resolve_theme "$name" "$theme_mode" || die "theme not found: $name"
-    local -n theme_ref="$_resolved_var"
+    local -n theme_ref="theme_$1"
     for key in "${!theme_ref[@]}"; do
         colors[$key]="${theme_ref[$key]}"
     done
@@ -357,10 +319,8 @@ show() {
 
 show_theme_sample() {
     local display_name=$1 theme_mode=$2
+    local -n theme_ref="theme_${theme_mode}"
     local -A sample_colors
-
-    resolve_theme "default" "$theme_mode" || return 1
-    local -n theme_ref="$_resolved_var"
     for key in "${!theme_ref[@]}"; do
         sample_colors[$key]="${theme_ref[$key]}"
     done
@@ -435,9 +395,6 @@ list_themes() {
         show_theme_sample "$name" dark
     done
 
-    # Restore defaults
-    for _k in "${!_save_light[@]}"; do theme_light[$_k]="${_save_light[$_k]}"; done
-    for _k in "${!_save_dark[@]}"; do theme_dark[$_k]="${_save_dark[$_k]}"; done
     echo ""
     echo "Usage: mdee --theme=<name> --mode=<light|dark> [--base-color=<color>]"
     echo ""
@@ -457,7 +414,7 @@ list_themes() {
 # Main
 ##############################################################################
 
-if (( $# == 0 )) && [[ -t 0 ]] && [[ $theme != '?' ]]; then
+if (( $# == 0 )) && [[ -t 0 ]] && [[ ${theme[0]:-} != '?' ]]; then
     help
 fi
 
@@ -514,7 +471,7 @@ for _t in "${theme[@]}"; do
         load_theme_file "$_t" || die "theme not found: $_t"
     fi
 done
-load_theme "default" "$mode"
+load_theme "$mode"
 
 # Override base color if specified via --base-color or default[base_color]
 : ${base_color:=${default[base_color]:-}}
@@ -560,15 +517,13 @@ add_pattern() {
     [[ $val && $val != 0 ]] && greple_opts+=(--cm "${colors[$name]}" -E "$pattern") || :
 }
 
-patterns=("${patterns_default[@]}")
-
 # Build associative array (join patterns with same name using |)
 declare -A pattern
-for ((i=0; i<${#patterns[@]}; i+=2)); do
-    name=${patterns[i]}
+for ((i=0; i<${#patterns_default[@]}; i+=2)); do
+    name=${patterns_default[i]}
     [[ -v pattern[$name] ]] && pattern[$name]+='|'
-    pattern[$name]+=${patterns[i+1]}
-    [[ ${colors[$name]:-} ]] && add_pattern "$name" "${patterns[i+1]}"
+    pattern[$name]+=${patterns_default[i+1]}
+    [[ ${colors[$name]:-} ]] && add_pattern "$name" "${patterns_default[i+1]}"
 done
 
 ##############################################################################
@@ -875,57 +830,6 @@ color with automatic luminance adjustment:
 
 =back
 
-User configuration is loaded from:
-
-    ${XDG_CONFIG_HOME:-~/.config}/mdee/config.sh
-
-This is a shell script that can set defaults and override colors:
-
-    # ~/.config/mdee/config.sh
-    default[mode]='dark'             # set default mode
-    default[style]='pager'           # set default style
-    default[width]=100               # set default fold width
-    default[base_color]='DarkCyan'   # set default base color
-
-The C<default> associative array supports the following keys:
-
-=over 4
-
-=item C<default[mode]> - Corresponds to C<--mode> (e.g., C<dark>, C<light>)
-
-=item C<default[theme]> - Corresponds to C<--theme> (e.g., C<default>)
-
-=item C<default[style]> - Corresponds to C<--style> (e.g., C<pager>, C<cat>)
-
-=item C<default[width]> - Corresponds to C<--width> (e.g., C<100>)
-
-=item C<default[base_color]> - Corresponds to C<--base-color> (e.g., C<DarkCyan>)
-
-=back
-
-B<Overriding theme colors>
-
-Config.sh can modify theme arrays directly, using the same mechanism
-as theme files:
-
-    # Change base color for both modes
-    theme_light[base]='<DarkCyan>=y25'
-    theme_dark[base]='<DarkCyan>=y80'
-
-    # Append to both light and dark using declare -n
-    for _array in theme_light theme_dark; do
-        declare -n _theme=$_array
-        _theme[h3]+=';sub{s/(?<!#)$/ ###/r}'
-    done
-
-Since C<${base}> references are expanded after loading, changing the
-base color automatically affects all derived colors (h1, h2, bold, etc.).
-
-Color specifications use L<Term::ANSIColor::Concise> format.
-The C<FG/BG> notation specifies foreground and background colors
-(e.g., C<L25DE/${base}> means gray foreground on base-colored background).
-The C<${base}> string is expanded to the base color value after loading.
-
 =item B<-B> I<COLOR>, B<--base-color>=I<COLOR>
 
 Override the theme's base color.  The base color determines the overall
@@ -1040,6 +944,62 @@ Set the pager command.  Use C<--pager=less> to specify a pager,
 or C<--no-pager> to disable paging.
 
 =back
+
+=head1 CONFIGURATION
+
+User configuration is loaded from:
+
+    ${XDG_CONFIG_HOME:-~/.config}/mdee/config.sh
+
+This is a shell script that can set defaults and override colors:
+
+    # ~/.config/mdee/config.sh
+    default[mode]='dark'             # set default mode
+    default[theme]='warm,closing'    # set default theme(s)
+    default[style]='pager'           # set default style
+    default[width]=100               # set default fold width
+    default[base_color]='DarkCyan'   # set default base color
+
+The C<default> associative array supports the following keys:
+
+=over 4
+
+=item C<default[mode]> - Corresponds to C<--mode> (e.g., C<dark>, C<light>)
+
+=item C<default[theme]> - Corresponds to C<--theme> (e.g., C<warm>, C<warm,closing>)
+
+=item C<default[style]> - Corresponds to C<--style> (e.g., C<pager>, C<cat>)
+
+=item C<default[width]> - Corresponds to C<--width> (e.g., C<100>)
+
+=item C<default[base_color]> - Corresponds to C<--base-color> (e.g., C<DarkCyan>)
+
+=back
+
+B<Overriding theme colors>
+
+Config.sh can modify theme arrays directly, using the same mechanism
+as theme files:
+
+    # Change base color for both modes
+    theme_light[base]='<DarkCyan>=y25'
+    theme_dark[base]='<DarkCyan>=y80'
+
+    # Append to both light and dark using declare -n
+    for _array in theme_light theme_dark; do
+        declare -n _theme=$_array
+        _theme[h3]+=';sub{s/(?<!#)$/ ###/r}'
+    done
+
+Since C<${base}> references are expanded after loading, changing the
+base color automatically affects all derived colors (h1, h2, bold, etc.).
+
+B<Color specification format>
+
+Color specifications use L<Term::ANSIColor::Concise> format.
+The C<FG/BG> notation specifies foreground and background colors
+(e.g., C<L25DE/${base}> means gray foreground on base-colored background).
+The C<${base}> string is expanded to the base color value after loading.
 
 =head1 EXAMPLES
 

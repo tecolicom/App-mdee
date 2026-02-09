@@ -4,6 +4,18 @@
 
 em·dee (mdee: Markdown, Easy on the Eyes) is a Markdown viewer command implemented as a Bash script. It combines greple for syntax highlighting with nup for multi-column paged output.
 
+## Dependencies
+
+| Tool | Package | Role |
+|------|---------|------|
+| greple | App::Greple | Regex-based syntax highlighting |
+| ansifold | App::ansifold | ANSI-aware line folding |
+| ansicolumn | App::ansicolumn | Table column alignment |
+| nup | App::nup | Multi-column paged output |
+| ansiecho | App::ansiecho | Color output utility |
+| getoptlong.sh | Getopt::Long::Bash | Bash option parsing |
+| termcolor | Getopt::EX::termcolor | Terminal luminance detection |
+
 ## Project Structure
 
 - `script/mdee` - Main script (Bash) with POD documentation

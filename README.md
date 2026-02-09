@@ -218,49 +218,6 @@ bold text, etc.).
     - `light` - RoyalBlue with luminance 25 (dark text for light backgrounds)
     - `dark` - RoyalBlue with luminance 80 (bright text for dark backgrounds)
 
-    User configuration is loaded from:
-
-        ${XDG_CONFIG_HOME:-~/.config}/mdee/config.sh
-
-    This is a shell script that can set defaults and override colors:
-
-        # ~/.config/mdee/config.sh
-        default[mode]='dark'             # set default mode
-        default[style]='pager'           # set default style
-        default[width]=100               # set default fold width
-        default[base_color]='DarkCyan'   # set default base color
-
-    The `default` associative array supports the following keys:
-
-    - `default[mode]` - Corresponds to `--mode` (e.g., `dark`, `light`)
-    - `default[theme]` - Corresponds to `--theme` (e.g., `default`)
-    - `default[style]` - Corresponds to `--style` (e.g., `pager`, `cat`)
-    - `default[width]` - Corresponds to `--width` (e.g., `100`)
-    - `default[base_color]` - Corresponds to `--base-color` (e.g., `DarkCyan`)
-
-    **Overriding theme colors**
-
-    Config.sh can modify theme arrays directly, using the same mechanism
-    as theme files:
-
-        # Change base color for both modes
-        theme_light[base]='<DarkCyan>=y25'
-        theme_dark[base]='<DarkCyan>=y80'
-
-        # Append to both light and dark using declare -n
-        for _array in theme_light theme_dark; do
-            declare -n _theme=$_array
-            _theme[h3]+=';sub{s/(?<!#)$/ ###/r}'
-        done
-
-    Since `${base}` references are expanded after loading, changing the
-    base color automatically affects all derived colors (h1, h2, bold, etc.).
-
-    Color specifications use [Term::ANSIColor::Concise](https://metacpan.org/pod/Term%3A%3AANSIColor%3A%3AConcise) format.
-    The `FG/BG` notation specifies foreground and background colors
-    (e.g., `L25DE/${base}` means gray foreground on base-colored background).
-    The `${base}` string is expanded to the base color value after loading.
-
 - **-B** _COLOR_, **--base-color**=_COLOR_
 
     Override the theme's base color.  The base color determines the overall
@@ -361,6 +318,54 @@ bold text, etc.).
 
     Set the pager command.  Use `--pager=less` to specify a pager,
     or `--no-pager` to disable paging.
+
+# CONFIGURATION
+
+User configuration is loaded from:
+
+    ${XDG_CONFIG_HOME:-~/.config}/mdee/config.sh
+
+This is a shell script that can set defaults and override colors:
+
+    # ~/.config/mdee/config.sh
+    default[mode]='dark'             # set default mode
+    default[theme]='warm,closing'    # set default theme(s)
+    default[style]='pager'           # set default style
+    default[width]=100               # set default fold width
+    default[base_color]='DarkCyan'   # set default base color
+
+The `default` associative array supports the following keys:
+
+- `default[mode]` - Corresponds to `--mode` (e.g., `dark`, `light`)
+- `default[theme]` - Corresponds to `--theme` (e.g., `warm`, `warm,closing`)
+- `default[style]` - Corresponds to `--style` (e.g., `pager`, `cat`)
+- `default[width]` - Corresponds to `--width` (e.g., `100`)
+- `default[base_color]` - Corresponds to `--base-color` (e.g., `DarkCyan`)
+
+**Overriding theme colors**
+
+Config.sh can modify theme arrays directly, using the same mechanism
+as theme files:
+
+    # Change base color for both modes
+    theme_light[base]='<DarkCyan>=y25'
+    theme_dark[base]='<DarkCyan>=y80'
+
+    # Append to both light and dark using declare -n
+    for _array in theme_light theme_dark; do
+        declare -n _theme=$_array
+        _theme[h3]+=';sub{s/(?<!#)$/ ###/r}'
+    done
+
+Since `${base}` references are expanded after loading, changing the
+base color automatically affects all derived colors (h1, h2, bold, etc.).
+
+**Color specification format**
+
+Color specifications use [Term::ANSIColor::Concise](https://metacpan.org/pod/Term%3A%3AANSIColor%3A%3AConcise) format.
+The `FG/BG` notation specifies foreground and background colors
+(e.g., `L25DE/${base}` means gray foreground on base-colored background).
+The `${base}` string is expanded to the base color value after loading.
 
 # EXAMPLES
 

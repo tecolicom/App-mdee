@@ -68,11 +68,13 @@ done
 
 #### Chaining Themes
 
-The `--theme` option is an array (`@` type), supporting comma-separated values and repeated options. Themes are applied in order, each modifying `theme_light`/`theme_dark`:
+The `--theme` option is an array (`@` type) with default value `hashed`, supporting comma-separated values and repeated options. Themes are applied in order, each modifying `theme_light`/`theme_dark`:
 
 ```bash
-mdee --theme=warm,hashed file.md    # Coral base + closing hashes
-mdee --theme=warm --theme=hashed    # same effect
+mdee file.md                        # default: hashed theme applied
+mdee --theme=warm file.md           # hashed (default) + warm
+mdee --no-theme file.md             # no theme
+mdee --no-theme --theme=warm        # warm only (clear default first)
 ```
 
 Processing flow:
@@ -104,7 +106,6 @@ done
 #### Theme Listing
 
 - `--list-themes`: Shows preview samples for all available themes. Each theme is previewed by temporarily applying it to a copy of the default, then restoring.
-- `--theme=?`: Lists theme names only.
 
 Field names are derived from theme keys (excluding `base`):
 
@@ -140,6 +141,8 @@ The `default` associative array supports:
 | `default[base_color]` | `--base-color` | `DarkCyan` |
 
 Priority: command-line option > config default > built-in default.
+
+Config defaults for `default[theme]` are applied only when the theme array is still the OPTS default (`"${theme[*]}" == "hashed"`). Explicit `--theme` or `--no-theme` on the command line prevents config override.
 
 The `--base-color` option default is empty (no override). Base color is determined by:
 1. `--base-color` option (highest priority)

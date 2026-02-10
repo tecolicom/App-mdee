@@ -150,11 +150,11 @@ subtest 'list-themes option' => sub {
     like($out, qr/default/, '--list-themes shows default theme');
 };
 
-# Test: theme name listing (-t ?)
+# Test: theme name listing (--list-themes)
 subtest 'theme name listing' => sub {
-    my $out = `$mdee --theme='?' 2>&1`;
-    is($?, 0, '--theme=? exits successfully');
-    like($out, qr/^default$/m, '--theme=? lists default theme');
+    my $out = `$mdee --list-themes 2>&1`;
+    is($?, 0, '--list-themes exits successfully');
+    like($out, qr/default/, '--list-themes lists default theme');
 };
 
 # Test: width option
@@ -401,9 +401,9 @@ THEME
     is($?, 0, 'external dark theme loads successfully');
     like($dark, qr/Crimson/, 'external dark theme has base color');
 
-    # Test --theme=? shows external theme name
-    my $list = `XDG_CONFIG_HOME=$tmpdir $mdee --theme='?' 2>&1`;
-    like($list, qr/testtheme/, '--theme=? shows external theme');
+    # Test --list-themes shows external theme name
+    my $list = `XDG_CONFIG_HOME=$tmpdir $mdee --list-themes 2>&1`;
+    like($list, qr/testtheme/, '--list-themes shows external theme');
 
     # Test --theme=FILE (file path direct loading)
     my $out_file = `XDG_CONFIG_HOME=$tmpdir $mdee -d --dryrun --mode=light --theme=$theme_dir/testtheme.sh $test_md 2>&1`;

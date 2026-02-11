@@ -47,7 +47,7 @@ Dark theme inherits undefined keys from light immediately after declaration (bef
 
 #### Theme as Transformation
 
-Themes are not independent definitions — they are **transformations applied to `theme_light`/`theme_dark`**. Each theme file is a Bash script that modifies these arrays directly:
+Themes are not independent definitions — they are **transformations applied to `theme_light`/`theme_dark` and optionally `pattern[]`**. Each theme file is a Bash script that modifies these arrays directly:
 
 ```bash
 # share/theme/warm.sh — change base color
@@ -78,9 +78,13 @@ mdee --no-theme --theme=warm        # warm only (clear default first)
 ```
 
 Processing flow:
-1. Each theme file is sourced in order (modifies `theme_light`/`theme_dark`)
-2. `load_theme "$mode"` copies the final result to `colors[]`
-3. `expand_theme` expands `${base}` references
+1. `patterns_default` → `pattern[]` associative array is built (same-name entries joined with `|`)
+2. Each theme file is sourced in order (modifies `theme_light`/`theme_dark` and optionally `pattern[]`)
+3. `load_theme "$mode"` copies the final result to `colors[]`
+4. `expand_theme` expands `${base}` references
+5. `pattern[]` entries with corresponding `colors[]` are passed to greple via `add_pattern`
+
+**Note:** Same-name patterns in `patterns_default` are combined with `|` in `pattern[]`. When passed to greple, `add_pattern` wraps each pattern with `(?|...)` (branch reset group) to preserve capture group numbering across alternatives.
 
 #### Theme File Locations
 
@@ -93,14 +97,17 @@ The `find_share_dir()` function discovers the installed share directory via `@IN
 
 #### User Configuration as Theme
 
-Config.sh can also modify themes directly, using the same mechanism:
+Config.sh and theme files can also modify patterns directly:
 
 ```bash
-# config.sh example: append to both light and dark
+# config.sh or theme file: modify colors
 for _array in theme_light theme_dark; do
     declare -n _theme=$_array
     _theme[h3]+=';sub{s/(?<!#)$/ ###/r}'
 done
+
+# config.sh or theme file: modify patterns
+pattern[link]='(?<!!)\[.+?\]\(<?[^>)\s\n]+>?\)'
 ```
 
 #### Theme Listing
@@ -277,8 +284,8 @@ invoke() {
 ```
 
 Debug levels:
-- `-d` (`debug > 0`): color values, pipeline stage names
-- `-dd` (`debug > 1`): above + full command lines for each pipeline stage
+- `-d` (`debug > 0`): `theme_light[]`/`theme_dark[]` values (sourceable format), pipeline stage names
+- `-dd` (`debug > 1`): above + `colors[]` (expanded), `pattern[]`, full command lines for each pipeline stage
 
 Dryrun combinations:
 - `-dn`: show pipeline as function names (e.g., `run_greple "$@" | run_fold | ...`)
@@ -560,6 +567,23 @@ OSC 8 format: `\e]8;;URL\e\TEXT\e]8;;\e\`
 
 The `osc8` function takes `(URL, TEXT)` order. The `image_link_func` produces two separate OSC 8 links: `!` linked to the image URL and `[alt]` linked to the outer URL.
 
+#### Link Text Matching Pattern
+
+The highlighting patterns (in `patterns_default`) use:
+
+```
+(?:`[^`\n]*+`|\\.|[^\]`\\\n]++)+
+```
+
+to match link text inside `[...]`. This alternation:
+- Branch 1: `` `[^`\n]*+` `` — backtick-enclosed span (allows `]` inside)
+- Branch 2: `\\.` — backslash escape (allows `\]` etc.)
+- Branch 3: `` [^\]`\\\n]++ `` — any char except `]`, `` ` ``, `\`, newline
+
+Backtick and backslash must be excluded from branch 3 so branches 1 and 2 can fire at the correct positions. Inner quantifiers use possessive form (`*+`, `++`) since no backtracking is needed within each branch.
+
+The `link_func`/`image_func`/`image_link_func` (Perl substitutions for OSC 8 conversion) use `.+?` which handles `]` inside backticks via backtracking, so they don't need this pattern.
+
 ### Mode Detection with [Getopt::EX::termcolor](https://metacpan.org/pod/Getopt::EX::termcolor)
 
 Terminal background luminance is detected via Getopt::EX::termcolor module.
@@ -660,6 +684,10 @@ Emphasis patterns do not span multiple lines. Multi-line bold or italic text is 
 ### Links
 
 Link patterns do not span multiple lines. The link text and URL must be on the same line.
+
+Link text matching uses `(?:` `` `[^`\n]*+` `` `|\\.|[^\]` `` ` `` `\\\n]++)+` to handle:
+- `]` inside backtick-quoted text (e.g., `` [`init [CONFIGS...]`](#url) ``) — deviates from CommonMark spec (which terminates `]` even inside code spans) but matches GitHub rendering
+- Backslash-escaped `\]` (e.g., `[foo\]bar](#url)`) — per CommonMark spec, `\]` does not terminate link text
 
 Reference-style links (`[text][ref]` with `[ref]: url` elsewhere) are not supported.
 

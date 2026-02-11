@@ -100,11 +100,14 @@ Use [tecolicom/tap](https://github.com/tecolicom/homebrew-tap):
 
     - `-d`
 
-        Show color values and pipeline stage names.
+        Show theme values (`theme_light[]`/`theme_dark[]`) and pipeline
+        stage names.  Output is in sourceable format that can be used in
+        theme files or config.sh.
 
     - `-dd`
 
-        Above, plus full command lines for each pipeline stage.
+        Above, plus expanded color values (`colors[]`), pattern definitions
+        (`pattern[]`), and full command lines for each pipeline stage.
 
 - **-x**, **--trace**, **--no-trace**
 
@@ -211,8 +214,8 @@ bold text, etc.).
     - 1. User theme directory: `${XDG_CONFIG_HOME:-~/.config}/mdee/theme/NAME.sh`
     - 2. Share theme directory: installed with the distribution under `auto/share/dist/App-mdee/theme/`
 
-    Theme files are Bash scripts that modify `theme_light`
-    and/or `theme_dark` arrays directly:
+    Theme files are Bash scripts that modify `theme_light`,
+    `theme_dark`, and/or `pattern[]` arrays directly:
 
         # theme/warm.sh — change base color
         theme_light[base]='<Coral>=y25'
@@ -224,6 +227,11 @@ bold text, etc.).
             _theme[h3]+=';sub{s/(?<!#)$/ ###/r}'
             ...
         done
+
+        # modify matching pattern
+        pattern[link]='...'
+
+    Use `-d` to dump current theme values in sourceable format.
 
 - **-m** _MODE_, **--mode**=_MODE_
 
@@ -364,10 +372,10 @@ The `default` associative array supports the following keys:
 - `default[width]` - Corresponds to `--width` (e.g., `100`)
 - `default[base_color]` - Corresponds to `--base-color` (e.g., `DarkCyan`)
 
-**Overriding theme colors**
+**Overriding theme colors and patterns**
 
-Config.sh can modify theme arrays directly, using the same mechanism
-as theme files:
+Config.sh can modify theme arrays and patterns directly, using the
+same mechanism as theme files:
 
     # Change base color for both modes
     theme_light[base]='<DarkCyan>=y25'
@@ -379,8 +387,13 @@ as theme files:
         _theme[h3]+=';sub{s/(?<!#)$/ ###/r}'
     done
 
+    # Modify matching patterns
+    pattern[link]='...'
+
 Since `${base}` references are expanded after loading, changing the
 base color automatically affects all derived colors (h1, h2, bold, etc.).
+
+Use `-d` to dump current theme and pattern values in sourceable format.
 
 **Color specification format**
 
@@ -532,12 +545,15 @@ chained via `--theme=NAME1,NAME2,...`.
 
 The built-in default theme is defined as `theme_light` and
 `theme_dark` associative arrays.  Dark inherits undefined
-keys from light immediately after declaration.  Theme files modify
-these arrays directly:
+keys from light immediately after declaration.  Theme files can
+modify these arrays and the `pattern[]` array directly:
 
-    # theme/warm.sh
+    # theme/warm.sh — change colors
     theme_light[base]='<Coral>=y25'
     theme_dark[base]='<Coral>=y80'
+
+    # modify matching patterns
+    pattern[link]='...'
 
 #### Base Color Expansion
 

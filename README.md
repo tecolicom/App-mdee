@@ -197,9 +197,10 @@ bold text, etc.).
     Select color themes.  The default is `hashed`, which appends
     closing hashes to h3-h6 headers.
 
-    Multiple themes can be specified as comma-separated names or by
-    repeating the option.  Each theme is applied in order as a
-    transformation to the default theme:
+    Themes specified with `--theme` are added to the default, not
+    replacing it.  Multiple themes can be specified as comma-separated
+    names or by repeating the option.  Each theme is applied in order
+    as a transformation:
 
         mdee --theme=warm file.md         # hashed (default) + warm
         mdee --theme=warm,hashed file.md  # same (hashed already in default)

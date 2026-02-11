@@ -355,14 +355,14 @@ CONF
         like($out, qr/sub\{/, 'default[theme]=warm,hashed applies hashed');
     }
 
-    # Test --theme overrides default[theme]
+    # Test --theme skips default[theme] (flag set by callback)
     {
         open my $fh, '>', "$config_dir/config.sh" or die;
         print $fh "default[theme]='warm'\n";
         close $fh;
-        my $out = `XDG_CONFIG_HOME=$tmpdir $mdee -d --dryrun --mode=light --theme=hashed $test_md 2>&1`;
-        unlike($out, qr/Coral/, '--theme overrides default[theme]');
-        like($out, qr/RoyalBlue/, '--theme=hashed uses default base color');
+        my $out = `XDG_CONFIG_HOME=$tmpdir $mdee -d --dryrun --mode=light --no-theme --theme=warm $test_md 2>&1`;
+        like($out, qr/Coral/, '--no-theme --theme=warm applies warm');
+        unlike($out, qr/###/, '--no-theme --theme=warm skips hashed');
     }
 
     # Test --base-color overrides config theme override

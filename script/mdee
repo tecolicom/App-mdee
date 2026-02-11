@@ -90,6 +90,17 @@ else
 fi
 unset _share_dir _dev_share
 
+# Print unique elements, preserving order
+uniq_array() {
+    local -A _seen=()
+    local _e
+    for _e in "$@"; do
+        [[ ${_seen[$_e]:-} ]] && continue
+        _seen[$_e]=1
+        printf '%s\n' "$_e"
+    done
+}
+
 # Load a theme file by name
 # Searches user_theme_dir then share_theme_dir, trying .sh and .bash
 load_theme_file() {
@@ -313,6 +324,9 @@ trace() {
     [[ $trace ]] && set -x || set +x
 }
 
+_theme_specified=
+theme() { _theme_specified=1; }
+
 show() {
     local arg=$2 key val
     if [[ $arg == *=* ]]; then
@@ -437,7 +451,7 @@ fi
 [[ -f "$config_file" ]] && . "$config_file" || :
 
 # Apply config defaults if theme not explicitly specified
-if [[ "${theme[*]}" == "hashed" ]] && [[ ${default[theme]:-} ]]; then
+if [[ ! $_theme_specified ]] && [[ ${default[theme]:-} ]]; then
     IFS=, read -ra theme <<< "${default[theme]}"
 fi
 
@@ -473,13 +487,13 @@ esac
 [[ ${rule:-} ]] && rule='│'
 
 # Load theme files: each modifies theme_light/theme_dark arrays
-for _t in "${theme[@]}"; do
+while IFS= read -r _t; do
     if [[ -f "$_t" ]]; then
         . "$_t"
     else
         load_theme_file "$_t" || die "theme not found: $_t"
     fi
-done
+done < <(uniq_array "${theme[@]}")
 load_theme "$mode"
 
 # Override base color if specified via --base-color or default[base_color]
@@ -815,9 +829,10 @@ bold text, etc.).
 Select color themes.  The default is C<hashed>, which appends
 closing hashes to h3-h6 headers.
 
-Multiple themes can be specified as comma-separated names or by
-repeating the option.  Each theme is applied in order as a
-transformation to the default theme:
+Themes specified with C<--theme> are added to the default, not
+replacing it.  Multiple themes can be specified as comma-separated
+names or by repeating the option.  Each theme is applied in order
+as a transformation:
 
     mdee --theme=warm file.md         # hashed (default) + warm
     mdee --theme=warm,hashed file.md  # same (hashed already in default)

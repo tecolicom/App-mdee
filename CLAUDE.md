@@ -68,7 +68,7 @@ done
 
 #### Chaining Themes
 
-The `--theme` option is an array (`@` type) with default value `hashed`, supporting comma-separated values and repeated options. Themes are applied in order, each modifying `theme_light`/`theme_dark`:
+The `--theme` option is an array (`@` type) with default value `hashed`, supporting comma-separated values and repeated options. Themes accumulate (added to the default); use `--no-theme` to clear. Duplicate themes are removed by `uniq_array`. Themes are applied in order, each modifying `theme_light`/`theme_dark`:
 
 ```bash
 mdee file.md                        # default: hashed theme applied
@@ -149,7 +149,7 @@ The `default` associative array supports:
 
 Priority: command-line option > config default > built-in default.
 
-Config defaults for `default[theme]` are applied only when the theme array is still the OPTS default (`"${theme[*]}" == "hashed"`). Explicit `--theme` or `--no-theme` on the command line prevents config override.
+Config defaults for `default[theme]` are applied only when `--theme`/`--no-theme` is not specified on the command line. A `theme()` callback sets `_theme_specified` flag to track this.
 
 The `--base-color` option default is empty (no override). Base color is determined by:
 1. `--base-color` option (highest priority)

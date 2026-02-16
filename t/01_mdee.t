@@ -230,39 +230,34 @@ subtest 'tee combined execution' => sub {
     like($out, qr/greple.*Pattern matching/s, 'table content is present');
 };
 
-# Test: show option
+# Test: show option (verify actual output behavior)
 subtest 'show option' => sub {
-    # Count -E options in run_greple debug line (identified by --ci=G)
-    sub count_patterns {
-        my $out = shift;
-        my ($line) = $out =~ /^(debug: greple\h.*--ci=G\h.*)/m;
-        return 0 unless $line;
-        return () = $line =~ /\h-E\h/g;
+    # Helper: check if text has ANSI color directly applied
+    sub has_ansi_around {
+        my ($out, $text) = @_;
+        return $out =~ /\e\[[0-9;]*m\Q$text\E/;
     }
 
-    # all fields enabled by default (15 patterns: bold and italic combined with |)
-    my $default = `$mdee -ddn $test_md 2>&1`;
-    is(count_patterns($default), 15, 'default has 15 patterns');
+    # Default: bold should be colored
+    my $default = `$mdee -f $test_md 2>&1`;
+    ok(has_ansi_around($default, '**bold text**'), 'default has bold formatting');
 
-    # --show italic=0 disables italic (14 patterns: 15 - 1)
-    my $no_italic = `$mdee -ddn --show italic=0 $test_md 2>&1`;
-    is(count_patterns($no_italic), 14, '--show italic=0 removes 1 pattern');
+    # --show bold=0: bold should NOT be colored
+    my $no_bold = `$mdee -f --show bold=0 $test_md 2>&1`;
+    ok(!has_ansi_around($no_bold, '**bold text**'), '--show bold=0 disables bold');
 
-    # --show bold=0 disables bold (14 patterns: 15 - 1)
-    my $no_bold = `$mdee -ddn --show bold=0 $test_md 2>&1`;
-    is(count_patterns($no_bold), 14, '--show bold=0 removes 1 pattern');
+    # --show italic=0: italic should NOT be colored
+    my $no_italic = `$mdee -f --show italic=0 $test_md 2>&1`;
+    ok(!has_ansi_around($no_italic, '_italic text_'), '--show italic=0 disables italic');
 
-    # --show all enables all fields (15 patterns)
-    my $all = `$mdee -ddn --show all $test_md 2>&1`;
-    is(count_patterns($all), 15, '--show all has 15 patterns');
+    # --show all= disables all formatting
+    my $all_off = `$mdee -f '--show=all=' $test_md 2>&1`;
+    ok(!has_ansi_around($all_off, '**bold text**'), '--show all= disables bold');
 
-    # --show h6=0 disables h6 (14 patterns: 15 - 1)
-    my $no_h6 = `$mdee -ddn --show h6=0 $test_md 2>&1`;
-    is(count_patterns($no_h6), 14, '--show h6=0 removes 1 pattern');
-
-    # --show all= --show bold enables only bold (1 pattern)
-    my $only_bold = `$mdee -ddn '--show=all=' --show=bold $test_md 2>&1`;
-    is(count_patterns($only_bold), 1, '--show all= --show bold has 1 pattern');
+    # --show all= --show bold: only bold colored
+    my $only_bold = `$mdee -f '--show=all=' --show=bold $test_md 2>&1`;
+    ok(has_ansi_around($only_bold, '**bold text**'), '--show all= --show bold enables bold');
+    ok(!has_ansi_around($only_bold, '_italic text_'), '--show all= --show bold disables italic');
 
     # unknown field should error
     my $unknown = `$mdee --dryrun --show unknown $test_md 2>&1`;

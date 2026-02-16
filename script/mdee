@@ -170,21 +170,15 @@ declare -A OPTS=(
 # Built-in themes
 ##############################################################################
 
-# Common color functions
-  osc8_prologue='sub{ use URI::Escape; sub osc8 { sprintf "\e]8;;%s\e\\%s\e]8;;\e\\", uri_escape_utf8($_[0], "^\\x20-\\x7e"), $_[1] } }'
-      link_func='sub{ s/   \[(?<txt>.+?)\]\((?<url>.+?)\)/osc8($+{url},  "[$+{txt}]")/xer }'
-     image_func='sub{ s/  !\[(?<alt>.+?)\]\((?<url>.+?)\)/osc8($+{url}, "![$+{alt}]")/xer }'
-image_link_func='sub{ s/\[!\[(?<alt>.+?)\]\((?<img>.+?)\)\]\((?<url>.+?)\)/osc8($+{img}, "!") . osc8($+{url}, "[$+{alt}]")/xer }'
-
 declare -A theme_light=(
            [base]='<RoyalBlue>=y25'
         [comment]='${base}+r60'
            [bold]='${base}D'
          [strike]='X'
          [italic]='I'
-           [link]="$link_func"
-          [image]="$image_func"
-     [image_link]="$image_link_func"
+           [link]='CU'
+          [image]='CU'
+     [image_link]='CU'
              [h1]='L25DE/${base}'
              [h2]='L25DE/${base}+y20'
              [h3]='L25DN/${base}+y30'
@@ -216,31 +210,13 @@ for _k in "${!theme_light[@]}"; do
     [[ -v theme_dark[$_k] ]] || theme_dark[$_k]=${theme_light[$_k]}
 done
 
-# Link text pattern: backtick spans, backslash escapes, and normal chars
-_link_text='(?:`[^`\n]*+`|\\.|[^`\\\n\]]++)+' # [...] inner match
-
 # Patterns (name-pattern pairs)
+# Highlighting patterns are handled by App::Greple::md module.
+# These are used by run_fold() and run_table() pipeline stages.
 declare -a patterns_default=(
-    # Highlighting patterns (used with colors)
     comment      '^<!--(?![->])(?s:.+?)-->'
-    bold         '(?<![\\`])\*\*.*?(?<!\\)\*\*'
-    bold         '(?<![\\`\w])__.*?(?<!\\)__(?!\w)'
-    italic       '(?<![\\`\w])_(?:(?!_).)+(?<!\\)_(?!\w)'
-    italic       '(?<![\\`\*])\*(?:(?!\*).)+(?<!\\)\*(?!\*)'
-    strike       '(?<![\\`])~~.+?(?<!\\)~~'
-    h1           '^#\h+.*'
-    h2           '^##\h+.*'
-    h3           '^###\h+.*'
-    h4           '^####\h+.*'
-    h5           '^#####\h+.*'
-    h6           '^######+\h+.*'
-    inline_code  '(?<bt>`++)((?:(?!\g{bt}).)++)(\g{bt})'
     code_block   '^ {0,3}(?<bt>`{3,}+|~{3,}+)(.*)\n((?s:.*?))^ {0,3}(\g{bt})'
-    image_link   "\[!\[${_link_text}\]\([^)\n]+\)\]\(<?[^>)\s\n]+>?\)"
-    image        "!\[${_link_text}\]\(<?[^>)\s\n]+>?\)"
-    link         "(?<!!)\[${_link_text}\]\(<?[^>)\s\n]+>?\)"
     table        '^ {0,3}(\|.+\|\n){3,}'
-    # Folding patterns (used without colors)
     item_prefix  '^\h*(?:[*-]|(?:\d+|#)[.)])\h+'
     def_pattern  '(?:\A|\G\n|\n\n).+\n\n?(:\h+.*\n)'
     autoindent   '^\h*(?:[*-]|(?:\d+|#)[.)]|:)\h+|^\h+'
@@ -558,25 +534,6 @@ done
 }
 
 ##############################################################################
-# Markdown highlighting with greple
-##############################################################################
-
-declare -a greple_opts=(-G --ci=G --all --need=0 --filestyle=once --color=always --prologue "$osc8_prologue")
-
-add_pattern() {
-    local name=$1 pattern=$2
-    # Check show hash: unset=default(on), empty or 0=off, non-empty=on
-    local val=${show[$name]-1}
-    [[ $val && $val != 0 ]] && greple_opts+=(--cm "${colors[$name]}" -E "(?|$pattern)") || :
-}
-
-# Add patterns with colors to greple options
-# (use pattern[] so theme modifications are reflected)
-for _name in "${!pattern[@]}"; do
-    [[ ${colors[$_name]:-} ]] && add_pattern "$_name" "${pattern[$_name]}"
-done
-
-##############################################################################
 # Build command pipeline
 ##############################################################################
 
@@ -593,7 +550,58 @@ invoke() {
     "$@"
 }
 
-run_greple()    { invoke greple "${greple_opts[@]}" "$@"; }
+run_greple() {
+    local -a md_opts=()
+
+    # Pass mode via config
+    md_opts+=("-Mmd::config(mode=${mode})")
+
+    # Pass color overrides from theme
+    local name color_val
+    for name in "${!colors[@]}"; do
+        [[ $name == base ]] && continue
+        color_val="${colors[$name]}"
+
+        # Split composite color keys for module labels
+        # code_block = "fence , lang , body , fence" → code_fence/code_lang/code_body
+        if [[ $name == code_block ]]; then
+            local -a parts
+            IFS=', ' read -ra parts <<< "$color_val"
+            md_opts+=(--cm "code_fence=${parts[0]:-}")
+            md_opts+=(--cm "code_lang=${parts[1]:-}")
+            md_opts+=(--cm "code_body=${parts[2]:-}")
+            continue
+        fi
+
+        # inline_code = "delimiters,body,delimiters" → 2 module labels
+        if [[ $name == inline_code ]]; then
+            local -a parts
+            IFS=', ' read -ra parts <<< "$color_val"
+            md_opts+=(--cm "inline_code=${parts[0]:-}")
+            md_opts+=(--cm "inline_code_body=${parts[1]:-}")
+            continue
+        fi
+
+        # Skip legacy sub{...} function specs
+        [[ $color_val == sub\{* ]] && continue
+
+        # Strip ;sub{...} suffix (hashed theme heading transformations)
+        color_val="${color_val%;sub\{*}"
+
+        md_opts+=(--cm "${name}=${color_val}")
+    done
+
+    # Pass show visibility (disable hidden fields by passing empty color)
+    for name in "${!show[@]}"; do
+        [[ $name == all ]] && continue
+        local val=${show[$name]}
+        [[ ! $val || $val == 0 ]] && md_opts+=(--cm "${name}=")
+    done
+
+    invoke greple "${md_opts[@]}" \
+        --filestyle=once --color=always \
+        "$@"
+}
 
 run_fold() {
     invoke greple \

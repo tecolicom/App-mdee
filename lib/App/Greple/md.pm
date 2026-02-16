@@ -348,5 +348,6 @@ __DATA__
 
 option default \
     -G --all --need=0 --filestyle=once --color=always \
+    --exit=0 \
     -E '\z.' \
-    --print &__PACKAGE__::colorize
+    --begin &__PACKAGE__::colorize

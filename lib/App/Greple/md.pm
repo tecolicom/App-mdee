@@ -185,7 +185,17 @@ sub md_color {
     my($label, $text) = @_;
     my $spec = $colors{$label};
     return $text unless defined $spec && $spec ne '';
-    ansi_color($spec, $text);
+    my $func;
+    if ($spec =~ s/;sub\{(.*)\}$//) {
+	$func = $1;
+    }
+    $text = ansi_color($spec, $text) if $spec ne '';
+    if ($func) {
+	local $_ = $text;
+	$text = eval $func;
+	warn "md_color: $@" if $@;
+    }
+    $text;
 }
 
 #

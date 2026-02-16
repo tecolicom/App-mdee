@@ -582,11 +582,8 @@ run_greple() {
             continue
         fi
 
-        # Skip legacy sub{...} function specs
+        # Skip standalone sub{...} function specs (link/image OSC 8 functions)
         [[ $color_val == sub\{* ]] && continue
-
-        # Strip ;sub{...} suffix (hashed theme heading transformations)
-        color_val="${color_val%;sub\{*}"
 
         md_opts+=(--cm "${name}=${color_val}")
     done

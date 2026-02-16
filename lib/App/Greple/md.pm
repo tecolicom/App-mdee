@@ -105,7 +105,8 @@ my %default_colors = (
     code_fence      => 'L20',
     code_lang       => 'L18',
     code_body       => '/L23;E',
-    inline_code     => 'L15/L23',
+    inline_code     => 'L15/L23',   # backtick delimiters
+    inline_code_body => '/L23',    # code content
     comment         => 'L15',
     link            => 'CU',
     image           => 'CU',
@@ -128,6 +129,7 @@ my %dark_overrides = (
     code_lang       => 'L12',
     code_body       => '/L05;E',
     inline_code     => 'L12/L05',
+    inline_code_body => '/L05',
     h1              => 'L00DE/<RoyalBlue>=y80',
     h2              => 'L00DE/<RoyalBlue>=y80-y15',
     h3              => 'L00DN/<RoyalBlue>=y80-y25',
@@ -255,7 +257,9 @@ sub colorize {
     # 2. Inline code protection
     ############################################################
 
-    s/((?<bt>`++)(?:(?!\g{bt}).)+\g{bt})/protect(md_color('inline_code', $1))/ge;
+    s/(?<bt>`++)(((?!\g{bt}).)+)(\g{bt})/
+	protect(md_color('inline_code', $+{bt}) . md_color('inline_code_body', $2) . md_color('inline_code', $4))
+    /ge;
 
     ############################################################
     # 3. HTML comment protection (multiline)

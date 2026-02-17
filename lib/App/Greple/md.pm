@@ -124,7 +124,7 @@ my $config = Getopt::EX::Config->new(
     mode       => '',  # light / dark
     osc8       => 1,   # OSC 8 hyperlinks
     base_color => '',  # override base color
-    hashed     => {},
+    hashed     => { h1 => 0, h2 => 0, h3 => 0, h4 => 0, h5 => 0, h6 => 0 },
 );
 
 #

@@ -2,5 +2,15 @@ Revision history for Perl extension App-Greple-md
 
 {{$NEXT}}
 
-    - original version
+0.99 2026-02-17T14:44:56Z
+
+    - Initial release
+    - Markdown syntax highlighting with cumulative coloring
+    - SGR 256 protect/restore mechanism for nested elements
+    - OSC 8 terminal hyperlinks for links and images
+    - Table formatting with ansicolumn and box-drawing separators
+    - Configurable field visibility (--show option)
+    - Hashed heading style (closing hashes on h3-h6)
+    - Base color system with ${base} placeholder expansion
+    - ;sub{...} text transformation in color specs
 

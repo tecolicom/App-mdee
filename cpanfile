@@ -13,6 +13,7 @@ requires 'App::nup', '0.9906';
 requires 'Getopt::Long::Bash', '0.7.2';
 
 requires 'App::Greple', '10.02';
+requires 'App::Greple::md', '0.99';
 requires 'App::Greple::tee', '1.04';
 
 requires 'Getopt::EX::termcolor';

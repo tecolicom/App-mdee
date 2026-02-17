@@ -17,7 +17,9 @@ App::Greple::md - Greple module for Markdown syntax highlighting
 
     greple -Mmd file.md
 
-    greple -Mmd::config(mode=dark) file.md
+    greple -Mmd --mode=dark -- file.md
+
+    greple -Mmd --hashed h3=1 -- file.md
 
     greple -Mmd --cm h1=RD -- file.md
 
@@ -59,9 +61,21 @@ The following color labels are available for override:
 
 =head2 Dark Mode
 
-Use C<mode=dark> configuration to activate dark mode colors:
+Use C<--mode=dark> or C<config(mode=dark)> to activate dark mode colors:
+
+    greple -Mmd --mode=dark -- file.md
 
     greple -Mmd::config(mode=dark) file.md
+
+=head2 Closing Hashes
+
+The C<hashed> configuration adds closing hashes to headings
+(e.g., C<### Title> becomes C<### Title ###>).  It is a hash
+option that can be set per heading level:
+
+    greple -Mmd::config(hashed.h3=1,hashed.h4=1,hashed.h5=1,hashed.h6=1) file.md
+
+    greple -Mmd --hashed h3=1 --hashed h4=1 -- file.md
 
 =head2 OSC 8 Hyperlinks
 
@@ -110,7 +124,7 @@ my $config = Getopt::EX::Config->new(
     mode       => '',  # light / dark
     osc8       => 1,   # OSC 8 hyperlinks
     base_color => '',  # override base color
-    hashed     => 0,   # append closing hashes to h3-h6
+    hashed     => {},
 );
 
 #
@@ -124,13 +138,13 @@ my %base_color = (
 
 my %default_colors = (
     code_mark       => 'L20',
-    code_info       => 'L18',
+    code_info       => '${base_name}+r60=y70',
     code_block      => '/L23;E',
     code_inline     => '/L23',
     comment         => '${base}+r60',
-    link            => 'CU',
-    image           => 'CU',
-    image_link      => 'CU',
+    link            => '${base}U',
+    image           => '${base}U',
+    image_link      => '${base}U',
     h1              => 'L25DE/${base}',
     h2              => 'L25DE/${base}+y20',
     h3              => 'L25DN/${base}+y30',
@@ -146,7 +160,7 @@ my %default_colors = (
 
 my %dark_overrides = (
     code_mark       => 'L10',
-    code_info       => 'L12',
+    code_info       => '${base_name}+r60=y20',
     code_block      => '/L05;E',
     code_inline     => '/L05',
     h1              => 'L00DE/${base}',
@@ -182,6 +196,7 @@ my %show;
 sub finalize {
     my($mod, $argv) = @_;
     $config->deal_with($argv,
+                       "mode=s", "base_color=s", "hashed=s%",
                        "cm=s" => \@opt_cm,
                        "show=s%" => \%show);
 }
@@ -201,15 +216,19 @@ sub setup_colors {
     } else {
         $base = $base_color{$mode} || $base_color{light};
     }
-    # Expand ${base} references
+    # ${base_name}: color without luminance (e.g., '<RoyalBlue>')
+    (my $base_name = $base) =~ s/=y\d+$//;
+    # Expand placeholders
     for my $key (keys %colors) {
+        $colors{$key} =~ s/\$\{base_name\}/$base_name/g;
         $colors{$key} =~ s/\$\{base\}/$base/g;
     }
     # Handle + prefix: prepend current color value before load_params
     # (load_params' built-in + doesn't work correctly with sub{...})
     my @final_cm;
     for my $entry (@opt_cm) {
-        my $expanded = $entry =~ s/\$\{base\}/$base/gr;
+        my $expanded = $entry =~ s/\$\{base_name\}/$base_name/gr
+                              =~ s/\$\{base\}/$base/gr;
         if ($expanded =~ /^(\w+)=\+(.*)/) {
             my ($label, $append) = ($1, $2);
             my $current = $colors{$label} // '';
@@ -368,7 +387,7 @@ sub colorize {
             my $hdr = '#' x $n;
             s{^($hdr\h+.*)$}{
                 my $line = $1;
-                $line .= " $hdr" if $hashed && $n >= 3 && $line !~ /\#$/;
+                $line .= " $hdr" if $hashed->{"h$n"} && $line !~ /\#$/;
                 md_color("h$n", $line);
             }mge;
         }

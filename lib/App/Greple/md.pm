@@ -1,3 +1,5 @@
+# -*- mode: perl; coding: utf-8 -*-
+# vim: set fileencoding=utf-8 filetype=perl :
 package App::Greple::md;
 
 use 5.024;
@@ -157,18 +159,18 @@ my %show;
 sub finalize {
     my($mod, $argv) = @_;
     $config->deal_with($argv,
-		       "cm=s" => \@opt_cm,
-		       "show=s%" => \%show);
+                       "cm=s" => \@opt_cm,
+                       "show=s%" => \%show);
 }
 
 sub setup_colors {
     my %colors = %default_colors;
     if ($config->{mode} eq 'dark') {
-	@colors{keys %dark_overrides} = values %dark_overrides;
+        @colors{keys %dark_overrides} = values %dark_overrides;
     }
     $cm = Getopt::EX::Colormap->new(
-	HASH => \%colors,
-	NEWLABEL => 1,
+        HASH => \%colors,
+        NEWLABEL => 1,
     );
     $cm->load_params(@opt_cm);
 }
@@ -243,16 +245,16 @@ sub colorize {
     ############################################################
 
     s{^( {0,3})(`{3,}|~{3,})(.*)\n((?s:.*?))^( {0,3})\2(\h*)$}{
-	my($oi, $fence, $lang, $body, $ci, $trail) = ($1, $2, $3, $4, $5, $6);
-	my $result = md_color('code_mark', "$oi$fence");
-	$result .= md_color('code_info', $lang) if length($lang);
-	$result .= "\n";
-	if (length($body)) {
-	    $result .= join '', map { md_color('code_block', $_) }
-		split /(?<=\n)/, $body;
-	}
-	$result .= md_color('code_mark', "$ci$fence") . $trail;
-	protect($result)
+        my($oi, $fence, $lang, $body, $ci, $trail) = ($1, $2, $3, $4, $5, $6);
+        my $result = md_color('code_mark', "$oi$fence");
+        $result .= md_color('code_info', $lang) if length($lang);
+        $result .= "\n";
+        if (length($body)) {
+            $result .= join '', map { md_color('code_block', $_) }
+                split /(?<=\n)/, $body;
+        }
+        $result .= md_color('code_mark', "$ci$fence") . $trail;
+        protect($result)
     }mge;
 
     ############################################################
@@ -260,7 +262,7 @@ sub colorize {
     ############################################################
 
     s/(?<bt>`++)(((?!\g{bt}).)+)(\g{bt})/
-	protect(md_color('code_mark', $+{bt}) . md_color('code_inline', $2) . md_color('code_mark', $4))
+        protect(md_color('code_mark', $+{bt}) . md_color('code_inline', $2) . md_color('code_mark', $4))
     /ge;
 
     ############################################################
@@ -274,10 +276,10 @@ sub colorize {
     ############################################################
 
     s{\[!\[($LT)\]\(([^)\n]+)\)\]\(<?([^>)\s\n]+)>?\)}{
-	protect(
-	    osc8($2, md_color('image_link', "!"))
-	    . osc8($3, md_color('image_link', "[$1]"))
-	)
+        protect(
+            osc8($2, md_color('image_link', "!"))
+            . osc8($3, md_color('image_link', "[$1]"))
+        )
     }ge;
 
     ############################################################
@@ -285,7 +287,7 @@ sub colorize {
     ############################################################
 
     s{!\[($LT)\]\(<?([^>)\s\n]+)>?\)}{
-	protect(osc8($2, md_color('image', "![$1]")))
+        protect(osc8($2, md_color('image', "![$1]")))
     }ge;
 
     ############################################################
@@ -293,7 +295,7 @@ sub colorize {
     ############################################################
 
     s{(?<!!)\[($LT)\]\(<?([^>)\s\n]+)>?\)}{
-	protect(osc8($2, md_color('link', "[$1]")))
+        protect(osc8($2, md_color('link', "[$1]")))
     }ge;
 
     ############################################################
@@ -301,7 +303,7 @@ sub colorize {
     ############################################################
 
     if (active('horizontal_rule')) {
-	s/^([ ]{0,3}(?:[-*_][ ]*){3,})$/protect(md_color('horizontal_rule', $1))/mge;
+        s/^([ ]{0,3}(?:[-*_][ ]*){3,})$/protect(md_color('horizontal_rule', $1))/mge;
     }
 
     ############################################################
@@ -309,12 +311,12 @@ sub colorize {
     ############################################################
 
     if (active('header')) {
-	s/^(######\h+.*)$/md_color('h6', $1)/mge if active('h6');
-	s/^(#####\h+.*)$/md_color('h5', $1)/mge  if active('h5');
-	s/^(####\h+.*)$/md_color('h4', $1)/mge   if active('h4');
-	s/^(###\h+.*)$/md_color('h3', $1)/mge    if active('h3');
-	s/^(##\h+.*)$/md_color('h2', $1)/mge     if active('h2');
-	s/^(#\h+.*)$/md_color('h1', $1)/mge      if active('h1');
+        s/^(######\h+.*)$/md_color('h6', $1)/mge if active('h6');
+        s/^(#####\h+.*)$/md_color('h5', $1)/mge  if active('h5');
+        s/^(####\h+.*)$/md_color('h4', $1)/mge   if active('h4');
+        s/^(###\h+.*)$/md_color('h3', $1)/mge    if active('h3');
+        s/^(##\h+.*)$/md_color('h2', $1)/mge     if active('h2');
+        s/^(#\h+.*)$/md_color('h1', $1)/mge      if active('h1');
     }
 
     ############################################################
@@ -322,8 +324,8 @@ sub colorize {
     ############################################################
 
     if (active('bold')) {
-	s/(?<![\\`])\*\*.*?(?<!\\)\*\*/md_color('bold', $&)/ge;
-	s/(?<![\\`\w])__.*?(?<!\\)__(?!\w)/md_color('bold', $&)/ge;
+        s/(?<![\\`])\*\*.*?(?<!\\)\*\*/md_color('bold', $&)/ge;
+        s/(?<![\\`\w])__.*?(?<!\\)__(?!\w)/md_color('bold', $&)/ge;
     }
 
     ############################################################
@@ -331,8 +333,8 @@ sub colorize {
     ############################################################
 
     if (active('italic')) {
-	s/(?<![\\`\w])_(?:(?!_).)+(?<!\\)_(?!\w)/md_color('italic', $&)/ge;
-	s/(?<![\\`\*])\*(?:(?!\*).)+(?<!\\)\*(?!\*)/md_color('italic', $&)/ge;
+        s/(?<![\\`\w])_(?:(?!_).)+(?<!\\)_(?!\w)/md_color('italic', $&)/ge;
+        s/(?<![\\`\*])\*(?:(?!\*).)+(?<!\\)\*(?!\*)/md_color('italic', $&)/ge;
     }
 
     ############################################################
@@ -340,7 +342,7 @@ sub colorize {
     ############################################################
 
     if (active('strike')) {
-	s/(?<![\\`])~~.+?(?<!\\)~~/md_color('strike', $&)/ge;
+        s/(?<![\\`])~~.+?(?<!\\)~~/md_color('strike', $&)/ge;
     }
 
     ############################################################
@@ -348,7 +350,7 @@ sub colorize {
     ############################################################
 
     if (active('blockquote')) {
-	s/^(>+\h?)(.*)$/md_color('blockquote', $1) . $2/mge;
+        s/^(>+\h?)(.*)$/md_color('blockquote', $1) . $2/mge;
     }
 
     ############################################################

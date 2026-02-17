@@ -170,7 +170,7 @@ declare -A OPTS=(
 
 declare -A theme_light=([base]='<RoyalBlue>=y25')
 declare -A theme_dark=([base]='<RoyalBlue>=y80')
-declare -a theme_cm=()
+declare -a md_config=()
 declare -a show_fields=(
     comment bold strike italic link image image_link
     h1 h2 h3 h4 h5 h6 blockquote horizontal_rule
@@ -368,8 +368,8 @@ done
             printf "theme_%s[%s]='%s'\n" "$_mode" "$key" "${_ref[$key]//\'/\'\\\'\'}"
         done | sort >&2
     done
-    for _e in "${theme_cm[@]}"; do
-        printf "theme_cm: '%s'\n" "$_e" >&2
+    for _e in "${md_config[@]}"; do
+        printf "md_config: '%s'\n" "$_e" >&2
     done
     (( debug > 1 )) && {
         for key in "${!pattern[@]}"; do
@@ -419,15 +419,12 @@ run_greple() {
         fi
     fi
 
+    # Add md_config entries from themes
+    config_params+=("${md_config[@]}")
+
     local IFS=','
     md_opts+=("-Mmd::config(${config_params[*]})")
     unset IFS
-
-    # Pass theme color overrides
-    local _cm
-    for _cm in "${theme_cm[@]}"; do
-        md_opts+=(--cm "$_cm")
-    done
 
     # Pass show visibility
     local name
@@ -618,7 +615,7 @@ Set debug level.  Can be repeated for increasing verbosity.
 
 =item C<-d>
 
-Show theme values (C<theme_light[]>/C<theme_dark[]>, C<theme_cm[]>)
+Show theme values (C<theme_light[]>/C<theme_dark[]>, C<md_config[]>)
 and pipeline stage names.
 
 =item C<-dd>
@@ -760,17 +757,14 @@ Theme files are searched in the following order:
 =back
 
 Theme files are Bash scripts that can modify C<theme_light[base]>,
-C<theme_dark[base]>, C<theme_cm[]>, and/or C<pattern[]>:
+C<theme_dark[base]>, C<md_config[]>, and/or C<pattern[]>:
 
     # theme/warm.sh — change base color
     theme_light[base]='<Coral>=y25'
     theme_dark[base]='<Coral>=y80'
 
-    # theme/hashed.sh — append closing hashes via --cm overrides
-    theme_cm+=(
-        'h3=+;sub{s/(?<!#)$/ ###/r}'
-        'h4=+;sub{s/(?<!#)$/ ####/r}'
-    )
+    # theme/hashed.sh — enable closing hashes on h3-h6
+    md_config+=(hashed=1)
 
     # modify matching pattern
     pattern[link]='...'
@@ -958,8 +952,8 @@ same mechanism as theme files:
     theme_light[base]='<DarkCyan>=y25'
     theme_dark[base]='<DarkCyan>=y80'
 
-    # Add color overrides (passed to md module via --cm)
-    theme_cm+=('h3=+;sub{s/(?<!#)$/ ###/r}')
+    # Enable md module features
+    md_config+=(hashed=1)
 
     # Modify matching patterns
     pattern[link]='...'
@@ -1145,21 +1139,21 @@ chained via C<--theme=NAME1,NAME2,...>.
 
 Color definitions are managed by the L<App::Greple::md> module.
 The C<theme_light> and C<theme_dark> arrays contain only the base
-color.  Theme files can modify the base color, add color overrides
-via C<theme_cm[]>, and modify C<pattern[]>:
+color.  Theme files can modify the base color, pass configuration
+to the md module via C<md_config[]>, and modify C<pattern[]>:
 
     # theme/warm.sh — change base color
     theme_light[base]='<Coral>=y25'
     theme_dark[base]='<Coral>=y80'
 
-    # theme/hashed.sh — add color overrides
-    theme_cm+=('h3=+;sub{s/(?<!#)$/ ###/r}')
+    # theme/hashed.sh — enable closing hashes
+    md_config+=(hashed=1)
 
     # modify matching patterns
     pattern[link]='...'
 
-The C<theme_cm[]> entries are passed as C<--cm> options to the md
-module.  The C<+> prefix appends to the existing color value.
+The C<md_config[]> entries are passed as config parameters to the
+L<App::Greple::md> module.
 
 =head4 Base Color Expansion
 

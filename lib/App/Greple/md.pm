@@ -92,6 +92,15 @@ Nested hash parameters use dot notation:
 
     greple -Mmd::config(hashed.h3=1,hashed.h4=1) file.md
 
+=head2 Table Formatting
+
+By default, Markdown tables are formatted with aligned columns using
+L<App::ansicolumn> and separator lines are converted to Unicode
+box-drawing characters.  Control with C<table> and C<rule> parameters:
+
+    greple -Mmd::config(table=0) file.md    # disable table formatting
+    greple -Mmd::config(rule=0) file.md     # disable box-drawing characters
+
 =head2 OSC 8 Hyperlinks
 
 By default, links are converted to OSC 8 terminal hyperlinks for
@@ -151,6 +160,8 @@ my $config = Getopt::EX::Config->new(
     mode       => '',  # light / dark
     osc8       => 1,   # OSC 8 hyperlinks
     base_color => '',  # override base color
+    table      => 1,   # table formatting
+    rule       => 1,   # box-drawing characters for tables
     hashed     => { h1 => 0, h2 => 0, h3 => 0, h4 => 0, h5 => 0, h6 => 0 },
 );
 
@@ -223,7 +234,8 @@ my %show;
 sub finalize {
     my($mod, $argv) = @_;
     $config->deal_with($argv,
-                       "mode=s", "base_color=s", "hashed=s%",
+                       "mode=s", "base_color=s", "table!", "rule!",
+                       "hashed=s%",
                        "cm=s" => \@opt_cm,
                        "show=s%" => \%show);
 }
@@ -464,6 +476,49 @@ sub colorize {
     $_;
 }
 
+#
+# Table formatting
+#
+
+sub begin {
+    colorize();
+    format_table();
+}
+
+sub format_table {
+    return unless $config->{table};
+    my $sep = $config->{rule} ? "\x{2502}" : '|';  # │ or |
+
+    s{(^ {0,3}\|.+\|\n){3,}}{
+        my $block = $&;
+        my $formatted = call_ansicolumn($block,
+            '-s', '|', '-o', $sep, '-t', '--cu=1');
+        fix_separator($formatted, $sep);
+    }mge;
+}
+
+sub call_ansicolumn {
+    my ($text, @args) = @_;
+    require Command::Run;
+    require App::ansicolumn;
+    Command::Run->new
+        ->command(\&App::ansicolumn::ansicolumn, @args)
+        ->with(stdin => $text)
+        ->update
+        ->data // '';
+}
+
+sub fix_separator {
+    my ($text, $sep) = @_;
+    my $sep_re = $sep eq "\x{2502}" ? "\x{2502}" : '\\|';
+    $text =~ s{^$sep_re((?:\h* -+ \h* $sep_re)*\h* -+ \h*)$sep_re$}{
+        $sep eq "\x{2502}"
+        ? "\x{251C}" . ($1 =~ tr[\x{2502} -][\x{253C}\x{2500}\x{2500}]r) . "\x{2524}"
+        : "|" . ($1 =~ tr[ ][-]r) . "|"
+    }xmeg;
+    $text;
+}
+
 1;
 
 __DATA__
@@ -472,4 +527,4 @@ option default \
     -G --all --need=0 --filestyle=once --color=always \
     --exit=0 \
     -E '(*FAIL)' \
-    --begin &__PACKAGE__::colorize
+    --begin &__PACKAGE__::begin

@@ -169,9 +169,9 @@ my %default_colors = (
     code_block      => '/L23;E',
     code_inline     => '/L23',
     comment         => '${base}+r60',
-    link            => '${base}U',
-    image           => '${base}U',
-    image_link      => '${base}U',
+    link            => '${base}',
+    image           => '${base}',
+    image_link      => '${base}',
     h1              => 'L25DE/${base}',
     h2              => 'L25DE/${base}+y20',
     h3              => 'L25DN/${base}+y30',
@@ -300,12 +300,12 @@ my @protected;
 sub protect {
     my $text = shift;
     push @protected, $text;
-    "\x01" . $#protected . "\x02";
+    "\e[256m" . $#protected . "\e[m";
 }
 
 sub restore {
     my $s = shift;
-    $s =~ s/\x01(\d+)\x02/$protected[$1]/g;
+    $s =~ s/\e\[256m(\d+)\e\[m/$protected[$1]/g;
     $s;
 }
 
@@ -414,7 +414,8 @@ sub colorize {
             my $hdr = '#' x $n;
             s{^($hdr\h+.*)$}{
                 my $line = $1;
-                $line .= " $hdr" if $hashed->{"h$n"} && $line !~ /\#$/;
+                $line .= " $hdr"
+                    if $hashed->{"h$n"} && $line !~ /\#$/;
                 md_color("h$n", $line);
             }mge;
         }

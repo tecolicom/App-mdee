@@ -32,26 +32,28 @@ with OSC 8 hyperlinks, headings (cumulative), emphasis (bold, italic,
 strikethrough), blockquotes, and horizontal rules.
 
 Default colors can be overridden by C<--cm LABEL=spec> as a module
-option (before C<-->):
+option (before C<-->).  Color specs follow
+L<Term::ANSIColor::Concise> format and support C<sub{...}> function
+specs via L<Getopt::EX::Colormap>.
 
 =head2 Color Labels
 
 The following color labels are available for override:
 
-    code_fence      Fenced code block opening/closing fence
-    code_lang       Fenced code block language specifier
-    code_body       Fenced code block body
-    inline_code     Inline code spans
-    comment         HTML comments
-    link            Inline links [text](url)
-    image           Images ![alt](url)
-    image_link      Image links [![alt](img)](url)
-    h1 - h6         Headings
-    bold            Bold text (**text** or __text__)
-    italic          Italic text (*text* or _text_)
-    strike          Strikethrough text (~~text~~)
-    blockquote      Blockquote marker (>)
-    horizontal_rule Horizontal rules (---, ***, ___)
+    code_mark        Code delimiters (fences and backticks)
+    code_info        Fenced code block info string
+    code_block       Fenced code block body
+    code_inline      Inline code body
+    comment          HTML comments
+    link             Inline links [text](url)
+    image            Images ![alt](url)
+    image_link       Image links [![alt](img)](url)
+    h1 - h6          Headings
+    bold             Bold text (**text** or __text__)
+    italic           Italic text (*text* or _text_)
+    strike           Strikethrough text (~~text~~)
+    blockquote       Blockquote marker (>)
+    horizontal_rule  Horizontal rules (---, ***, ___)
 
 =head2 Dark Mode
 
@@ -66,13 +68,24 @@ clickable URLs in supported terminals.  Disable with C<osc8=0>:
 
     greple -Mmd::config(osc8=0) file.md
 
+=head2 Field Visibility
+
+The C<--show> option controls which elements are highlighted:
+
+    greple -Mmd --show bold=0 -- file.md       # disable bold
+    greple -Mmd --show all= --show h1 -- file.md  # only h1
+
+C<--show LABEL=0> or C<--show LABEL=> disables the label.
+C<--show LABEL> or C<--show LABEL=1> enables it.
+C<all> is a special key that sets all labels at once.
+
 =head1 SEE ALSO
 
 L<App::Greple>
 
-L<Getopt::EX::Config>
+L<Getopt::EX::Colormap>
 
-L<Term::ANSIColor::Concise>
+L<Getopt::EX::Config>
 
 =head1 AUTHOR
 
@@ -89,7 +102,7 @@ it under the same terms as Perl itself.
 
 use URI::Escape;
 use Getopt::EX::Config;
-use Term::ANSIColor::Concise qw(ansi_color);
+use Getopt::EX::Colormap;
 
 my $config = Getopt::EX::Config->new(
     mode => '',      # light / dark
@@ -101,11 +114,10 @@ my $config = Getopt::EX::Config->new(
 #
 
 my %default_colors = (
-    code_fence      => 'L20',
-    code_lang       => 'L18',
-    code_body       => '/L23;E',
-    inline_code     => 'L15/L23',   # backtick delimiters
-    inline_code_body => '/L23',    # code content
+    code_mark       => 'L20',
+    code_info       => 'L18',
+    code_block      => '/L23;E',
+    code_inline     => '/L23',
     comment         => 'L15',
     link            => 'CU',
     image           => 'CU',
@@ -124,11 +136,10 @@ my %default_colors = (
 );
 
 my %dark_overrides = (
-    code_fence      => 'L10',
-    code_lang       => 'L12',
-    code_body       => '/L05;E',
-    inline_code     => 'L12/L05',
-    inline_code_body => '/L05',
+    code_mark       => 'L10',
+    code_info       => 'L12',
+    code_block      => '/L05;E',
+    code_inline     => '/L05',
     h1              => 'L00DE/<RoyalBlue>=y80',
     h2              => 'L00DE/<RoyalBlue>=y80-y15',
     h3              => 'L00DN/<RoyalBlue>=y80-y25',
@@ -139,20 +150,34 @@ my %dark_overrides = (
     blockquote      => '<RoyalBlue>=y80;D',
 );
 
-my %colors;
-my %user_colors;
+my $cm;
+my @opt_cm;
+my %show;
 
-sub initialize {
+sub finalize {
     my($mod, $argv) = @_;
-    $config->deal_with($argv, "cm=s%" => \%user_colors);
+    $config->deal_with($argv,
+		       "cm=s" => \@opt_cm,
+		       "show=s%" => \%show);
 }
 
 sub setup_colors {
-    %colors = %default_colors;
+    my %colors = %default_colors;
     if ($config->{mode} eq 'dark') {
 	@colors{keys %dark_overrides} = values %dark_overrides;
     }
-    @colors{keys %user_colors} = values %user_colors;
+    $cm = Getopt::EX::Colormap->new(
+	HASH => \%colors,
+	NEWLABEL => 1,
+    );
+    $cm->load_params(@opt_cm);
+}
+
+sub active {
+    my $label = shift;
+    return 0 if exists $show{$label} && !$show{$label};
+    return 1 unless exists $cm->{HASH}{$label};
+    $cm->{HASH}{$label} ne '';
 }
 
 #
@@ -161,19 +186,7 @@ sub setup_colors {
 
 sub md_color {
     my($label, $text) = @_;
-    my $spec = $colors{$label};
-    return $text unless defined $spec && $spec ne '';
-    my $func;
-    if ($spec =~ s/;sub\{(.*)\}$//) {
-	$func = $1;
-    }
-    $text = ansi_color($spec, $text) if $spec ne '';
-    if ($func) {
-	local $_ = $text;
-	$text = eval $func;
-	warn "md_color: $@" if $@;
-    }
-    $text;
+    $cm->color($label, $text);
 }
 
 #
@@ -231,14 +244,14 @@ sub colorize {
 
     s{^( {0,3})(`{3,}|~{3,})(.*)\n((?s:.*?))^( {0,3})\2(\h*)$}{
 	my($oi, $fence, $lang, $body, $ci, $trail) = ($1, $2, $3, $4, $5, $6);
-	my $result = md_color('code_fence', "$oi$fence");
-	$result .= md_color('code_lang', $lang) if length($lang);
+	my $result = md_color('code_mark', "$oi$fence");
+	$result .= md_color('code_info', $lang) if length($lang);
 	$result .= "\n";
 	if (length($body)) {
-	    $result .= join '', map { md_color('code_body', $_) }
+	    $result .= join '', map { md_color('code_block', $_) }
 		split /(?<=\n)/, $body;
 	}
-	$result .= md_color('code_fence', "$ci$fence") . $trail;
+	$result .= md_color('code_mark', "$ci$fence") . $trail;
 	protect($result)
     }mge;
 
@@ -247,7 +260,7 @@ sub colorize {
     ############################################################
 
     s/(?<bt>`++)(((?!\g{bt}).)+)(\g{bt})/
-	protect(md_color('inline_code', $+{bt}) . md_color('inline_code_body', $2) . md_color('inline_code', $4))
+	protect(md_color('code_mark', $+{bt}) . md_color('code_inline', $2) . md_color('code_mark', $4))
     /ge;
 
     ############################################################
@@ -287,44 +300,56 @@ sub colorize {
     # 7. Horizontal rule (before emphasis to prevent conflict)
     ############################################################
 
-    s/^([ ]{0,3}(?:[-*_][ ]*){3,})$/protect(md_color('horizontal_rule', $1))/mge;
+    if (active('horizontal_rule')) {
+	s/^([ ]{0,3}(?:[-*_][ ]*){3,})$/protect(md_color('horizontal_rule', $1))/mge;
+    }
 
     ############################################################
     # 8. Headings h6 -> h1 (cumulative over links)
     ############################################################
 
-    s/^(######+\h+.*)$/md_color('h6', $1)/mge;
-    s/^(#####\h+.*)$/md_color('h5', $1)/mge;
-    s/^(####\h+.*)$/md_color('h4', $1)/mge;
-    s/^(###\h+.*)$/md_color('h3', $1)/mge;
-    s/^(##\h+.*)$/md_color('h2', $1)/mge;
-    s/^(#\h+.*)$/md_color('h1', $1)/mge;
+    if (active('header')) {
+	s/^(######\h+.*)$/md_color('h6', $1)/mge if active('h6');
+	s/^(#####\h+.*)$/md_color('h5', $1)/mge  if active('h5');
+	s/^(####\h+.*)$/md_color('h4', $1)/mge   if active('h4');
+	s/^(###\h+.*)$/md_color('h3', $1)/mge    if active('h3');
+	s/^(##\h+.*)$/md_color('h2', $1)/mge     if active('h2');
+	s/^(#\h+.*)$/md_color('h1', $1)/mge      if active('h1');
+    }
 
     ############################################################
     # 9. Bold: **text** and __text__
     ############################################################
 
-    s/(?<![\\`])\*\*.*?(?<!\\)\*\*/md_color('bold', $&)/ge;
-    s/(?<![\\`\w])__.*?(?<!\\)__(?!\w)/md_color('bold', $&)/ge;
+    if (active('bold')) {
+	s/(?<![\\`])\*\*.*?(?<!\\)\*\*/md_color('bold', $&)/ge;
+	s/(?<![\\`\w])__.*?(?<!\\)__(?!\w)/md_color('bold', $&)/ge;
+    }
 
     ############################################################
     # 10. Italic: _text_ and *text*
     ############################################################
 
-    s/(?<![\\`\w])_(?:(?!_).)+(?<!\\)_(?!\w)/md_color('italic', $&)/ge;
-    s/(?<![\\`\*])\*(?:(?!\*).)+(?<!\\)\*(?!\*)/md_color('italic', $&)/ge;
+    if (active('italic')) {
+	s/(?<![\\`\w])_(?:(?!_).)+(?<!\\)_(?!\w)/md_color('italic', $&)/ge;
+	s/(?<![\\`\*])\*(?:(?!\*).)+(?<!\\)\*(?!\*)/md_color('italic', $&)/ge;
+    }
 
     ############################################################
     # 11. Strikethrough: ~~text~~
     ############################################################
 
-    s/(?<![\\`])~~.+?(?<!\\)~~/md_color('strike', $&)/ge;
+    if (active('strike')) {
+	s/(?<![\\`])~~.+?(?<!\\)~~/md_color('strike', $&)/ge;
+    }
 
     ############################################################
     # 12. Blockquote: color only the > marker
     ############################################################
 
-    s/^(>+\h?)(.*)$/md_color('blockquote', $1) . $2/mge;
+    if (active('blockquote')) {
+	s/^(>+\h?)(.*)$/md_color('blockquote', $1) . $2/mge;
+    }
 
     ############################################################
     # 13. Restore protected regions

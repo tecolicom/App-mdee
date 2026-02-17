@@ -322,6 +322,58 @@ run_greple() {
 - `--show LABEL=VALUE`: Field visibility control
 - Options before `--` are module-specific; after `--` are greple options
 
+### Protection Mechanism (protect/restore)
+
+The `colorize()` function processes patterns in priority order. Early-processed
+regions (code blocks, inline code, comments, links) must be protected from
+later patterns (headings, emphasis, strikethrough). The protect/restore
+mechanism replaces processed text with ANSI-based placeholders:
+
+```perl
+# protect: replace colored text with SGR 256 placeholder
+sub protect {
+    my $text = shift;
+    push @protected, $text;
+    "\e[256m" . $#protected . "\e[m";
+}
+
+# restore: replace placeholders with original colored text
+sub restore {
+    my $s = shift;
+    $s =~ s/\e\[256m(\d+)\e\[m/$protected[$1]/g;
+    $s;
+}
+```
+
+Placeholder format: `\e[256mN\e[m]` where:
+- `\e[256m` — SGR parameter 256 ("color not found": the 256-color palette
+  uses indices 0-255, so 256 is an impossible color that terminals ignore)
+- `N` — index into `@protected` array
+- `\e[m` — standard SGR reset
+
+The `\e[m` end marker is key: when `apply_color` (from `Term::ANSIColor::Concise`)
+wraps the placeholder with an outer color (e.g., heading), it detects the `\e[m`
+reset and re-inserts the outer color after it. This enables **cumulative coloring**
+— for example, a link inside a heading:
+
+1. Link is colored and protected: `[text](url)` → `\e[256m0\e[m`
+2. Heading wraps the line: `\e[h2]## Title \e[256m0\e[m\e[h2] after\e[m`
+3. Restore replaces placeholder: `\e[h2]## Title \e[link][text]\e[m\e[h2] after\e[m`
+
+The heading color resumes after the link, including background color for
+text that follows the link on the same heading line.
+
+Processing order in `colorize()`:
+1. Fenced code blocks → protect
+2. Inline code → protect
+3. HTML comments → protect
+4. Image links, images, links → protect (with OSC 8)
+5. Horizontal rules → protect
+6. Headings (h6→h1, cumulative over protected regions)
+7. Bold, italic, strikethrough
+8. Blockquotes
+9. Restore all protected regions
+
 ### Code Color Labels
 
 Code-related theme keys map directly to module labels:
@@ -540,55 +592,47 @@ Key rules:
 
 ### OSC 8 Hyperlinks
 
-Links are converted to [OSC 8 terminal hyperlinks](https://gist.github.com/egmontkob/eb114294efbcd5adb1944c9f3cb5feda) for clickable URLs:
+Links are converted to [OSC 8 terminal hyperlinks](https://gist.github.com/egmontkob/eb114294efbcd5adb1944c9f3cb5feda) for clickable URLs. This is handled entirely in the `App::Greple::md` module's `colorize()` function:
 
-```bash
-# Define osc8 function via --prologue (uses URI::Escape for spec compliance)
-osc8_prologue='sub{ use URI::Escape; sub osc8 { sprintf "\e]8;;%s\e\\%s\e]8;;\e\\", uri_escape_utf8($_[0]), $_[1] } }'
-
-# Color functions using named captures
-    link_func='sub{ s/   \[(?<txt>.+?)\]\((?<url>.+?)\)/osc8($+{url},  "[$+{txt}]")/xer }'
-   image_func='sub{ s/  !\[(?<alt>.+?)\]\((?<url>.+?)\)/osc8($+{url}, "![$+{alt}]")/xer }'
-image_link_func='sub{ s/\[!\[(?<alt>.+?)\]\((?<img>.+?)\)\]\((?<url>.+?)\)/osc8($+{img}, "!") . osc8($+{url}, "[$+{alt}]")/xer }'
+```perl
+sub osc8 {
+    return $_[1] unless $config->{osc8};
+    my($url, $text) = @_;
+    my $escaped = uri_escape_utf8($url, "^\\x20-\\x7e");
+    "\e]8;;${escaped}\e\\${text}\e]8;;\e\\";
+}
 ```
 
-**URL Encoding**: OSC 8 specification requires URLs to contain only bytes in the 32-126 range. From the [spec](https://gist.github.com/egmontkob/eb114294efbcd5adb1944c9f3cb5feda) (Encodings section):
+Disable with `greple -Mmd::config(osc8=0)` or mdee's config.sh.
 
-> For portability, the parameters and the URI must not contain any bytes outside of the 32–126 range. If they do, the behavior is undefined. Bytes outside of this range in the URI must be URI-encoded.
+**URL Encoding**: OSC 8 specification requires URLs to contain only bytes in the 32-126 range. `uri_escape_utf8($url, "^\\x20-\\x7e")` escapes only non-ASCII characters (e.g., Japanese filenames), preserving `:`, `/`, etc.
 
-Non-ASCII characters (e.g., Japanese filenames) are handled by `uri_escape_utf8`.
+Three link types (processed in order to handle nesting):
 
-Three link patterns:
-
-| Pattern | Input | Output | Link Target |
-|---------|-------|--------|-------------|
-| link | `[text](url)` | `[text]` | url |
-| image | `![alt](img)` | `![alt]` | img |
-| image_link | `[![alt](img)](url)` | `![alt]` | img (for `!`) + url (for `[alt]`) |
+| Step | Pattern | Input | OSC 8 Links |
+|------|---------|-------|-------------|
+| 4 | image_link | `[![alt](img)](url)` | `!` → img, `[alt]` → url |
+| 5 | image | `![alt](img)` | `![alt]` → img |
+| 6 | link | `[text](url)` | `[text]` → url |
 
 OSC 8 format: `\e]8;;URL\e\TEXT\e]8;;\e\`
-- `\e]8;;URL\e\` - Start hyperlink with URL
-- `TEXT` - Displayed text
-- `\e]8;;\e\` - End hyperlink
 
-The `osc8` function takes `(URL, TEXT)` order. The `image_link_func` produces two separate OSC 8 links: `!` linked to the image URL and `[alt]` linked to the outer URL.
+Each link is colored with the `link`/`image`/`image_link` label, wrapped in OSC 8, and protected to prevent later patterns from matching inside.
 
 #### Link Text Matching Pattern
 
-The highlighting patterns (in `patterns_default`) use:
+The md module uses `$LT` to match link text inside `[...]`:
 
-```
-(?:`[^`\n]*+`|\\.|[^\]`\\\n]++)+
+```perl
+my $LT = qr/(?:`[^`\n]*+`|\\.|[^`\\\n\]]++)+/;
 ```
 
-to match link text inside `[...]`. This alternation:
+This alternation:
 - Branch 1: `` `[^`\n]*+` `` — backtick-enclosed span (allows `]` inside)
 - Branch 2: `\\.` — backslash escape (allows `\]` etc.)
-- Branch 3: `` [^\]`\\\n]++ `` — any char except `]`, `` ` ``, `\`, newline
+- Branch 3: `` [^`\\\n\]]++ `` — any char except `` ` ``, `\`, newline, `]`
 
 Backtick and backslash must be excluded from branch 3 so branches 1 and 2 can fire at the correct positions. Inner quantifiers use possessive form (`*+`, `++`) since no backtracking is needed within each branch.
-
-The `link_func`/`image_func`/`image_link_func` (Perl substitutions for OSC 8 conversion) use `.+?` which handles `]` inside backticks via backtracking, so they don't need this pattern.
 
 ### Mode Detection with [Getopt::EX::termcolor](https://metacpan.org/pod/Getopt::EX::termcolor)
 

@@ -29,20 +29,79 @@ B<App::Greple::md> is a L<greple|App::Greple> module that provides
 Markdown syntax highlighting with cumulative coloring for nested
 elements (e.g., links inside headings).
 
-All colorization is handled by the C<colorize()> function invoked via
-C<--print>.  Patterns are processed in priority order: code block
-state machine, inline code protection, HTML comment protection, links
-with OSC 8 hyperlinks, headings (cumulative), emphasis (bold, italic,
+Patterns are processed in priority order: code block state machine,
+inline code protection, HTML comment protection, links with OSC 8
+hyperlinks, headings (cumulative), emphasis (bold, italic,
 strikethrough), blockquotes, and horizontal rules.
 
-Default colors can be overridden by C<--cm LABEL=spec> as a module
-option (before C<-->).  Color specs follow
+=head1 MODULE OPTIONS
+
+These options are specified before C<--> to separate them from
+greple options:
+
+    greple -Mmd --mode=dark --cm h1=RD -- file.md
+
+=head2 B<--mode>=I<MODE>
+
+Set color mode to C<light> (default) or C<dark>.
+
+    greple -Mmd --mode=dark -- file.md
+
+=head2 B<--base-color>=I<COLOR>
+
+Override the base color used for headings, bold, links, etc.
+Accepts a color name (e.g., C<Crimson>, C<DarkCyan>) or a
+L<Term::ANSIColor::Concise> color spec.
+
+    greple -Mmd --base-color=Crimson -- file.md
+
+=head2 B<--cm> I<LABEL>=I<SPEC>
+
+Override the color for a specific label.  Color specs follow
 L<Term::ANSIColor::Concise> format and support C<sub{...}> function
 specs via L<Getopt::EX::Colormap>.
 
-=head2 Color Labels
+    greple -Mmd --cm h1=RD -- file.md
 
-The following color labels are available for override:
+=head2 B<--hashed> I<LEVEL>=I<VALUE>
+
+Add closing hashes to headings (e.g., C<### Title> becomes
+C<### Title ###>).  Can be set per heading level:
+
+    greple -Mmd --hashed h3=1 --hashed h4=1 -- file.md
+
+=head2 B<--show> I<LABEL>[=I<VALUE>]
+
+Control which elements are highlighted.
+
+    greple -Mmd --show bold=0 -- file.md          # disable bold
+    greple -Mmd --show all= --show h1 -- file.md  # only h1
+
+C<--show LABEL=0> or C<--show LABEL=> disables the label.
+C<--show LABEL> or C<--show LABEL=1> enables it.
+C<all> is a special key that sets all labels at once.
+
+=head1 CONFIGURATION
+
+Module parameters can also be set with the C<config()> function
+in the module declaration:
+
+    greple -Mmd::config(mode=dark,base_color=Crimson) file.md
+
+Nested hash parameters use dot notation:
+
+    greple -Mmd::config(hashed.h3=1,hashed.h4=1) file.md
+
+=head2 OSC 8 Hyperlinks
+
+By default, links are converted to OSC 8 terminal hyperlinks for
+clickable URLs in supported terminals.  Disable with:
+
+    greple -Mmd::config(osc8=0) file.md
+
+=head1 COLOR LABELS
+
+The following color labels are available for C<--cm> and C<--show>:
 
     code_mark        Code delimiters (fences and backticks)
     code_info        Fenced code block info string
@@ -59,45 +118,13 @@ The following color labels are available for override:
     blockquote       Blockquote marker (>)
     horizontal_rule  Horizontal rules (---, ***, ___)
 
-=head2 Dark Mode
-
-Use C<--mode=dark> or C<config(mode=dark)> to activate dark mode colors:
-
-    greple -Mmd --mode=dark -- file.md
-
-    greple -Mmd::config(mode=dark) file.md
-
-=head2 Closing Hashes
-
-The C<hashed> configuration adds closing hashes to headings
-(e.g., C<### Title> becomes C<### Title ###>).  It is a hash
-option that can be set per heading level:
-
-    greple -Mmd::config(hashed.h3=1,hashed.h4=1,hashed.h5=1,hashed.h6=1) file.md
-
-    greple -Mmd --hashed h3=1 --hashed h4=1 -- file.md
-
-=head2 OSC 8 Hyperlinks
-
-By default, links are converted to OSC 8 terminal hyperlinks for
-clickable URLs in supported terminals.  Disable with C<osc8=0>:
-
-    greple -Mmd::config(osc8=0) file.md
-
-=head2 Field Visibility
-
-The C<--show> option controls which elements are highlighted:
-
-    greple -Mmd --show bold=0 -- file.md       # disable bold
-    greple -Mmd --show all= --show h1 -- file.md  # only h1
-
-C<--show LABEL=0> or C<--show LABEL=> disables the label.
-C<--show LABEL> or C<--show LABEL=1> enables it.
-C<all> is a special key that sets all labels at once.
-
 =head1 SEE ALSO
 
+L<App::mdee> - Markdown viewer using this module
+
 L<App::Greple>
+
+L<Term::ANSIColor::Concise>
 
 L<Getopt::EX::Colormap>
 
@@ -302,7 +329,7 @@ my $LT = qr/(?:`[^`\n]*+`|\\.|[^`\\\n\]]++)+/;
 #
 # colorize() - the main function
 #
-# Receives entire file content in $_ (--print with -G --all --need=0).
+# Receives entire file content in $_ (--begin with -G --all --need=0).
 # Processes all patterns with multiline regexes.
 #
 

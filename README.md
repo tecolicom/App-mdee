@@ -127,7 +127,7 @@ Use [tecolicom/tap](https://github.com/tecolicom/homebrew-tap):
 
     - `-d`
 
-        Show theme values (`theme_light[]`/`theme_dark[]`, `theme_cm[]`)
+        Show theme values (`theme_light[]`/`theme_dark[]`, `md_config[]`)
         and pipeline stage names.
 
     - `-dd`
@@ -246,17 +246,14 @@ bold text, etc.).
     - 2. Share theme directory: installed with the distribution under `auto/share/dist/App-mdee/theme/`
 
     Theme files are Bash scripts that can modify `theme_light[base]`,
-    `theme_dark[base]`, `theme_cm[]`, and/or `pattern[]`:
+    `theme_dark[base]`, `md_config[]`, and/or `pattern[]`:
 
         # theme/warm.sh — change base color
         theme_light[base]='<Coral>=y25'
         theme_dark[base]='<Coral>=y80'
 
-        # theme/hashed.sh — append closing hashes via --cm overrides
-        theme_cm+=(
-            'h3=+;sub{s/(?<!#)$/ ###/r}'
-            'h4=+;sub{s/(?<!#)$/ ####/r}'
-        )
+        # theme/hashed.sh — enable closing hashes on h3-h6
+        md_config+=(hashed.h3=1 hashed.h4=1 hashed.h5=1 hashed.h6=1)
 
         # modify matching pattern
         pattern[link]='...'
@@ -415,8 +412,8 @@ same mechanism as theme files:
     theme_light[base]='<DarkCyan>=y25'
     theme_dark[base]='<DarkCyan>=y80'
 
-    # Add color overrides (passed to md module via --cm)
-    theme_cm+=('h3=+;sub{s/(?<!#)$/ ###/r}')
+    # Enable md module features
+    md_config+=(hashed.h3=1 hashed.h4=1 hashed.h5=1 hashed.h6=1)
 
     # Modify matching patterns
     pattern[link]='...'
@@ -576,21 +573,21 @@ chained via `--theme=NAME1,NAME2,...`.
 
 Color definitions are managed by the [App::Greple::md](https://metacpan.org/pod/App%3A%3AGreple%3A%3Amd) module.
 The `theme_light` and `theme_dark` arrays contain only the base
-color.  Theme files can modify the base color, add color overrides
-via `theme_cm[]`, and modify `pattern[]`:
+color.  Theme files can modify the base color, pass configuration
+to the md module via `md_config[]`, and modify `pattern[]`:
 
     # theme/warm.sh — change base color
     theme_light[base]='<Coral>=y25'
     theme_dark[base]='<Coral>=y80'
 
-    # theme/hashed.sh — add color overrides
-    theme_cm+=('h3=+;sub{s/(?<!#)$/ ###/r}')
+    # theme/hashed.sh — enable closing hashes
+    md_config+=(hashed.h3=1 hashed.h4=1 hashed.h5=1 hashed.h6=1)
 
     # modify matching patterns
     pattern[link]='...'
 
-The `theme_cm[]` entries are passed as `--cm` options to the md
-module.  The `+` prefix appends to the existing color value.
+The `md_config[]` entries are passed as config parameters to the
+[App::Greple::md](https://metacpan.org/pod/App%3A%3AGreple%3A%3Amd) module.
 
 #### Base Color Expansion
 

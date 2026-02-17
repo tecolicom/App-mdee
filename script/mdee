@@ -764,7 +764,7 @@ C<theme_dark[base]>, C<md_config[]>, and/or C<pattern[]>:
     theme_dark[base]='<Coral>=y80'
 
     # theme/hashed.sh — enable closing hashes on h3-h6
-    md_config+=(hashed=1)
+    md_config+=(hashed.h3=1 hashed.h4=1 hashed.h5=1 hashed.h6=1)
 
     # modify matching pattern
     pattern[link]='...'
@@ -953,7 +953,7 @@ same mechanism as theme files:
     theme_dark[base]='<DarkCyan>=y80'
 
     # Enable md module features
-    md_config+=(hashed=1)
+    md_config+=(hashed.h3=1 hashed.h4=1 hashed.h5=1 hashed.h6=1)
 
     # Modify matching patterns
     pattern[link]='...'
@@ -1147,7 +1147,7 @@ to the md module via C<md_config[]>, and modify C<pattern[]>:
     theme_dark[base]='<Coral>=y80'
 
     # theme/hashed.sh — enable closing hashes
-    md_config+=(hashed=1)
+    md_config+=(hashed.h3=1 hashed.h4=1 hashed.h5=1 hashed.h6=1)
 
     # modify matching patterns
     pattern[link]='...'

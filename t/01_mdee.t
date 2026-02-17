@@ -333,7 +333,7 @@ CONF
         my $out = `XDG_CONFIG_HOME=$tmpdir $mdee -d --dryrun --mode=light $test_md 2>&1`;
         is($?, 0, 'default[theme]=warm,hashed loads successfully');
         like($out, qr/Coral/, 'default[theme]=warm,hashed applies warm');
-        like($out, qr/hashed=1/, 'default[theme]=warm,hashed applies hashed');
+        like($out, qr/hashed\.h3=1/, 'default[theme]=warm,hashed applies hashed');
     }
 
     # Test --theme skips default[theme] (flag set by callback)

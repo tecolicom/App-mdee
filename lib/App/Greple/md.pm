@@ -107,33 +107,39 @@ use Getopt::EX::Config;
 use Getopt::EX::Colormap;
 
 my $config = Getopt::EX::Config->new(
-    mode => '',      # light / dark
-    osc8 => 1,       # OSC 8 hyperlinks
+    mode       => '',  # light / dark
+    osc8       => 1,   # OSC 8 hyperlinks
+    base_color => '',  # override base color
 );
 
 #
 # Color definitions
 #
 
+my %base_color = (
+    light => '<RoyalBlue>=y25',
+    dark  => '<RoyalBlue>=y80',
+);
+
 my %default_colors = (
     code_mark       => 'L20',
     code_info       => 'L18',
     code_block      => '/L23;E',
     code_inline     => '/L23',
-    comment         => 'L15',
+    comment         => '${base}+r60',
     link            => 'CU',
     image           => 'CU',
     image_link      => 'CU',
-    h1              => 'L25DE/<RoyalBlue>=y25',
-    h2              => 'L25DE/<RoyalBlue>=y25+y20',
-    h3              => 'L25DN/<RoyalBlue>=y25+y30',
-    h4              => '<RoyalBlue>=y25;UD',
-    h5              => '<RoyalBlue>=y25;U',
-    h6              => '<RoyalBlue>=y25',
-    bold            => '<RoyalBlue>=y25;D',
+    h1              => 'L25DE/${base}',
+    h2              => 'L25DE/${base}+y20',
+    h3              => 'L25DN/${base}+y30',
+    h4              => '${base}UD',
+    h5              => '${base}+y20;U',
+    h6              => '${base}+y20',
+    bold            => '${base}D',
     italic          => 'I',
     strike          => 'X',
-    blockquote      => '<RoyalBlue>=y25;D',
+    blockquote      => '${base}D',
     horizontal_rule => 'L15',
 );
 
@@ -142,15 +148,31 @@ my %dark_overrides = (
     code_info       => 'L12',
     code_block      => '/L05;E',
     code_inline     => '/L05',
-    h1              => 'L00DE/<RoyalBlue>=y80',
-    h2              => 'L00DE/<RoyalBlue>=y80-y15',
-    h3              => 'L00DN/<RoyalBlue>=y80-y25',
-    h4              => '<RoyalBlue>=y80;UD',
-    h5              => '<RoyalBlue>=y80;U',
-    h6              => '<RoyalBlue>=y80',
-    bold            => '<RoyalBlue>=y80;D',
-    blockquote      => '<RoyalBlue>=y80;D',
+    h1              => 'L00DE/${base}',
+    h2              => 'L00DE/${base}-y15',
+    h3              => 'L00DN/${base}-y25',
+    h4              => '${base}UD',
+    h5              => '${base}-y20;U',
+    h6              => '${base}-y20',
 );
+
+sub default_theme {
+    my $mode = shift // 'light';
+    my %colors = %default_colors;
+    if ($mode eq 'dark') {
+        @colors{keys %dark_overrides} = values %dark_overrides;
+    }
+    $colors{base} = $base_color{$mode};
+    if (defined wantarray) {
+        %colors;
+    } else {
+        # Print as bash array assignments: theme_MODE[key]='value'
+        for my $key (sort keys %colors) {
+            (my $val = $colors{$key}) =~ s/'/'\\''/g;
+            printf "theme_%s[%s]='%s'\n", $mode, $key, $val;
+        }
+    }
+}
 
 my $cm;
 my @opt_cm;
@@ -164,15 +186,43 @@ sub finalize {
 }
 
 sub setup_colors {
+    my $mode = $config->{mode} || 'light';
     my %colors = %default_colors;
-    if ($config->{mode} eq 'dark') {
+    if ($mode eq 'dark') {
         @colors{keys %dark_overrides} = values %dark_overrides;
     }
+    # Determine base color
+    my $base = $config->{base_color};
+    if ($base) {
+        # Color names get automatic luminance adjustment
+        $base = "<$base>" . ($mode eq 'dark' ? '=y80' : '=y25')
+            if $base =~ /^[A-Za-z]\w*$/;
+    } else {
+        $base = $base_color{$mode} || $base_color{light};
+    }
+    # Expand ${base} references
+    for my $key (keys %colors) {
+        $colors{$key} =~ s/\$\{base\}/$base/g;
+    }
+    # Handle + prefix: prepend current color value before load_params
+    # (load_params' built-in + doesn't work correctly with sub{...})
+    my @final_cm;
+    for my $entry (@opt_cm) {
+        my $expanded = $entry =~ s/\$\{base\}/$base/gr;
+        if ($expanded =~ /^(\w+)=\+(.*)/) {
+            my ($label, $append) = ($1, $2);
+            my $current = $colors{$label} // '';
+            push @final_cm, "$label=$current$append";
+        } else {
+            push @final_cm, $expanded;
+        }
+    }
+
     $cm = Getopt::EX::Colormap->new(
         HASH => \%colors,
         NEWLABEL => 1,
     );
-    $cm->load_params(@opt_cm);
+    $cm->load_params(@final_cm);
 }
 
 sub active {

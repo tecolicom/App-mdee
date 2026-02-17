@@ -9,6 +9,7 @@ em·dee (mdee: Markdown, Easy on the Eyes) is a Markdown viewer command implemen
 | Tool | Package | Role |
 |------|---------|------|
 | greple | App::Greple | Regex-based syntax highlighting |
+| greple -Mmd | App::Greple::md | Markdown syntax highlighting module |
 | ansifold | App::ansifold | ANSI-aware line folding |
 | ansicolumn | App::ansicolumn | Table column alignment |
 | nup | App::nup | Multi-column paged output |
@@ -291,64 +292,68 @@ Dryrun combinations:
 - `-dn`: show pipeline as function names (e.g., `run_greple "$@" | run_fold | ...`)
 - `-ddn`: show expanded command lines for each stage without executing
 
-### Greple Options
+### App::Greple::md Module
+
+Syntax highlighting is handled by the `App::Greple::md` Perl module. mdee invokes greple with the module and passes color/visibility options as module options (before `--`):
 
 ```bash
-greple_opts=(-G --ci=G --all --need=0 --filestyle=once --color=always --prologue "$osc8_prologue")
+run_greple() {
+    local -a md_opts=()
+    md_opts+=("-Mmd::config(mode=${mode})")
+
+    for name in "${!colors[@]}"; do
+        [[ $name == base ]] && continue
+        color_val="${colors[$name]}"
+        [[ $color_val == sub\{* ]] && continue
+        md_opts+=(--cm "${name}=${color_val}")
+    done
+
+    for name in "${!show[@]}"; do
+        [[ $name == all ]] && continue
+        md_opts+=(--show "${name}=${show[$name]}")
+    done
+
+    invoke greple "${md_opts[@]}" -- \
+        --filestyle=once --color=always "$@"
+}
 ```
 
-- `-G`: Grep mode (line-based matching)
-- `--ci=G`: Capture index mode - each captured group gets separate color
-- `--all`: Output all lines (not just matches)
-- `--need=0`: Output even if no matches
-- `--prologue`: Define functions before processing (used for `osc8` function)
+- `--cm LABEL=SPEC`: Color override passed to `Getopt::EX::Colormap` (supports `sub{...}` function specs)
+- `--show LABEL=VALUE`: Field visibility control
+- Options before `--` are module-specific; after `--` are greple options
 
-### Color Mapping with --cm
+### Code Color Labels
 
-The `--cm` option specifies colors for captured groups, comma-separated:
+Code-related theme keys map directly to module labels:
+
+| Theme Key | Module Label | Description |
+|-----------|-------------|-------------|
+| `code_mark` | `code_mark` | Delimiters (fences and backticks) |
+| `code_info` | `code_info` | Fenced code block info string |
+| `code_block` | `code_block` | Fenced code block body (with `;E`) |
+| `code_inline` | `code_inline` | Inline code body (without `;E`) |
 
 ```bash
---cm 'color1,color2,color3' -E '(group1)(group2)(group3)'
+# Light mode
+[code_mark]='L20'
+[code_info]='L18'
+[code_block]='/L23;E'
+[code_inline]='/L23'
 ```
 
-### Code Block Color Specification
+The `code_block` label includes `;E` (erase line) for full-width background on fenced code blocks. `code_inline` omits `;E` to avoid erasing the rest of the line.
 
-Format: `opening_fence , language , body , closing_fence`
+Regex patterns (in `patterns_default`, used for `--exclude` in fold/table stages):
 
-```bash
-[code_block]='L10 , L10 , ${base}/L05;E , L10'
-```
-
-- 1st: Opening ``` color
-- 2nd: Language specifier (e.g., `bash`, `perl`) color
-- 3rd: Code body color (with background)
-- 4th: Closing ``` color
-
-Regex pattern ([CommonMark Fenced Code Blocks](https://spec.commonmark.org/0.31.2/#fenced-code-blocks)):
+Fenced code blocks ([CommonMark](https://spec.commonmark.org/0.31.2/#fenced-code-blocks)):
 ```
 ^ {0,3}(?<bt>`{3,}+|~{3,}+)(.*)\n((?s:.*?))^ {0,3}(\g{bt})
 ```
 
-- `^ {0,3}`: 0-3 spaces indentation (CommonMark spec)
-- `` `{3,}+|~{3,}+ ``: Backticks or tildes (3+ characters)
-- Closing fence must use same character as opening
-
-4 capture groups: opening fence, language, body, closing fence
-
-### Inline Code Color Specification
-
-Format: `before , match , after`
-
-```bash
-[inline_code]='/L05,/L05,/L05'
-```
-
-Regex pattern ([CommonMark Code Spans](https://spec.commonmark.org/0.31.2/#code-spans)):
+Inline code ([CommonMark Code Spans](https://spec.commonmark.org/0.31.2/#code-spans)):
 ```
 (?<bt>`++)((?:(?!\g{bt}).)++)(\g{bt})
 ```
-
-3 capture groups: opening backticks, content, closing backticks
 
 ### Header Colors
 
@@ -497,15 +502,16 @@ show() {
 - Order matters: `--show all= --show bold` disables all, then enables bold
 - Individual key=value is automatically handled by getoptlong.sh
 
-In `add_pattern`:
+In `run_greple()`, show values are passed to the md module:
 
 ```bash
-add_pattern() {
-    local name=$1 pattern=$2
-    local val=${show[$name]-1}  # unset defaults to 1 (enabled)
-    [[ $val && $val != 0 ]] && greple_opts+=(--cm "${colors[$name]}" -E "$pattern") || :
-}
+for name in "${!show[@]}"; do
+    [[ $name == all ]] && continue
+    md_opts+=(--show "${name}=${show[$name]}")
+done
 ```
+
+The md module's `active()` function checks show flags and skips regex substitutions entirely for disabled fields.
 
 ### Emphasis Patterns (CommonMark)
 
@@ -663,7 +669,8 @@ Sources the library with OPTS array name and arguments.
 
 ### Dependencies
 
-- App::Greple - Pattern matching and highlighting tool with extensive regex support, used for syntax highlighting of Markdown elements including headers, bold text, inline code, and fenced code blocks
+- App::Greple - Pattern matching and highlighting tool with extensive regex support
+- App::Greple::md - Greple module for Markdown syntax highlighting (handles all colorization via `colorize()` function with `Getopt::EX::Colormap`)
 - App::ansifold - ANSI-aware text folding utility that wraps long lines while preserving escape sequences and maintaining proper indentation for nested list items
 - App::ansicolumn - Column formatting tool with ANSI support that aligns table columns while preserving color codes
 - App::nup - Paged output

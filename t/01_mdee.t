@@ -143,20 +143,6 @@ subtest 'style override' => sub {
     like($out2, qr/run_pager/, '-p --no-fold keeps pager');
 };
 
-# Test: list-themes option
-subtest 'list-themes option' => sub {
-    my $out = `$mdee --list-themes 2>&1`;
-    like($out, qr/Available themes/i, '--list-themes shows themes');
-    like($out, qr/default/, '--list-themes shows default theme');
-};
-
-# Test: theme name listing (--list-themes)
-subtest 'theme name listing' => sub {
-    my $out = `$mdee --list-themes 2>&1`;
-    is($?, 0, '--list-themes exits successfully');
-    like($out, qr/default/, '--list-themes lists default theme');
-};
-
 # Test: width option
 subtest 'width option' => sub {
     # Use actual execution: narrow width should produce more lines than wide
@@ -296,7 +282,7 @@ subtest 'config file defaults' => sub {
         print $fh "default[base_color]='Crimson'\n";
         close $fh;
         my $out = `XDG_CONFIG_HOME=$tmpdir $mdee -dd --dryrun --mode=light $test_md 2>&1`;
-        like($out, qr/colors\[base\].*Crimson/, 'default[base_color]=Crimson is applied');
+        like($out, qr/base_color=.*Crimson/, 'default[base_color]=Crimson is passed via config');
     }
 
     # Test command-line overrides config defaults
@@ -366,8 +352,8 @@ CONF
         print $fh "theme_light[base]='<Crimson>=y25'\n";
         close $fh;
         my $out = `XDG_CONFIG_HOME=$tmpdir $mdee -dd --dryrun --mode=light -B Ivory $test_md 2>&1`;
-        like($out, qr/colors\[base\].*Ivory/, '--base-color overrides config theme override');
-        unlike($out, qr/colors\[base\].*Crimson/, '--base-color takes priority over config');
+        like($out, qr/base_color=.*Ivory/, '--base-color overrides config theme override');
+        unlike($out, qr/base_color=.*Crimson/, '--base-color takes priority over config');
     }
 };
 
@@ -395,10 +381,6 @@ THEME
     my $dark = `XDG_CONFIG_HOME=$tmpdir $mdee -d --dryrun --mode=dark --theme=testtheme $test_md 2>&1`;
     is($?, 0, 'external dark theme loads successfully');
     like($dark, qr/Crimson/, 'external dark theme has base color');
-
-    # Test --list-themes shows external theme name
-    my $list = `XDG_CONFIG_HOME=$tmpdir $mdee --list-themes 2>&1`;
-    like($list, qr/testtheme/, '--list-themes shows external theme');
 
     # Test --theme=FILE (file path direct loading)
     my $out_file = `XDG_CONFIG_HOME=$tmpdir $mdee -d --dryrun --mode=light --theme=$theme_dir/testtheme.sh $test_md 2>&1`;

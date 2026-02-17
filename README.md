@@ -24,7 +24,6 @@ mdee - em·dee, Markdown Easy on the Eyes
      -m  --mode=#           light or dark (default: light)
      -B  --base-color=#     override base color of theme
                             (e.g., Ivory, #780043, (120,0,67))
-         --list-themes      list available themes
          --show=#           set field visibility (e.g., italic=1)
      -C  --pane=#           number of columns
      -R  --row=#            number of rows
@@ -128,14 +127,13 @@ Use [tecolicom/tap](https://github.com/tecolicom/homebrew-tap):
 
     - `-d`
 
-        Show theme values (`theme_light[]`/`theme_dark[]`) and pipeline
-        stage names.  Output is in sourceable format that can be used in
-        theme files or config.sh.
+        Show theme values (`theme_light[]`/`theme_dark[]`, `theme_cm[]`)
+        and pipeline stage names.
 
     - `-dd`
 
-        Above, plus expanded color values (`colors[]`), pattern definitions
-        (`pattern[]`), and full command lines for each pipeline stage.
+        Above, plus pattern definitions (`pattern[]`) and full command lines
+        for each pipeline stage.
 
 - **-x**, **--trace**, **--no-trace**
 
@@ -247,19 +245,18 @@ bold text, etc.).
     - 1. User theme directory: `${XDG_CONFIG_HOME:-~/.config}/mdee/theme/NAME.sh`
     - 2. Share theme directory: installed with the distribution under `auto/share/dist/App-mdee/theme/`
 
-    Theme files are Bash scripts that modify `theme_light`,
-    `theme_dark`, and/or `pattern[]` arrays directly:
+    Theme files are Bash scripts that can modify `theme_light[base]`,
+    `theme_dark[base]`, `theme_cm[]`, and/or `pattern[]`:
 
         # theme/warm.sh — change base color
         theme_light[base]='<Coral>=y25'
         theme_dark[base]='<Coral>=y80'
 
-        # theme/hashed.sh — append closing hashes to h3-h6
-        for _mode in light dark; do
-            declare -n _theme="theme_${_mode}"
-            _theme[h3]+=';sub{s/(?<!#)$/ ###/r}'
-            ...
-        done
+        # theme/hashed.sh — append closing hashes via --cm overrides
+        theme_cm+=(
+            'h3=+;sub{s/(?<!#)$/ ###/r}'
+            'h4=+;sub{s/(?<!#)$/ ####/r}'
+        )
 
         # modify matching pattern
         pattern[link]='...'
@@ -324,10 +321,6 @@ bold text, etc.).
     because heading variations require luminance adjustment, which only works
     with full color specifications (X11 names, RGB hex, or RGB decimal).
 
-- **--list-themes**
-
-    List available themes with color samples and exit.
-
 ## Highlight Options
 
 - **--show**=_FIELD_\[=_VALUE_\],...
@@ -344,8 +337,8 @@ bold text, etc.).
     The special field `all` affects all fields and is processed first.
 
     Available fields: `comment`, `bold`, `italic`, `strike`, `h1`,
-    `h2`, `h3`, `h4`, `h5`, `h6`, `inline_code`, `code_block`,
-    `link`, `image`, `image_link`.
+    `h2`, `h3`, `h4`, `h5`, `h6`, `code_mark`, `code_info`, `code_block`,
+    `code_inline`, `link`, `image`, `image_link`.
 
     All fields are enabled by default.
 
@@ -415,24 +408,22 @@ The `default` associative array supports the following keys:
 
 **Overriding theme colors and patterns**
 
-Config.sh can modify theme arrays and patterns directly, using the
+Config.sh can modify theme variables and patterns directly, using the
 same mechanism as theme files:
 
     # Change base color for both modes
     theme_light[base]='<DarkCyan>=y25'
     theme_dark[base]='<DarkCyan>=y80'
 
-    # Append to both light and dark using declare -n
-    for _array in theme_light theme_dark; do
-        declare -n _theme=$_array
-        _theme[h3]+=';sub{s/(?<!#)$/ ###/r}'
-    done
+    # Add color overrides (passed to md module via --cm)
+    theme_cm+=('h3=+;sub{s/(?<!#)$/ ###/r}')
 
     # Modify matching patterns
     pattern[link]='...'
 
-Since `${base}` references are expanded after loading, changing the
-base color automatically affects all derived colors (h1, h2, bold, etc.).
+Changing the base color automatically affects all derived colors
+(h1, h2, bold, etc.) because the md module expands `${base}`
+references.
 
 Use `-d` to dump current theme and pattern values in sourceable format.
 
@@ -476,7 +467,6 @@ The `${base}` string is expanded to the base color value after loading.
     mdee --mode=dark -B '#780043' file.md  # dark mode with burgundy
     mdee --theme=warm file.md              # warm (Coral) base color
     mdee --theme=warm,hashed file.md      # warm + closing hashes
-    mdee --list-themes                     # list available themes
 
 # DEPENDENCIES
 
@@ -584,24 +574,30 @@ chained via `--theme=NAME1,NAME2,...`.
 
 ### Theme Structure
 
-The built-in default theme is defined as `theme_light` and
-`theme_dark` associative arrays.  Dark inherits undefined
-keys from light immediately after declaration.  Theme files can
-modify these arrays and the `pattern[]` array directly:
+Color definitions are managed by the [App::Greple::md](https://metacpan.org/pod/App%3A%3AGreple%3A%3Amd) module.
+The `theme_light` and `theme_dark` arrays contain only the base
+color.  Theme files can modify the base color, add color overrides
+via `theme_cm[]`, and modify `pattern[]`:
 
-    # theme/warm.sh — change colors
+    # theme/warm.sh — change base color
     theme_light[base]='<Coral>=y25'
     theme_dark[base]='<Coral>=y80'
+
+    # theme/hashed.sh — add color overrides
+    theme_cm+=('h3=+;sub{s/(?<!#)$/ ###/r}')
 
     # modify matching patterns
     pattern[link]='...'
 
+The `theme_cm[]` entries are passed as `--cm` options to the md
+module.  The `+` prefix appends to the existing color value.
+
 #### Base Color Expansion
 
-The `${base}` placeholder is expanded to the effective base color
-after theme loading.  The base color is determined by the
-`--base-color` option (default: RoyalBlue) with automatic luminance
-adjustment based on mode (`=y25` for light, `=y80` for dark).
+The `${base}` placeholder in color values is expanded by the md
+module.  The base color is determined by `--base-color` option
+(default: RoyalBlue) with automatic luminance adjustment based on
+mode (`=y25` for light, `=y80` for dark).
 
 ### Color Specifications
 

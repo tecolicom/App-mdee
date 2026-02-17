@@ -19,60 +19,91 @@ App::Greple::md - Greple module for Markdown syntax highlighting
 
     greple -Mmd --mode=dark -- file.md
 
-    greple -Mmd --hashed h3=1 -- file.md
+    greple -Mmd --base-color=Crimson -- file.md
 
     greple -Mmd --cm h1=RD -- file.md
+
+    greple -Mmd --no-table -- file.md
 
 =head1 DESCRIPTION
 
-B<App::Greple::md> is a L<greple|App::Greple> module that provides
-Markdown syntax highlighting with cumulative coloring for nested
-elements (e.g., links inside headings).
+B<App::Greple::md> is a L<greple|App::Greple> module for viewing
+Markdown files in the terminal with syntax highlighting.
 
-Patterns are processed in priority order: code block state machine,
-inline code protection, HTML comment protection, links with OSC 8
-hyperlinks, headings (cumulative), emphasis (bold, italic,
-strikethrough), blockquotes, and horizontal rules.
+It colorizes headings, bold, italic, strikethrough, inline code,
+fenced code blocks, HTML comments, blockquotes, horizontal rules,
+links, and images.  Tables are formatted with aligned columns and
+optional Unicode box-drawing borders.  Links become clickable via
+OSC 8 terminal hyperlinks in supported terminals.
+
+Nested elements are handled with cumulative coloring: for example,
+a link inside a heading retains both its link color and the heading
+background color.
+
+For a complete Markdown viewing experience with line folding,
+multi-column output, and themes, see L<App::mdee>, which uses this
+module as its highlighting engine.
 
 =head1 MODULE OPTIONS
 
-These options are specified before C<--> to separate them from
-greple options:
+Module options are specified before C<--> to separate them from
+greple's own options:
 
     greple -Mmd --mode=dark --cm h1=RD -- file.md
 
-=head2 B<--mode>=I<MODE>
+=head2 B<-m> I<MODE>, B<--mode>=I<MODE>
 
-Set color mode to C<light> (default) or C<dark>.
+Set color mode.  Available modes are C<light> (default) and C<dark>.
 
-    greple -Mmd --mode=dark -- file.md
+    greple -Mmd -m dark -- file.md
 
-=head2 B<--base-color>=I<COLOR>
+=head2 B<-B> I<COLOR>, B<--base-color>=I<COLOR>
 
-Override the base color used for headings, bold, links, etc.
-Accepts a color name (e.g., C<Crimson>, C<DarkCyan>) or a
+Override the base color used for headings, bold, links, and other
+elements.  Accepts a named color (e.g., C<Crimson>, C<DarkCyan>) or a
 L<Term::ANSIColor::Concise> color spec.
 
-    greple -Mmd --base-color=Crimson -- file.md
+    greple -Mmd -B Crimson -- file.md
+
+=head2 B<--[no-]table>
+
+Enable or disable table formatting.  When enabled (default),
+Markdown tables (3 or more consecutive pipe-delimited rows) are
+formatted with aligned columns using L<App::ansicolumn>.
+
+    greple -Mmd --no-table -- file.md
+
+=head2 B<--[no-]rule>
+
+Enable or disable Unicode box-drawing characters for table borders.
+When enabled (default), ASCII pipe characters (C<|>) are replaced
+with vertical lines (C<E<0x2502>>), and separator row dashes become
+horizontal rules (C<E<0x2500>>) with corner pieces (C<E<0x251C>>,
+C<E<0x2524>>, C<E<0x253C>>).
+
+    greple -Mmd --no-rule -- file.md
 
 =head2 B<--cm> I<LABEL>=I<SPEC>
 
-Override the color for a specific label.  Color specs follow
-L<Term::ANSIColor::Concise> format and support C<sub{...}> function
-specs via L<Getopt::EX::Colormap>.
+Override the color for a specific element.  I<LABEL> is one of
+the color labels listed in L</COLOR LABELS>.  I<SPEC> follows
+L<Term::ANSIColor::Concise> format and supports C<sub{...}>
+function specs via L<Getopt::EX::Colormap>.
 
     greple -Mmd --cm h1=RD -- file.md
+    greple -Mmd --cm bold='${base}D' -- file.md
 
 =head2 B<--hashed> I<LEVEL>=I<VALUE>
 
-Add closing hashes to headings (e.g., C<### Title> becomes
-C<### Title ###>).  Can be set per heading level:
+Append closing hashes to headings.  For example, C<### Title>
+becomes C<### Title ###>.  Set per heading level:
 
     greple -Mmd --hashed h3=1 --hashed h4=1 -- file.md
 
 =head2 B<--show> I<LABEL>[=I<VALUE>]
 
-Control which elements are highlighted.
+Control which elements are highlighted.  This is useful for
+focusing on specific elements or disabling unwanted highlighting.
 
     greple -Mmd --show bold=0 -- file.md          # disable bold
     greple -Mmd --show all= --show h1 -- file.md  # only h1
@@ -83,8 +114,8 @@ C<all> is a special key that sets all labels at once.
 
 =head1 CONFIGURATION
 
-Module parameters can also be set with the C<config()> function
-in the module declaration:
+Module parameters can also be set using the C<config()> function
+in the C<-M> declaration:
 
     greple -Mmd::config(mode=dark,base_color=Crimson) file.md
 
@@ -92,52 +123,81 @@ Nested hash parameters use dot notation:
 
     greple -Mmd::config(hashed.h3=1,hashed.h4=1) file.md
 
-=head2 Table Formatting
+Available parameters:
 
-By default, Markdown tables are formatted with aligned columns using
-L<App::ansicolumn> and separator lines are converted to Unicode
-box-drawing characters.  Control with C<table> and C<rule> parameters:
-
-    greple -Mmd::config(table=0) file.md    # disable table formatting
-    greple -Mmd::config(rule=0) file.md     # disable box-drawing characters
+    mode          light or dark (default: light)
+    base_color    base color override
+    table         table formatting (default: 1)
+    rule          box-drawing characters (default: 1)
+    osc8          OSC 8 hyperlinks (default: 1)
+    hashed.h1-h6  closing hashes per level (default: 0)
 
 =head2 OSC 8 Hyperlinks
 
-By default, links are converted to OSC 8 terminal hyperlinks for
-clickable URLs in supported terminals.  Disable with:
+Links are converted to clickable OSC 8 terminal hyperlinks in
+supported terminals (iTerm2, Kitty, WezTerm, Ghostty, etc.).
+Disable with:
 
     greple -Mmd::config(osc8=0) file.md
 
 =head1 COLOR LABELS
 
-The following color labels are available for C<--cm> and C<--show>:
+The following labels identify colorizable elements.  Use them
+with C<--cm> to customize colors or C<--show> to control
+visibility.
+
+=head2 Code
 
     code_mark        Code delimiters (fences and backticks)
-    code_info        Fenced code block info string
+    code_info        Fenced code block info string (language name)
     code_block       Fenced code block body
     code_inline      Inline code body
-    comment          HTML comments
+
+=head2 Headings
+
+    h1 - h6          Heading levels 1 through 6
+
+=head2 Inline Formatting
+
+    bold             Bold (**text** or __text__)
+    italic           Italic (*text* or _text_)
+    strike           Strikethrough (~~text~~)
+
+=head2 Block Elements
+
+    blockquote       Blockquote marker (>)
+    horizontal_rule  Horizontal rules (---, ***, ___)
+    comment          HTML comments (<!-- ... -->)
+
+=head2 Links
+
     link             Inline links [text](url)
     image            Images ![alt](url)
     image_link       Image links [![alt](img)](url)
-    h1 - h6          Headings
-    bold             Bold text (**text** or __text__)
-    italic           Italic text (*text* or _text_)
-    strike           Strikethrough text (~~text~~)
-    blockquote       Blockquote marker (>)
-    horizontal_rule  Horizontal rules (---, ***, ___)
 
 =head1 SEE ALSO
 
-L<App::mdee> - Markdown viewer using this module
+=over 4
 
-L<App::Greple>
+=item L<App::mdee>
 
-L<Term::ANSIColor::Concise>
+Markdown viewer command with line folding, table formatting,
+multi-column layout, and themes.  Uses this module for syntax
+highlighting.
 
-L<Getopt::EX::Colormap>
+=item L<App::Greple>
 
-L<Getopt::EX::Config>
+General-purpose extensible grep tool that hosts this module.
+
+=item L<Term::ANSIColor::Concise>
+
+Concise ANSI color specification format used for color labels.
+
+=item L<App::ansicolumn>
+
+ANSI-aware column formatting used for table alignment.
+
+=back
 
 =head1 AUTHOR
 
@@ -234,7 +294,7 @@ my %show;
 sub finalize {
     my($mod, $argv) = @_;
     $config->deal_with($argv,
-                       "mode=s", "base_color=s", "table!", "rule!",
+                       "mode|m=s", "base_color|B=s", "table!", "rule!",
                        "hashed=s%",
                        "cm=s" => \@opt_cm,
                        "show=s%" => \%show);

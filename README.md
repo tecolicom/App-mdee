@@ -490,13 +490,10 @@ The overall data flow is:
     Input File
         |
         v
-    [greple] --- Syntax Highlighting
+    [greple -Mmd] --- Syntax Highlighting + Table Formatting
         |
         v
     [ansifold] --- Text Folding (optional)
-        |
-        v
-    [ansicolumn] --- Table Formatting (optional)
         |
         v
     [nup] --- Paged Output (nup style)
@@ -515,7 +512,7 @@ pipeline without execution.
 
 ### Processing Stages
 
-The pipeline consists of four configurable stages.  Each stage can be
+The pipeline consists of configurable stages.  Each stage can be
 enabled or disabled independently using `--[no-]fold`, `--[no-]table`,
 and `--[no-]nup` options.
 
@@ -553,9 +550,13 @@ The folding width is controlled by `--width` option (default: 80).
 
 #### Table Formatting
 
-The third stage formats Markdown tables using [ansicolumn(1)](https://metacpan.org/pod/App%3A%3Aansicolumn).
-Tables are detected by the pattern `^(\|.+\|\n){3,}` and formatted
-with aligned columns while preserving ANSI colors.
+Table formatting is handled within the [App::Greple::md](https://metacpan.org/pod/App%3A%3AGreple%3A%3Amd) module
+(after syntax highlighting, before output).  Markdown tables are
+detected by the pattern `^ {0,3}(\|.+\|\n){3,}` and formatted with
+aligned columns using [ansicolumn(1)](https://metacpan.org/pod/App%3A%3Aansicolumn) while
+preserving ANSI colors.  When `--rule` is enabled (default),
+ASCII pipe characters are replaced with Unicode box-drawing
+characters (`│`, `├`, `┤`, `┼`, `─`).
 
 ### Output Stage
 

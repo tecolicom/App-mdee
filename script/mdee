@@ -179,11 +179,11 @@ declare -a show_fields=(
 
 # Patterns (name-pattern pairs)
 # Highlighting patterns are handled by App::Greple::md module.
-# These are used by run_fold() and run_table() pipeline stages.
+# These are used by the run_fold() pipeline stage and table exclusion.
 declare -a patterns_default=(
     comment      '^<!--(?![->])(?s:.+?)-->'
     code_block   '^ {0,3}(?<bt>`{3,}+|~{3,}+)(.*)\n((?s:.*?))^ {0,3}(\g{bt})'
-    table        '^ {0,3}(\|.+\|\n){3,}'
+    table        '^ {0,3}([│|├].+[│|┤]\n){3,}'
     item_prefix  '^\h*(?:[*-]|(?:\d+|#)[.)])\h+'
     def_pattern  '(?:\A|\G\n|\n\n).+\n\n?(:\h+.*\n)'
     autoindent   '^\h*(?:[*-]|(?:\d+|#)[.)]|:)\h+|^\h+'
@@ -419,6 +419,10 @@ run_greple() {
         fi
     fi
 
+    # Add table/rule params
+    [[ $table ]] && config_params+=("table=1") || config_params+=("table=0")
+    [[ $rule  ]] && config_params+=("rule=1")  || config_params+=("rule=0")
+
     # Add md_config entries from themes
     config_params+=("${md_config[@]}")
 
@@ -448,29 +452,6 @@ run_fold() {
         --crmode --all --need=0 --no-color
 }
 
-run_table() {
-    invoke greple \
-        -Mtee::config=discrete,bulkmode "&ansicolumn" -s '|' -o "${rule:-|}" -t --cu=1 -- \
-        -E "${pattern[table]}" --all --need=0 --no-color
-}
-
-define fix_table_script <<'EOS'
-    use utf8;
-    my $rule = shift @ARGV;
-    my $sep = $rule || '\|';
-    local $_ = do { local $/; <> };
-    s{ ^ ($sep ( ( (?:(?!$sep).)*  $sep )+ \n){3,} ) }{
-        $1 =~ s{^$sep((?:\h* -+ \h* $sep)*\h* -+ \h*)$sep$}{
-            $rule
-            ? "├" . ($1 =~ tr[│ -][┼──]r) . "┤"
-            : "|" . ($1 =~ tr[ ][-]r) . "|"
-        }xmegr;
-    }xmepg;
-    print;
-EOS
-
-run_table_fix() { invoke perl -CSA -E "$fix_table_script" "${rule:-}"; }
-
 run_nup()    { invoke nup "${nup_opts[@]}"; }
 run_column() { invoke nup "${nup_opts[@]}" --no-pager --fold --pane=1; }
 run_pager()  { invoke ${PAGER:-less}; }
@@ -486,7 +467,6 @@ export LESSANSIENDCHARS="${LESSANSIENDCHARS:-mK}"
 # Collect pipeline stages
 declare -a stages=(run_greple)
 [[ $fold  ]] && stages+=(run_fold)
-[[ $table ]] && stages+=(run_table run_table_fix)
 if [[ $nup ]]; then
     if (( _cols == 1 )) && [[ ! ${_nup_explicit:-} ]]; then
         stages+=(run_column run_pager)
@@ -1041,13 +1021,10 @@ The overall data flow is:
     Input File
         |
         v
-    [greple] --- Syntax Highlighting
+    [greple -Mmd] --- Syntax Highlighting + Table Formatting
         |
         v
     [ansifold] --- Text Folding (optional)
-        |
-        v
-    [ansicolumn] --- Table Formatting (optional)
         |
         v
     [nup] --- Paged Output (nup style)
@@ -1066,7 +1043,7 @@ pipeline without execution.
 
 =head3 Processing Stages
 
-The pipeline consists of four configurable stages.  Each stage can be
+The pipeline consists of configurable stages.  Each stage can be
 enabled or disabled independently using C<--[no-]fold>, C<--[no-]table>,
 and C<--[no-]nup> options.
 
@@ -1119,9 +1096,13 @@ The folding width is controlled by C<--width> option (default: 80).
 
 =head4 Table Formatting
 
-The third stage formats Markdown tables using L<ansicolumn(1)|App::ansicolumn>.
-Tables are detected by the pattern C<^(\|.+\|\n){3,}> and formatted
-with aligned columns while preserving ANSI colors.
+Table formatting is handled within the L<App::Greple::md> module
+(after syntax highlighting, before output).  Markdown tables are
+detected by the pattern C<^ {0,3}(\|.+\|\n){3,}> and formatted with
+aligned columns using L<ansicolumn(1)|App::ansicolumn> while
+preserving ANSI colors.  When C<--rule> is enabled (default),
+ASCII pipe characters are replaced with Unicode box-drawing
+characters (C<│>, C<├>, C<┤>, C<┼>, C<─>).
 
 =head3 Output Stage
 

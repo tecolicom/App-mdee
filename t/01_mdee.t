@@ -79,45 +79,62 @@ subtest 'no-fold option' => sub {
 
 # Test: no-table option
 subtest 'no-table option' => sub {
-    my $out = `$mdee --dryrun --no-table $test_md 2>&1`;
-    unlike($out, qr/run_table/, '--no-table excludes table from pipeline');
+    my $ddn = `$mdee -ddn --no-table $test_md 2>&1`;
+    unlike($ddn, qr/table=1/, '--no-table excludes table=1 from config');
+    like($ddn, qr/table=0/, '--no-table sends table=0 to config');
+
+    # Verify actual behavior: table should NOT be formatted
+    use Encode 'decode_utf8';
+    my $out = decode_utf8(`$mdee --no-nup --no-fold --no-table $test_md 2>&1`);
+    unlike($out, qr/\x{2502}/, '--no-table does not produce box-drawing chars');
 };
 
 # Test: filter option
 subtest 'filter option' => sub {
     my $out = `$mdee --dryrun -f $test_md 2>&1`;
     unlike($out, qr/run_fold/, '-f disables fold');
-    like($out, qr/run_table/, '-f keeps table enabled');
     unlike($out, qr/run_nup/, '-f disables nup');
+
+    my $ddn = `$mdee -ddn -f $test_md 2>&1`;
+    like($ddn, qr/table=1/, '-f keeps table enabled');
 };
 
 # Test: style option
 subtest 'style option' => sub {
     my $nup = `COLUMNS=200 $mdee --dryrun --style=nup $test_md 2>&1`;
     like($nup, qr/run_fold/, '--style=nup includes fold');
-    like($nup, qr/run_table/, '--style=nup includes table');
     like($nup, qr/run_nup/, '--style=nup includes nup');
+
+    my $nup_ddn = `COLUMNS=200 $mdee -ddn --style=nup $test_md 2>&1`;
+    like($nup_ddn, qr/table=1/, '--style=nup includes table');
 
     my $pager = `$mdee --dryrun --style=pager $test_md 2>&1`;
     like($pager, qr/run_fold/, '--style=pager includes fold');
-    like($pager, qr/run_table/, '--style=pager includes table');
     unlike($pager, qr/run_nup/, '--style=pager excludes nup');
     like($pager, qr/run_pager/, '--style=pager includes pager');
 
+    my $pager_ddn = `$mdee -ddn --style=pager $test_md 2>&1`;
+    like($pager_ddn, qr/table=1/, '--style=pager includes table');
+
     my $cat = `$mdee --dryrun --style=cat $test_md 2>&1`;
     like($cat, qr/run_fold/, '--style=cat includes fold');
-    like($cat, qr/run_table/, '--style=cat includes table');
     unlike($cat, qr/run_nup/, '--style=cat excludes nup');
+
+    my $cat_ddn = `$mdee -ddn --style=cat $test_md 2>&1`;
+    like($cat_ddn, qr/table=1/, '--style=cat includes table');
 
     my $filter = `$mdee --dryrun --style=filter $test_md 2>&1`;
     unlike($filter, qr/run_fold/, '--style=filter excludes fold');
-    like($filter, qr/run_table/, '--style=filter includes table');
     unlike($filter, qr/run_nup/, '--style=filter excludes nup');
 
-    my $raw = `$mdee --dryrun --style=raw $test_md 2>&1`;
-    unlike($raw, qr/run_fold/, '--style=raw excludes fold');
-    unlike($raw, qr/run_table/, '--style=raw excludes table');
-    unlike($raw, qr/run_nup/, '--style=raw excludes nup');
+    my $filter_ddn = `$mdee -ddn --style=filter $test_md 2>&1`;
+    like($filter_ddn, qr/table=1/, '--style=filter includes table');
+
+    my $raw_ddn = `$mdee -ddn --style=raw $test_md 2>&1`;
+    unlike($raw_ddn, qr/run_fold/, '--style=raw excludes fold');
+    unlike($raw_ddn, qr/table=1/, '--style=raw excludes table');
+    like($raw_ddn, qr/table=0/, '--style=raw sends table=0');
+    unlike($raw_ddn, qr/run_nup/, '--style=raw excludes nup');
 
     my $bogus = `$mdee --dryrun --style=bogus $test_md 2>&1`;
     like($bogus, qr/unknown style/, '--style=bogus produces error');
@@ -127,9 +144,11 @@ subtest 'style option' => sub {
 subtest 'plain option' => sub {
     my $out = `$mdee --dryrun -p $test_md 2>&1`;
     like($out, qr/run_fold/, '-p includes fold');
-    like($out, qr/run_table/, '-p includes table');
     unlike($out, qr/run_nup/, '-p excludes nup');
     like($out, qr/run_pager/, '-p includes pager');
+
+    my $ddn = `$mdee -ddn -p $test_md 2>&1`;
+    like($ddn, qr/table=1/, '-p includes table');
 };
 
 # Test: style override
@@ -194,21 +213,27 @@ subtest 'list marker patterns' => sub {
     ok($fold_lines->("    #) $long\n") > 1, '#) list item is folded');
 };
 
-# Test: tee module with table (actual execution)
-subtest 'tee table execution' => sub {
+# Test: md module table formatting (actual execution)
+subtest 'md module table execution' => sub {
     # Run with table formatting enabled
     my $out = `$mdee --no-nup --no-fold --table $test_md 2>&1`;
     is($?, 0, 'mdee with table exits successfully');
     # Table should be formatted with aligned columns
     # The separator line |---|---|---| should have consistent dashes
     use Encode 'decode_utf8';
-    like(decode_utf8($out), qr/├─+┼─+┼─+┤/, 'table separator is formatted');
+    like(decode_utf8($out), qr/├─+┼─+┼─+┤/, 'table separator is formatted with box-drawing');
     # Check that ANSI sequences are present
     like($out, qr/\e\[/, 'output contains ANSI escape sequences');
+
+    # --no-rule: ASCII separators instead of box-drawing
+    my $norule = decode_utf8(`$mdee --no-nup --no-fold --table --no-rule $test_md 2>&1`);
+    is($?, 0, 'mdee with --no-rule exits successfully');
+    like($norule, qr/\|[-]+\|/, '--no-rule produces ASCII separator');
+    unlike($norule, qr/[├┼┤─│]/, '--no-rule does not produce box-drawing chars');
 };
 
-# Test: tee module combined (fold + table)
-subtest 'tee combined execution' => sub {
+# Test: combined execution (fold + table)
+subtest 'combined execution' => sub {
     my $out = `$mdee --no-nup --fold --table --width=60 $test_md 2>&1`;
     is($?, 0, 'mdee with fold+table exits successfully');
     like($out, qr/\e\[/, 'output contains ANSI escape sequences');

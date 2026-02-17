@@ -11,7 +11,7 @@ em·dee (mdee: Markdown, Easy on the Eyes) is a Markdown viewer command implemen
 | greple | App::Greple | Regex-based syntax highlighting |
 | greple -Mmd | App::Greple::md | Markdown syntax highlighting module |
 | ansifold | App::ansifold | ANSI-aware line folding |
-| ansicolumn | App::ansicolumn | Table column alignment |
+| ansicolumn | App::ansicolumn | Table column alignment (via md module) |
 | nup | App::nup | Multi-column paged output |
 | ansiecho | App::ansiecho | Color output utility |
 | getoptlong.sh | Getopt::Long::Bash | Bash option parsing |
@@ -165,26 +165,22 @@ mdee constructs a pipeline dynamically:
 
 ```mermaid
 flowchart LR
-    A[Input File] --> B[greple]
+    A[Input File] --> B[greple -Mmd]
     B --> C{fold?}
     C -->|yes| D[ansifold]
-    C -->|no| E{table?}
-    D --> E
-    E -->|yes| F[ansicolumn]
-    E -->|no| G{style?}
-    F --> G
+    C -->|no| G{style?}
+    D --> G
     G -->|nup| H[nup]
     G -->|pager| J[pager]
     G -->|cat/filter/raw| I[stdout]
     H --> I
     J --> I
 
-    subgraph "Syntax Highlighting"
+    subgraph "Syntax Highlighting + Table Formatting"
         B
     end
     subgraph "Text Processing"
         D
-        F
     end
     subgraph "Output"
         H
@@ -294,19 +290,21 @@ Dryrun combinations:
 
 ### App::Greple::md Module
 
-Syntax highlighting is handled by the `App::Greple::md` Perl module. mdee invokes greple with the module and passes color/visibility options as module options (before `--`):
+Syntax highlighting and table formatting are handled by the `App::Greple::md` Perl module. mdee invokes greple with the module and passes config/visibility options as module options (before `--`):
 
 ```bash
 run_greple() {
     local -a md_opts=()
-    md_opts+=("-Mmd::config(mode=${mode})")
+    local -a config_params=("mode=${mode}")
 
-    for name in "${!colors[@]}"; do
-        [[ $name == base ]] && continue
-        color_val="${colors[$name]}"
-        [[ $color_val == sub\{* ]] && continue
-        md_opts+=(--cm "${name}=${color_val}")
-    done
+    # base_color, table, rule params
+    [[ $table ]] && config_params+=("table=1") || config_params+=("table=0")
+    [[ $rule  ]] && config_params+=("rule=1")  || config_params+=("rule=0")
+    config_params+=("${md_config[@]}")
+
+    local IFS=','
+    md_opts+=("-Mmd::config(${config_params[*]})")
+    unset IFS
 
     for name in "${!show[@]}"; do
         [[ $name == all ]] && continue
@@ -318,7 +316,7 @@ run_greple() {
 }
 ```
 
-- `--cm LABEL=SPEC`: Color override passed to `Getopt::EX::Colormap` (supports `sub{...}` function specs)
+- `-Mmd::config(...)`: Module config parameters (mode, base_color, table, rule, hashed.*)
 - `--show LABEL=VALUE`: Field visibility control
 - Options before `--` are module-specific; after `--` are greple options
 
@@ -395,7 +393,7 @@ Code-related theme keys map directly to module labels:
 
 The `code_block` label includes `;E` (erase line) for full-width background on fenced code blocks. `code_inline` omits `;E` to avoid erasing the rest of the line.
 
-Regex patterns (in `patterns_default`, used for `--exclude` in fold/table stages):
+Regex patterns (in `patterns_default`, used for `--exclude` in the fold stage):
 
 Fenced code blocks ([CommonMark](https://spec.commonmark.org/0.31.2/#fenced-code-blocks)):
 ```
@@ -473,54 +471,32 @@ greple \
 - `\n?`: Optional blank line between term and definition
 - `(:\h+.*\n)`: Capture group for definition line (only this part is processed)
 
-#### Table Formatting with ansicolumn
+#### Table Formatting in md Module
 
-```bash
-run_table() {
-    invoke greple \
-        -Mtee::config=discrete,bulkmode "&ansicolumn" -s '|' -o "${rule:-|}" -t --cu=1 -- \
-        -E "${pattern[table]}" --all --need=0 --no-color
+Table formatting is handled within the `App::Greple::md` module's `begin()` function, which orchestrates `colorize()` (syntax highlighting) followed by `format_table()`:
+
+```perl
+sub begin {
+    colorize();        # Stage 1: syntax highlighting
+    format_table();    # Stage 2: table formatting
 }
 ```
 
-- `-Mtee::config=discrete,bulkmode`: Process each match separately, in bulk mode
-- `"&ansicolumn"`: Call ansicolumn as function
-- `-s '|'`: Input separator
-- `-o "${rule:-|}"`: Output separator (`│` when rule is enabled, `|` otherwise)
-- `-t`: Table mode (auto-determine column widths)
-- `--cu=1`: Column unit (minimum column width)
-- `-E "${pattern[table]}"`: Match 3+ consecutive table rows (0-3 spaces indent allowed)
+`format_table()` detects table blocks via `^ {0,3}\|.+\|\n){3,}` and processes each block:
 
-#### Table Separator Fix
+1. **Column alignment** — `call_ansicolumn()` invokes `App::ansicolumn::ansicolumn()` via `Command::Run` (same pattern as the tee module's `call()` function):
+   - `-s '|'`: Input separator
+   - `-o $sep`: Output separator (`│` when rule is enabled, `|` otherwise)
+   - `-t`: Table mode (auto-determine column widths)
+   - `--cu=1`: Column unit (minimum column width)
 
-After ansicolumn, a perl script fixes the separator lines within table blocks:
+2. **Separator fix** — `fix_separator()` converts separator lines to box-drawing characters:
+   - Rule mode: `tr[│ -][┼──]` converts middle part, wrapped with `├`/`┤`
+   - Non-rule mode: `tr[ ][-]` replaces spaces with dashes, wrapped with `|`
 
-```bash
-define fix_table_script <<'EOS'
-    use utf8;
-    my $rule = shift @ARGV;
-    my $sep = $rule || '\|';
-    local $_ = do { local $/; <> };
-    s{ ^ ($sep ( ( (?:(?!$sep).)*  $sep )+ \n){3,} ) }{
-        $1 =~ s{^$sep((?:\h* -+ \h* $sep)*\h* -+ \h*)$sep$}{
-            $rule
-            ? "├" . ($1 =~ tr[│ -][┼──]r) . "┤"
-            : "|" . ($1 =~ tr[ ][-]r) . "|"
-        }xmegr;
-    }xmepg;
-    print;
-EOS
-
-run_table_fix() { invoke perl -CSA -E "$fix_table_script" "${rule:-}"; }
-```
-
-- `$rule`: Receives `│` (rule enabled) or empty (disabled) from bash `${rule:-}`
-- `$sep`: `│` or `\|` (regex pattern for separator matching)
-- Outer `s///`: Identifies table blocks (3+ consecutive separator-delimited rows)
-- Inner `s///`: Fixes separator lines within each table block
-- Rule mode: `tr[│ -][┼──]` converts middle part, wrapped with `├`/`┤`
-- Non-rule mode: `tr[ ][-]` replaces spaces with dashes, wrapped with `|`
-- `perl -CSA`: UTF-8 handling for STDIN/STDOUT/STDERR and @ARGV
+Config parameters from mdee:
+- `table=1`: Enable table formatting (default enabled in md module)
+- `rule=1`: Enable box-drawing characters (default enabled in md module)
 
 ### Field Visibility with --show Option
 
@@ -714,9 +690,9 @@ Sources the library with OPTS array name and arguments.
 ### Dependencies
 
 - App::Greple - Pattern matching and highlighting tool with extensive regex support
-- App::Greple::md - Greple module for Markdown syntax highlighting (handles all colorization via `colorize()` function with `Getopt::EX::Colormap`)
+- App::Greple::md - Greple module for Markdown syntax highlighting and table formatting (handles colorization via `colorize()` and table formatting via `format_table()`)
 - App::ansifold - ANSI-aware text folding utility that wraps long lines while preserving escape sequences and maintaining proper indentation for nested list items
-- App::ansicolumn - Column formatting tool with ANSI support that aligns table columns while preserving color codes
+- App::ansicolumn - Column formatting tool with ANSI support that aligns table columns while preserving color codes (called from md module via Command::Run)
 - App::nup - Paged output
 - App::ansiecho - Color output
 - Getopt::Long::Bash - Option parsing

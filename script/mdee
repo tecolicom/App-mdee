@@ -185,8 +185,10 @@ declare -A theme_light=(
              [h4]='${base}UD'
              [h5]='${base}U'
              [h6]='${base}'
-    [inline_code]='L15/L23,/L23,L15/L23'
-     [code_block]='L20 , L18 , /L23;E , L20'
+     [code_mark]='L20'
+     [code_info]='L18'
+    [code_block]='/L23;E'
+   [code_inline]='/L23'
 )
 declare -a show_fields=()
 for k in "${!theme_light[@]}"; do
@@ -201,8 +203,10 @@ declare -A theme_dark=(
              [h4]='${base}UD'
              [h5]='${base}U'
              [h6]='${base}'
-    [inline_code]='L12/L05,/L05,L12/L05'
-     [code_block]='L10 , L12 , /L05;E , L10'
+     [code_mark]='L10'
+     [code_info]='L12'
+    [code_block]='/L05;E'
+   [code_inline]='/L05'
 )
 # Dark theme inherits undefined keys from light theme
 # (done here so config.sh can safely += to any key in either theme)
@@ -335,10 +339,6 @@ show_theme_sample() {
         sample_colors[$key]="${sample_colors[$key]%;sub\{*}"
     done
 
-    # Extract middle part of inline_code (format: before,match,after)
-    local code_color="${sample_colors[inline_code]}"
-    code_color="${code_color#*,}"; code_color="${code_color%,*}"
-
     # Background/foreground for sample display
     local bg; [[ $theme_mode == dark ]] && bg=555/000 || bg=000/555
 
@@ -349,7 +349,7 @@ show_theme_sample() {
              -i "${sample_colors[h4]}" "#### H4" -a "$bg" \
              -i "${sample_colors[h5]}" "##### H5" -a "$bg" \
              -i "${sample_colors[bold]}" "**bold**" -a "$bg" \
-             -i "${code_color}" '`code`' -a Z
+             -i "${sample_colors[code_inline]}" '`code`' -a Z
 }
 
 # Collect available theme names into sorted array
@@ -562,37 +562,16 @@ run_greple() {
         [[ $name == base ]] && continue
         color_val="${colors[$name]}"
 
-        # Split composite color keys for module labels
-        # code_block = "fence , lang , body , fence" → code_fence/code_lang/code_body
-        if [[ $name == code_block ]]; then
-            local -a parts
-            IFS=', ' read -ra parts <<< "$color_val"
-            md_opts+=(--cm "code_fence=${parts[0]:-}")
-            md_opts+=(--cm "code_lang=${parts[1]:-}")
-            md_opts+=(--cm "code_body=${parts[2]:-}")
-            continue
-        fi
-
-        # inline_code = "delimiters,body,delimiters" → 2 module labels
-        if [[ $name == inline_code ]]; then
-            local -a parts
-            IFS=', ' read -ra parts <<< "$color_val"
-            md_opts+=(--cm "inline_code=${parts[0]:-}")
-            md_opts+=(--cm "inline_code_body=${parts[1]:-}")
-            continue
-        fi
-
         # Skip standalone sub{...} function specs (link/image OSC 8 functions)
         [[ $color_val == sub\{* ]] && continue
 
         md_opts+=(--cm "${name}=${color_val}")
     done
 
-    # Pass show visibility (disable hidden fields by passing empty color)
+    # Pass show visibility
     for name in "${!show[@]}"; do
         [[ $name == all ]] && continue
-        local val=${show[$name]}
-        [[ ! $val || $val == 0 ]] && md_opts+=(--cm "${name}=")
+        md_opts+=(--show "${name}=${show[$name]}")
     done
 
     invoke greple "${md_opts[@]}" -- \
@@ -1025,8 +1004,8 @@ Multiple fields can be specified with commas or by repeating the option.
 The special field C<all> affects all fields and is processed first.
 
 Available fields: C<comment>, C<bold>, C<italic>, C<strike>, C<h1>,
-C<h2>, C<h3>, C<h4>, C<h5>, C<h6>, C<inline_code>, C<code_block>,
-C<link>, C<image>, C<image_link>.
+C<h2>, C<h3>, C<h4>, C<h5>, C<h6>, C<code_mark>, C<code_info>, C<code_block>,
+C<code_inline>, C<link>, C<image>, C<image_link>.
 
 All fields are enabled by default.
 

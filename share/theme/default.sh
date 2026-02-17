@@ -17,8 +17,10 @@ declare -gA theme_light=(
              [h4]='${base}UD'
              [h5]='${base}+y20;U'
              [h6]='${base}+y20'
-    [inline_code]='L15/L23,/L23,L15/L23'
-     [code_block]='L20 , L18 , /L23;E , L20'
+     [code_mark]='L20'
+     [code_info]='L18'
+    [code_block]='/L23;E'
+   [code_inline]='/L23'
 )
 
 declare -gA theme_dark=(
@@ -29,6 +31,8 @@ declare -gA theme_dark=(
              [h4]='${base}UD'
              [h5]='${base}-y20;U'
              [h6]='${base}-y20'
-    [inline_code]='L12/L05,/L05,L12/L05'
-     [code_block]='L10 , L12 , /L05;E , L10'
+     [code_mark]='L10'
+     [code_info]='L12'
+    [code_block]='/L05;E'
+   [code_inline]='/L05'
 )

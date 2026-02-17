@@ -110,6 +110,7 @@ my $config = Getopt::EX::Config->new(
     mode       => '',  # light / dark
     osc8       => 1,   # OSC 8 hyperlinks
     base_color => '',  # override base color
+    hashed     => 0,   # append closing hashes to h3-h6
 );
 
 #
@@ -361,12 +362,16 @@ sub colorize {
     ############################################################
 
     if (active('header')) {
-        s/^(######\h+.*)$/md_color('h6', $1)/mge if active('h6');
-        s/^(#####\h+.*)$/md_color('h5', $1)/mge  if active('h5');
-        s/^(####\h+.*)$/md_color('h4', $1)/mge   if active('h4');
-        s/^(###\h+.*)$/md_color('h3', $1)/mge    if active('h3');
-        s/^(##\h+.*)$/md_color('h2', $1)/mge     if active('h2');
-        s/^(#\h+.*)$/md_color('h1', $1)/mge      if active('h1');
+        my $hashed = $config->{hashed};
+        for my $n (reverse 1..6) {
+            next unless active("h$n");
+            my $hdr = '#' x $n;
+            s{^($hdr\h+.*)$}{
+                my $line = $1;
+                $line .= " $hdr" if $hashed && $n >= 3 && $line !~ /\#$/;
+                md_color("h$n", $line);
+            }mge;
+        }
     }
 
     ############################################################

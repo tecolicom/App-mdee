@@ -17,7 +17,7 @@ App::Greple::md - Greple module for Markdown syntax highlighting
 
     greple -Mmd::config(mode=dark) file.md
 
-    greple -Mmd --cm h1=RD file.md
+    greple -Mmd --cm h1=RD -- file.md
 
 =head1 DESCRIPTION
 
@@ -31,9 +31,8 @@ state machine, inline code protection, HTML comment protection, links
 with OSC 8 hyperlinks, headings (cumulative), emphasis (bold, italic,
 strikethrough), blockquotes, and horizontal rules.
 
-Default colors can be overridden by C<--cm LABEL=spec> on the command
-line.  The module intercepts C<--cm> options for its own labels before
-greple processes them.
+Default colors can be overridden by C<--cm LABEL=spec> as a module
+option (before C<-->):
 
 =head2 Color Labels
 
@@ -140,41 +139,20 @@ my %dark_overrides = (
     blockquote      => '<RoyalBlue>=y80;D',
 );
 
-my %colors = %default_colors;
+my %colors;
+my %user_colors;
 
-sub finalize {
+sub initialize {
     my($mod, $argv) = @_;
+    $config->deal_with($argv, "cm=s%" => \%user_colors);
+}
 
-    # Apply dark mode overrides
+sub setup_colors {
+    %colors = %default_colors;
     if ($config->{mode} eq 'dark') {
 	@colors{keys %dark_overrides} = values %dark_overrides;
     }
-
-    # Extract --cm overrides for module labels from argv
-    my @remaining;
-    while (@$argv) {
-	my $arg = shift @$argv;
-	if ($arg =~ /^--(?:cm|colormap)$/ && @$argv) {
-	    my $val = shift @$argv;
-	    if ($val =~ /^(\w+)=(.*)$/ && exists $colors{$1}) {
-		$colors{$1} = $2;
-	    } else {
-		push @remaining, $arg, $val;
-	    }
-	}
-	elsif ($arg =~ /^--(?:cm|colormap)=(.+)/) {
-	    my $val = $1;
-	    if ($val =~ /^(\w+)=(.*)$/ && exists $colors{$1}) {
-		$colors{$1} = $2;
-	    } else {
-		push @remaining, $arg;
-	    }
-	}
-	else {
-	    push @remaining, $arg;
-	}
-    }
-    @$argv = @remaining;
+    @colors{keys %user_colors} = values %user_colors;
 }
 
 #
@@ -244,6 +222,7 @@ my $LT = qr/(?:`[^`\n]*+`|\\.|[^`\\\n\]]++)+/;
 #
 
 sub colorize {
+    setup_colors();
     @protected = ();
 
     ############################################################

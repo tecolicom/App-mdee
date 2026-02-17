@@ -595,7 +595,7 @@ run_greple() {
         [[ ! $val || $val == 0 ]] && md_opts+=(--cm "${name}=")
     done
 
-    invoke greple "${md_opts[@]}" \
+    invoke greple "${md_opts[@]}" -- \
         --filestyle=once --color=always \
         "$@"
 }

@@ -2,6 +2,11 @@ Revision history for Perl extension App-mdee
 
 {{$NEXT}}
 
+0.18 2026-02-18T09:02:05Z
+
+    - Update deps: App::Greple::md 0.9901, App::Greple 10.03
+    - Update documentation for md module color improvements
+
 0.17 2026-02-17T15:21:03Z
 
     - Migrate syntax highlighting to App::Greple::md module

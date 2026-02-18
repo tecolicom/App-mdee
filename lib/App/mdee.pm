@@ -4,7 +4,7 @@ package App::mdee;
 # POD documentation is appended from script/mdee at release time.
 # See minil.toml for details.
 
-our $VERSION = "0.17";
+our $VERSION = "0.18";
 
 1;
 =encoding utf-8
@@ -45,7 +45,7 @@ mdee - em·dee, Markdown Easy on the Eyes
 
 =head1 VERSION
 
-Version 0.17
+Version 0.18
 
 =cut
 =head1 DESCRIPTION
@@ -497,7 +497,7 @@ B<Color specification format>
 
 Color specifications use L<Term::ANSIColor::Concise> format.
 The C<FG/BG> notation specifies foreground and background colors
-(e.g., C<L25DE/${base}> means gray foreground on base-colored background).
+(e.g., C<L25D/${base};E> means gray foreground on base-colored background).
 The C<${base}> string is expanded to the base color value after loading.
 
 =head1 EXAMPLES
@@ -696,7 +696,7 @@ mode (C<=y25> for light, C<=y80> for dark).
 
 Colors are specified using L<Term::ANSIColor::Concise> format.
 The C<--cm> option maps colors to captured groups.  For example,
-C<L00DE/${base}> specifies gray foreground on base-colored background.
+C<L00D/${base};E> specifies gray foreground on base-colored background.
 
 The color specification supports modifiers:
 

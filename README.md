@@ -428,7 +428,7 @@ Use `-d` to dump current theme and pattern values in sourceable format.
 
 Color specifications use [Term::ANSIColor::Concise](https://metacpan.org/pod/Term%3A%3AANSIColor%3A%3AConcise) format.
 The `FG/BG` notation specifies foreground and background colors
-(e.g., `L25DE/${base}` means gray foreground on base-colored background).
+(e.g., `L25D/${base};E` means gray foreground on base-colored background).
 The `${base}` string is expanded to the base color value after loading.
 
 # EXAMPLES
@@ -601,7 +601,7 @@ mode (`=y25` for light, `=y80` for dark).
 
 Colors are specified using [Term::ANSIColor::Concise](https://metacpan.org/pod/Term%3A%3AANSIColor%3A%3AConcise) format.
 The `--cm` option maps colors to captured groups.  For example,
-`L00DE/${base}` specifies gray foreground on base-colored background.
+`L00D/${base};E` specifies gray foreground on base-colored background.
 
 The color specification supports modifiers:
 

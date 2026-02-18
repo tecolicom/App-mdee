@@ -328,17 +328,19 @@ later patterns (headings, emphasis, strikethrough). The protect/restore
 mechanism replaces processed text with ANSI-based placeholders:
 
 ```perl
-# protect: replace colored text with SGR 256 placeholder
+my($PS, $PE) = ("\e[256m", "\e[m");     # protect start/end markers
+my $PR = qr/\e\[256m(\d+)\e\[m/;       # protect restore pattern
+my($OS, $OE) = ("\e]8;;", "\e\\");      # OSC 8 start/end markers
+
 sub protect {
     my $text = shift;
     push @protected, $text;
-    "\e[256m" . $#protected . "\e[m";
+    $PS . $#protected . $PE;
 }
 
-# restore: replace placeholders with original colored text
 sub restore {
     my $s = shift;
-    $s =~ s/\e\[256m(\d+)\e\[m/$protected[$1]/g;
+    $s =~ s{$PR}{$protected[$1] // die "restore failed: index $1"}ge;
     $s;
 }
 ```
@@ -367,10 +369,16 @@ Processing order in `colorize()`:
 3. HTML comments → protect
 4. Image links, images, links → protect (with OSC 8)
 5. Horizontal rules → protect
-6. Headings (h6→h1, cumulative over protected regions)
-7. Bold, italic, strikethrough
+6. Bold, italic, strikethrough
+7. Headings (h6→h1, with `restore` for cumulative coloring)
 8. Blockquotes
 9. Restore all protected regions
+
+Headings are processed after emphasis so that `apply_color` can see all
+internal resets (from bold/italic/strike and restored inline code/links)
+and properly re-insert heading colors after each reset. The heading step
+calls `restore($line)` before applying heading color, revealing protected
+regions for correct cumulative coloring.
 
 ### Code Color Labels
 
@@ -386,12 +394,18 @@ Code-related theme keys map directly to module labels:
 ```bash
 # Light mode
 [code_mark]='L20'
-[code_info]='L18'
+[code_info]='${base_name}=y70'
 [code_block]='/L23;E'
-[code_inline]='/L23'
+[code_inline]='L00/L23'
+
+# Dark mode
+[code_mark]='L10'
+[code_info]='${base_name}=y20'
+[code_block]='/L05;E'
+[code_inline]='L25/L05'
 ```
 
-The `code_block` label includes `;E` (erase line) for full-width background on fenced code blocks. `code_inline` omits `;E` to avoid erasing the rest of the line.
+The `code_block` label includes `;E` (erase line) for full-width background on fenced code blocks. `code_inline` has explicit foreground (`L00`/`L25`) to prevent heading foreground from bleeding through in cumulative coloring.
 
 Regex patterns (in `patterns_default`, used for `--exclude` in the fold stage):
 
@@ -409,8 +423,8 @@ Inline code ([CommonMark Code Spans](https://spec.commonmark.org/0.31.2/#code-sp
 
 Light mode uses light background with dark text (h1-h3), base color text (h4-h6):
 ```bash
-[h1]='L25DE/${base}'       # Gray text on base background
-[h2]='L25DE/${base}+y20'   # Lighter background
+[h1]='L25D/${base};E'      # Gray text on base background
+[h2]='L25D/${base}+y20;E'  # Lighter background
 [h3]='L25DN/${base}+y30'   # Normal weight, even lighter
 [h4]='${base}UD'           # Base color, underline, bold
 [h5]='${base}+y20;U'       # Lighter base, underline
@@ -419,8 +433,8 @@ Light mode uses light background with dark text (h1-h3), base color text (h4-h6)
 
 Dark mode uses dark background with light text (h1-h3), base color text (h4-h6):
 ```bash
-[h1]='L00DE/${base}'       # Black text on base background
-[h2]='L00DE/${base}-y15'   # Darker background
+[h1]='L00D/${base};E'      # Black text on base background
+[h2]='L00D/${base}-y15;E'  # Darker background
 [h3]='L00DN/${base}-y25'   # Normal weight, even darker
 [h4]='${base}UD'           # Base color, underline, bold
 [h5]='${base}-y20;U'       # Darker base, underline
@@ -543,19 +557,19 @@ The md module's `active()` function checks show flags and skips regex substituti
 
 ### Emphasis Patterns (CommonMark)
 
-Bold and italic patterns follow [CommonMark emphasis rules](https://spec.commonmark.org/0.31.2/#emphasis-and-strong-emphasis):
+Bold and italic patterns follow [CommonMark emphasis rules](https://spec.commonmark.org/0.31.2/#emphasis-and-strong-emphasis). These are processed in the md module's `colorize()`, before headings:
 
-```bash
-# Bold: ** and __
-add_pattern bold '(?<![\\`])\*\*.*?(?<!\\)\*\*'
-add_pattern bold '(?<![\\`\w])__.*?(?<!\\)__(?!\w)'
+```perl
+# Bold: ** and __  (color: D = bold weight only)
+s/(?<![\\`])\*\*.*?(?<!\\)\*\*/md_color('bold', $&)/ge;
+s/(?<![\\`\w])__.*?(?<!\\)__(?!\w)/md_color('bold', $&)/ge;
 
-# Italic: * and _
-add_pattern italic '(?<![\\`\w])_(?:(?!_).)+(?<!\\)_(?!\w)'
-add_pattern italic '(?<![\\`\*])\*(?:(?!\*).)+(?<!\\)\*(?!\*)'
+# Italic: * and _  (color: I = italic only)
+s/(?<![\\`\w])_(?:(?!_).)+(?<!\\)_(?!\w)/md_color('italic', $&)/ge;
+s/(?<![\\`\*])\*(?:(?!\*).)+(?<!\\)\*(?!\*)/md_color('italic', $&)/ge;
 
-# Strikethrough
-add_pattern strike '(?<![\\`])~~.+?(?<!\\)~~'
+# Strikethrough  (color: X = strikethrough)
+s/(?<![\\`])~~.+?(?<!\\)~~/md_color('strike', $&)/ge;
 ```
 
 Key rules:
@@ -575,7 +589,7 @@ sub osc8 {
     return $_[1] unless $config->{osc8};
     my($url, $text) = @_;
     my $escaped = uri_escape_utf8($url, "^\\x20-\\x7e");
-    "\e]8;;${escaped}\e\\${text}\e]8;;\e\\";
+    "${OS}${escaped}${OE}${text}${OS}${OE}";
 }
 ```
 
@@ -593,7 +607,7 @@ Three link types (processed in order to handle nesting):
 
 OSC 8 format: `\e]8;;URL\e\TEXT\e]8;;\e\`
 
-Each link is colored with the `link`/`image`/`image_link` label, wrapped in OSC 8, and protected to prevent later patterns from matching inside.
+Each link is colored with the `link`/`image`/`image_link` label (`I` = italic), wrapped in OSC 8, and protected to prevent later patterns from matching inside. The link pattern uses `(?<![!\e])` lookbehind to prevent both image link prefix `!` and protect placeholder `\e[` from being matched as link start.
 
 #### Link Text Matching Pattern
 
@@ -716,7 +730,7 @@ Link text matching uses `(?:` `` `[^`\n]*+` `` `|\\.|[^\]` `` ` `` `\\\n]++)+` t
 - `]` inside backtick-quoted text (e.g., `` [`init [CONFIGS...]`](#url) ``) — deviates from CommonMark spec (which terminates `]` even inside code spans) but matches GitHub rendering
 - Backslash-escaped `\]` (e.g., `[foo\]bar](#url)`) — per CommonMark spec, `\]` does not terminate link text
 
-Links inside other highlighted elements (such as headings or bold text) are not processed.
+Links and inline code inside headings are supported via cumulative coloring. The heading step restores protected regions before applying heading color, so `apply_color` can re-insert heading colors after each internal reset.
 
 Reference-style links (`[text][ref]` with `[ref]: url` elsewhere) are not supported.
 

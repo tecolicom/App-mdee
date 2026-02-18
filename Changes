@@ -2,6 +2,21 @@ Revision history for Perl extension App-Greple-md
 
 {{$NEXT}}
 
+0.9901 2026-02-18T08:16:52Z
+
+    - Fix heading color preservation with cumulative coloring
+      - Restore protected regions before applying heading colors
+      - Reorder processing: emphasis before headings
+    - Prevent placeholder ESC+[ from matching as markdown link
+    - Improve color scheme for better heading compatibility
+      - bold: D (weight only), link/image: I (italic only)
+      - code_inline: add explicit foreground (L00/L23, L25/L05)
+      - code_info: use base color without hue rotation
+      - h1/h2: move E to end of spec for correct EL position
+    - Manage protect/restore and OSC 8 markers via variables
+    - Rewrite POD with categorized labels and module options
+    - Add short options: -m (mode), -B (base_color)
+
 0.99 2026-02-17T14:44:56Z
 
     - Initial release

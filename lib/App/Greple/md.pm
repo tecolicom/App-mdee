@@ -5,7 +5,7 @@ package App::Greple::md;
 use 5.024;
 use warnings;
 
-our $VERSION = "0.99";
+our $VERSION = "0.9901";
 
 =encoding utf-8
 

@@ -236,20 +236,20 @@ my %base_color = (
 
 my %default_colors = (
     code_mark       => 'L20',
-    code_info       => '${base_name}+r60=y70',
+    code_info       => '${base_name}=y70',
     code_block      => '/L23;E',
-    code_inline     => '/L23',
+    code_inline     => 'L00/L23',
     comment         => '${base}+r60',
-    link            => '${base}',
-    image           => '${base}',
-    image_link      => '${base}',
-    h1              => 'L25DE/${base}',
-    h2              => 'L25DE/${base}+y20',
+    link            => 'I',
+    image           => 'I',
+    image_link      => 'I',
+    h1              => 'L25D/${base};E',
+    h2              => 'L25D/${base}+y20;E',
     h3              => 'L25DN/${base}+y30',
     h4              => '${base}UD',
     h5              => '${base}+y20;U',
     h6              => '${base}+y20',
-    bold            => '${base}D',
+    bold            => 'D',
     italic          => 'I',
     strike          => 'X',
     blockquote      => '${base}D',
@@ -258,11 +258,11 @@ my %default_colors = (
 
 my %dark_overrides = (
     code_mark       => 'L10',
-    code_info       => '${base_name}+r60=y20',
+    code_info       => '${base_name}=y20',
     code_block      => '/L05;E',
-    code_inline     => '/L05',
-    h1              => 'L00DE/${base}',
-    h2              => 'L00DE/${base}-y15',
+    code_inline     => 'L25/L05',
+    h1              => 'L00D/${base};E',
+    h2              => 'L00D/${base}-y15;E',
     h3              => 'L00DN/${base}-y25',
     h4              => '${base}UD',
     h5              => '${base}-y20;U',
@@ -363,21 +363,24 @@ sub md_color {
 #
 # Protection mechanism
 #
-# NUL-byte placeholders protect processed regions (inline code,
+# SGR 256 placeholders protect processed regions (inline code,
 # comments, links) from being matched by later patterns.
 #
 
 my @protected;
+my($PS, $PE) = ("\e[256m", "\e[m");     # protect start/end markers
+my $PR = qr/\e\[256m(\d+)\e\[m/;       # protect restore pattern
+my($OS, $OE) = ("\e]8;;", "\e\\");      # OSC 8 start/end markers
 
 sub protect {
     my $text = shift;
     push @protected, $text;
-    "\e[256m" . $#protected . "\e[m";
+    $PS . $#protected . $PE;
 }
 
 sub restore {
     my $s = shift;
-    $s =~ s/\e\[256m(\d+)\e\[m/$protected[$1]/g;
+    $s =~ s{$PR}{$protected[$1] // die "restore failed: index $1"}ge;
     $s;
 }
 
@@ -389,7 +392,7 @@ sub osc8 {
     return $_[1] unless $config->{osc8};
     my($url, $text) = @_;
     my $escaped = uri_escape_utf8($url, "^\\x20-\\x7e");
-    "\e]8;;${escaped}\e\\${text}\e]8;;\e\\";
+    "${OS}${escaped}${OE}${text}${OS}${OE}";
 }
 
 #
@@ -463,7 +466,7 @@ sub colorize {
     # 6. Links: [text](url) (not preceded by !)
     ############################################################
 
-    s{(?<!!)\[($LT)\]\(<?([^>)\s\n]+)>?\)}{
+    s{(?<![!\e])\[($LT)\]\(<?([^>)\s\n]+)>?\)}{
         protect(osc8($2, md_color('link', "[$1]")))
     }ge;
 
@@ -476,7 +479,33 @@ sub colorize {
     }
 
     ############################################################
-    # 8. Headings h6 -> h1 (cumulative over links)
+    # 8. Bold: **text** and __text__
+    ############################################################
+
+    if (active('bold')) {
+        s/(?<![\\`])\*\*.*?(?<!\\)\*\*/md_color('bold', $&)/ge;
+        s/(?<![\\`\w])__.*?(?<!\\)__(?!\w)/md_color('bold', $&)/ge;
+    }
+
+    ############################################################
+    # 9. Italic: _text_ and *text*
+    ############################################################
+
+    if (active('italic')) {
+        s/(?<![\\`\w])_(?:(?!_).)+(?<!\\)_(?!\w)/md_color('italic', $&)/ge;
+        s/(?<![\\`\*])\*(?:(?!\*).)+(?<!\\)\*(?!\*)/md_color('italic', $&)/ge;
+    }
+
+    ############################################################
+    # 10. Strikethrough: ~~text~~
+    ############################################################
+
+    if (active('strike')) {
+        s/(?<![\\`])~~.+?(?<!\\)~~/md_color('strike', $&)/ge;
+    }
+
+    ############################################################
+    # 11. Headings h6 -> h1 (cumulative over emphasis)
     ############################################################
 
     if (active('header')) {
@@ -488,35 +517,9 @@ sub colorize {
                 my $line = $1;
                 $line .= " $hdr"
                     if $hashed->{"h$n"} && $line !~ /\#$/;
-                md_color("h$n", $line);
+                md_color("h$n", restore($line));
             }mge;
         }
-    }
-
-    ############################################################
-    # 9. Bold: **text** and __text__
-    ############################################################
-
-    if (active('bold')) {
-        s/(?<![\\`])\*\*.*?(?<!\\)\*\*/md_color('bold', $&)/ge;
-        s/(?<![\\`\w])__.*?(?<!\\)__(?!\w)/md_color('bold', $&)/ge;
-    }
-
-    ############################################################
-    # 10. Italic: _text_ and *text*
-    ############################################################
-
-    if (active('italic')) {
-        s/(?<![\\`\w])_(?:(?!_).)+(?<!\\)_(?!\w)/md_color('italic', $&)/ge;
-        s/(?<![\\`\*])\*(?:(?!\*).)+(?<!\\)\*(?!\*)/md_color('italic', $&)/ge;
-    }
-
-    ############################################################
-    # 11. Strikethrough: ~~text~~
-    ############################################################
-
-    if (active('strike')) {
-        s/(?<![\\`])~~.+?(?<!\\)~~/md_color('strike', $&)/ge;
     }
 
     ############################################################

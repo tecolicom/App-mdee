@@ -75,7 +75,7 @@ subtest 'no-nup option' => sub {
 subtest 'no-fold option' => sub {
     my $out = `$mdee -ddn --no-fold $test_md 2>&1`;
     my ($greple_line) = $out =~ /^(debug: greple .*)$/m;
-    unlike($greple_line // '', qr/--fold\b/, '--no-fold excludes fold from greple');
+    unlike($greple_line // '', qr/foldlist=1\b/, '--no-fold excludes fold from greple');
 };
 
 # Test: no-table option
@@ -93,7 +93,7 @@ subtest 'no-table option' => sub {
 # Test: filter option
 subtest 'filter option' => sub {
     my $ddn = `$mdee -ddn -f $test_md 2>&1`;
-    unlike($ddn, qr/--fold\b/, '-f disables fold');
+    unlike($ddn, qr/foldlist=1\b/, '-f disables fold');
     unlike($ddn, qr/run_nup/, '-f disables nup');
     like($ddn, qr/table=1/, '-f keeps table enabled');
 };
@@ -104,7 +104,7 @@ subtest 'style option' => sub {
     like($nup, qr/run_nup/, '--style=nup includes nup');
 
     my $nup_ddn2 = `COLUMNS=200 $mdee -ddn --style=nup $test_md 2>&1`;
-    like($nup_ddn2, qr/--fold\b/, '--style=nup includes fold');
+    like($nup_ddn2, qr/foldlist=1\b/, '--style=nup includes fold');
 
     my $nup_ddn = `COLUMNS=200 $mdee -ddn --style=nup $test_md 2>&1`;
     like($nup_ddn, qr/table=1/, '--style=nup includes table');
@@ -114,7 +114,7 @@ subtest 'style option' => sub {
     like($pager, qr/run_pager/, '--style=pager includes pager');
 
     my $pager_ddn2 = `$mdee -ddn --style=pager $test_md 2>&1`;
-    like($pager_ddn2, qr/--fold\b/, '--style=pager includes fold');
+    like($pager_ddn2, qr/foldlist=1\b/, '--style=pager includes fold');
 
     my $pager_ddn = `$mdee -ddn --style=pager $test_md 2>&1`;
     like($pager_ddn, qr/table=1/, '--style=pager includes table');
@@ -123,16 +123,16 @@ subtest 'style option' => sub {
     unlike($cat, qr/run_nup/, '--style=cat excludes nup');
 
     my $cat_ddn = `$mdee -ddn --style=cat $test_md 2>&1`;
-    like($cat_ddn, qr/--fold\b/, '--style=cat includes fold');
+    like($cat_ddn, qr/foldlist=1\b/, '--style=cat includes fold');
     like($cat_ddn, qr/table=1/, '--style=cat includes table');
 
     my $filter_ddn = `$mdee -ddn --style=filter $test_md 2>&1`;
-    unlike($filter_ddn, qr/--fold\b/, '--style=filter excludes fold');
+    unlike($filter_ddn, qr/foldlist=1\b/, '--style=filter excludes fold');
     unlike($filter_ddn, qr/run_nup/, '--style=filter excludes nup');
     like($filter_ddn, qr/table=1/, '--style=filter includes table');
 
     my $raw_ddn = `$mdee -ddn --style=raw $test_md 2>&1`;
-    unlike($raw_ddn, qr/--fold\b/, '--style=raw excludes fold');
+    unlike($raw_ddn, qr/foldlist=1\b/, '--style=raw excludes fold');
     unlike($raw_ddn, qr/table=1/, '--style=raw excludes table');
     like($raw_ddn, qr/table=0/, '--style=raw sends table=0');
     unlike($raw_ddn, qr/run_nup/, '--style=raw excludes nup');
@@ -148,20 +148,20 @@ subtest 'plain option' => sub {
     like($out, qr/run_pager/, '-p includes pager');
 
     my $ddn = `$mdee -ddn -p $test_md 2>&1`;
-    like($ddn, qr/--fold\b/, '-p includes fold');
+    like($ddn, qr/foldlist=1\b/, '-p includes fold');
     like($ddn, qr/table=1/, '-p includes table');
 };
 
 # Test: style override
 subtest 'style override' => sub {
     my $ddn = `$mdee -ddn -f --fold $test_md 2>&1`;
-    like($ddn, qr/--fold\b/, '-f --fold enables fold');
+    like($ddn, qr/foldlist=1\b/, '-f --fold enables fold');
     unlike($ddn, qr/run_nup/, '-f --fold keeps nup disabled');
 
     my $out2 = `$mdee --dryrun -p --no-fold $test_md 2>&1`;
     like($out2, qr/run_pager/, '-p --no-fold keeps pager');
     my $ddn2 = `$mdee -ddn -p --no-fold $test_md 2>&1`;
-    unlike($ddn2, qr/--fold\b/, '-p --no-fold disables fold');
+    unlike($ddn2, qr/foldlist=1\b/, '-p --no-fold disables fold');
 };
 
 # Test: width option

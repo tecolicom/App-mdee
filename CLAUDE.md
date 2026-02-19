@@ -285,7 +285,7 @@ run_greple() {
     local -a config_params=("mode=${mode}")
 
     # fold/table/rule/heading_markup params
-    [[ $fold  ]] && config_params+=("foldwidth=$width")
+    [[ $fold  ]] && config_params+=("foldlist=1,foldwidth=$width")
     [[ $table ]] && config_params+=("table=1") || config_params+=("table=0")
     [[ $rule  ]] && config_params+=("rule=1")  || config_params+=("rule=0")
     [[ $heading_markup ]] && config_params+=("heading_markup=$heading_markup")
@@ -300,20 +300,17 @@ run_greple() {
         md_opts+=(--show "${name}=${show[$name]}")
     done
 
-    local -a fold_opts=()
-    [[ $fold ]] && fold_opts=(--fold)
-
     invoke greple "${md_opts[@]}" "${pass_md[@]}" -- \
         --filter --filestyle=once --color=always \
-        "${fold_opts[@]}" "$@"
+        "$@"
 }
 ```
 
-- `-Mmd::config(...)`: Module config parameters (mode, base_color, foldwidth, table, rule, heading_markup, hashed.*)
+- `-Mmd::config(...)`: Module config parameters (mode, base_color, foldlist, foldwidth, table, rule, heading_markup, hashed.*)
 - `--show LABEL=VALUE`: Field visibility control
-- `--fold`: Greple option defined by md module's `finalize()` (expands to `--fold-by $foldwidth`)
 - `pass_md[]`: Passthrough options for md module (e.g., `--colormap` via `:>pass_md`)
 - Options before `--` are module-specific; after `--` are greple options
+- Fold is controlled via `foldlist=1` in config; the md module adds `--fold-by $foldwidth` to its default option
 
 ### Protection Mechanism (protect/restore)
 
@@ -458,13 +455,15 @@ Pattern: light uses `+y` to lighten (reduce emphasis), dark uses `-y` to darken 
 
 ### Text Folding (md module)
 
-Text folding is handled within the `App::Greple::md` module using `-Mtee` to pipe matched regions through `ansifold`. The md module defines `--fold-by` as a greple option in its `__DATA__` section, and `--fold` is dynamically defined in `finalize()` via `$mod->setopt()`.
+Text folding is handled within the `App::Greple::md` module using `-Mtee` to pipe matched regions through `ansifold`. The md module defines `--fold-by` as a greple option in its `__DATA__` section, and `--fold` is dynamically defined in `finalize()` via `$mod->setopt()` as a command option alias. The module option `--foldlist` enables folding via config.
 
 #### Fold Architecture
 
+- `foldlist` config parameter (default: 0) enables/disables folding
 - `foldwidth` config parameter (default: 80) controls the fold width
-- `finalize()` defines `--fold` as `--fold-by $foldwidth` via `$mod->setopt()`
-- mdee passes `foldwidth=$width` in config and `--fold` as a greple option when fold is enabled
+- `finalize()` defines `--fold` as `--fold-by $foldwidth` via `$mod->setopt()` (for direct command-line use)
+- When `foldlist=1` in config, `finalize()` adds `--fold-by $foldwidth` to the module's default option
+- mdee passes `foldlist=1,foldwidth=$width` in config when fold is enabled
 - The `--fold-by` option in `__DATA__` uses `-Mtee "&ansifold"` with `--exclude` patterns for code blocks, HTML comments, and tables
 
 #### Definition List Pattern
@@ -482,10 +481,12 @@ Table formatting is handled within the `App::Greple::md` module's `begin()` func
 
 ```perl
 sub begin {
-    colorize();        # Stage 1: syntax highlighting
-    format_table();    # Stage 2: table formatting
+    colorize()    if $config->{colorize};
+    format_table() if $config->{table};
 }
 ```
+
+Stage execution is controlled by config flags: `colorize` (default: 1), `table` (default: 1). Fold is not controlled in `begin()` because it operates via greple's pattern matching pipeline (`-Mtee`), not text transformation in the `begin` hook.
 
 `format_table()` detects table blocks via `^ {0,3}\|.+\|\n){3,}` and processes each block:
 
@@ -500,6 +501,8 @@ sub begin {
    - Non-rule mode: `tr[ ][-]` replaces spaces with dashes, wrapped with `|`
 
 Config parameters from mdee:
+- `foldlist=1`: Enable text folding (default disabled in md module)
+- `foldwidth=$width`: Fold width in columns
 - `table=1`: Enable table formatting (default enabled in md module)
 - `rule=1`: Enable box-drawing characters (default enabled in md module)
 

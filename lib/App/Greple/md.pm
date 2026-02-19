@@ -25,7 +25,9 @@ App::Greple::md - Greple module for Markdown syntax highlighting
 
     greple -Mmd --no-table -- file.md
 
-    greple -Mmd --fold file.md
+    greple -Mmd --foldlist -- file.md
+
+    greple -Mmd -- --fold file.md
 
 =head1 DESCRIPTION
 
@@ -60,10 +62,13 @@ via L<Greple::tee>.  Code blocks, HTML comments, and tables are
 excluded from folding.  The fold width is controlled by the
 C<foldwidth> config parameter (default: 80).
 
-    greple -Mmd --fold file.md
+    greple -Mmd -- --fold file.md
     greple -Mmd::config(foldwidth=60) -- --fold file.md
 
 Supported list markers: C<*>, C<->, C<1.>, C<1)>, C<#.>, C<#)>.
+
+The module option C<--foldlist> is a convenient alternative that
+enables folding via config.
 
 =head1 MODULE OPTIONS
 
@@ -85,6 +90,25 @@ elements.  Accepts a named color (e.g., C<Crimson>, C<DarkCyan>) or a
 L<Term::ANSIColor::Concise> color spec.
 
     greple -Mmd -B Crimson -- file.md
+
+=head2 B<--[no-]colorize>
+
+Enable or disable syntax highlighting.  Enabled by default.
+When disabled, no color is applied to Markdown elements.
+
+    greple -Mmd --no-colorize -- file.md
+
+=head2 B<--[no-]foldlist>
+
+Enable or disable text folding.  Disabled by default.  When
+enabled, long lines in list items and definition lists are wrapped
+with proper indentation.  The fold width is controlled by the
+C<foldwidth> config parameter (default: 80).
+
+    greple -Mmd --foldlist -- file.md
+    greple -Mmd::config(foldlist=1,foldwidth=60) file.md
+
+See also the C<--fold> command option.
 
 =head2 B<--[no-]table>
 
@@ -167,6 +191,8 @@ Available parameters:
 
     mode            light or dark (default: light)
     base_color      base color override
+    colorize        syntax highlighting (default: 1)
+    foldlist        text folding (default: 0)
     foldwidth       fold width in columns (default: 80)
     table           table formatting (default: 1)
     rule            box-drawing characters (default: 1)
@@ -278,6 +304,8 @@ my $config = Getopt::EX::Config->new(
     mode       => '',  # light / dark
     osc8       => 1,   # OSC 8 hyperlinks
     base_color => '',  # override base color
+    colorize   => 1,   # syntax highlighting
+    foldlist   => 0,   # text folding
     foldwidth  => 80,  # fold width
     table      => 1,   # table formatting
     rule       => 1,   # box-drawing characters for tables
@@ -355,7 +383,7 @@ sub finalize {
     my($mod, $argv) = @_;
     $config->deal_with($argv,
                        "mode|m=s", "base_color|B=s",
-                       "foldwidth=i", "table!", "rule!",
+                       "colorize!", "foldlist!", "foldwidth=i", "table!", "rule!",
                        "heading_markup|hm:s",
                        "hashed=s%",
                        "colormap|cm=s" => \@opt_cm,
@@ -367,6 +395,10 @@ sub finalize {
     }
     if (my $w = $config->{foldwidth}) {
         $mod->setopt('--fold', "--fold-by $w");
+        if ($config->{foldlist}) {
+            my @default = $mod->default;
+            $mod->setopt('default', @default, "--fold-by $w");
+        }
     }
 }
 
@@ -621,12 +653,11 @@ sub colorize {
 #
 
 sub begin {
-    colorize();
-    format_table();
+    colorize()    if $config->{colorize};
+    format_table() if $config->{table};
 }
 
 sub format_table {
-    return unless $config->{table};
     my $sep = $config->{rule} ? "\x{2502}" : '|';  # │ or |
 
     s{(^ {0,3}\|.+\|\n){3,}}{
@@ -667,15 +698,21 @@ option default \
     -G --filter --filestyle=once --color=always \
     --begin &__PACKAGE__::begin
 
+define {CODE_BLOCK}  ^ {0,3}(?<bt>`{3,}+|~{3,}+)(.*)\n((?s:.*?))^ {0,3}(\g{bt})
+define {COMMENT}     ^<!--(?![->])(?s:.+?)-->
+define {TABLE}       ^ {0,3}([│|├].+[│|┤]\n){3,}
+define {LIST_ITEM}   ^\h*(?:[*-]|(?:\d+|#)[.)])\h+.*\n
+define {DEFINITION}  (?:\A|\G\n|\n\n).+\n\n?(:\h+.*\n)
+
 option --fold-by \
     -Mtee "&ansifold" --crmode \
         --autoindent='^\h*(?:[*-]|(?:\d+|#)[.)]|:)\h+|^\h+' \
         --smart --width=$<shift> \
     -- \
-    --exclude '^ {0,3}(?<bt>`{3,}+|~{3,}+)(.*)\n((?s:.*?))^ {0,3}(\g{bt})' \
-    --exclude '^<!--(?![->])(?s:.+?)-->' \
-    --exclude '^ {0,3}([│|├].+[│|┤]\n){3,}' \
-    --cm N -E '^\h*(?:[*-]|(?:\d+|#)[.)])\h+.*\n' \
-    --cm N -E '(?:\A|\G\n|\n\n).+\n\n?(:\h+.*\n)' \
+    --exclude {CODE_BLOCK} \
+    --exclude {COMMENT} \
+    --exclude {TABLE} \
+    --cm N -E {LIST_ITEM} \
+    --cm N -E {DEFINITION} \
     --crmode
 

@@ -10,7 +10,7 @@ em·dee (mdee: Markdown, Easy on the Eyes) is a Markdown viewer command implemen
 |------|---------|------|
 | greple | App::Greple | Regex-based syntax highlighting |
 | greple -Mmd | App::Greple::md | Markdown syntax highlighting module |
-| ansifold | App::ansifold | ANSI-aware line folding |
+| ansifold | App::ansifold | ANSI-aware line folding (via md module) |
 | ansicolumn | App::ansicolumn | Table column alignment (via md module) |
 | nup | App::nup | Multi-column paged output |
 | ansiecho | App::ansiecho | Color output utility |
@@ -48,7 +48,7 @@ Dark theme inherits undefined keys from light immediately after declaration (bef
 
 #### Theme as Transformation
 
-Themes are not independent definitions — they are **transformations applied to `theme_light`/`theme_dark` and optionally `pattern[]`**. Each theme file is a Bash script that modifies these arrays directly:
+Themes are not independent definitions — they are **transformations applied to `theme_light`/`theme_dark` and optionally `md_config[]`**. Each theme file is a Bash script that modifies these arrays directly:
 
 ```bash
 # share/theme/warm.sh — change base color
@@ -79,13 +79,9 @@ mdee --no-theme --theme=warm        # warm only (clear default first)
 ```
 
 Processing flow:
-1. `patterns_default` → `pattern[]` associative array is built (same-name entries joined with `|`)
-2. Each theme file is sourced in order (modifies `theme_light`/`theme_dark` and optionally `pattern[]`)
-3. `load_theme "$mode"` copies the final result to `colors[]`
-4. `expand_theme` expands `${base}` references
-5. `pattern[]` entries with corresponding `colors[]` are passed to greple via `add_pattern`
-
-**Note:** Same-name patterns in `patterns_default` are combined with `|` in `pattern[]`. When passed to greple, `add_pattern` wraps each pattern with `(?|...)` (branch reset group) to preserve capture group numbering across alternatives.
+1. Each theme file is sourced in order (modifies `theme_light`/`theme_dark` and/or `md_config[]`)
+2. `load_theme "$mode"` copies the final result to `colors[]`
+3. `expand_theme` expands `${base}` references
 
 #### Theme File Locations
 
@@ -98,7 +94,7 @@ The `find_share_dir()` function discovers the installed share directory via `@IN
 
 #### User Configuration as Theme
 
-Config.sh and theme files can also modify patterns directly:
+Config.sh and theme files can also modify colors directly:
 
 ```bash
 # config.sh or theme file: modify colors
@@ -106,9 +102,6 @@ for _array in theme_light theme_dark; do
     declare -n _theme=$_array
     _theme[h3]+=';sub{s/(?<!#)$/ ###/r}'
 done
-
-# config.sh or theme file: modify patterns
-pattern[link]='(?<!!)\[.+?\]\(<?[^>)\s\n]+>?\)'
 ```
 
 #### Theme Listing
@@ -166,21 +159,15 @@ mdee constructs a pipeline dynamically:
 ```mermaid
 flowchart LR
     A[Input File] --> B[greple -Mmd]
-    B --> C{fold?}
-    C -->|yes| D[ansifold]
-    C -->|no| G{style?}
-    D --> G
+    B --> G{style?}
     G -->|nup| H[nup]
     G -->|pager| J[pager]
     G -->|cat/filter/raw| I[stdout]
     H --> I
     J --> I
 
-    subgraph "Syntax Highlighting + Table Formatting"
+    subgraph "Syntax Highlighting + Table Formatting + Text Folding"
         B
-    end
-    subgraph "Text Processing"
-        D
     end
     subgraph "Output"
         H
@@ -188,7 +175,7 @@ flowchart LR
     end
 ```
 
-Each stage is controlled by `--style` and individual `--[no-]fold`, `--[no-]table`, `--[no-]rule`, `--[no-]nup` options.
+Each stage is controlled by `--style` and individual `--[no-]fold`, `--[no-]table`, `--[no-]rule`, `--[no-]nup` options. Fold and table processing are handled within the greple `-Mmd` module (not as separate pipeline stages).
 
 ### Style System
 
@@ -282,22 +269,23 @@ invoke() {
 
 Debug levels:
 - `-d` (`debug > 0`): `theme_light[]`/`theme_dark[]` values (sourceable format), pipeline stage names
-- `-dd` (`debug > 1`): above + `colors[]` (expanded), `pattern[]`, full command lines for each pipeline stage
+- `-dd` (`debug > 1`): above + full command lines for each pipeline stage
 
 Dryrun combinations:
-- `-dn`: show pipeline as function names (e.g., `run_greple "$@" | run_fold | ...`)
+- `-dn`: show pipeline as function names (e.g., `run_greple "$@" | run_nup`)
 - `-ddn`: show expanded command lines for each stage without executing
 
 ### App::Greple::md Module
 
-Syntax highlighting and table formatting are handled by the `App::Greple::md` Perl module. mdee invokes greple with the module and passes config/visibility options as module options (before `--`):
+Syntax highlighting, table formatting, and text folding are handled by the `App::Greple::md` Perl module. mdee invokes greple with the module and passes config/visibility options as module options (before `--`):
 
 ```bash
 run_greple() {
     local -a md_opts=()
     local -a config_params=("mode=${mode}")
 
-    # base_color, table, rule, heading_markup params
+    # fold/table/rule/heading_markup params
+    [[ $fold  ]] && config_params+=("foldwidth=$width")
     [[ $table ]] && config_params+=("table=1") || config_params+=("table=0")
     [[ $rule  ]] && config_params+=("rule=1")  || config_params+=("rule=0")
     [[ $heading_markup ]] && config_params+=("heading_markup=$heading_markup")
@@ -312,13 +300,18 @@ run_greple() {
         md_opts+=(--show "${name}=${show[$name]}")
     done
 
+    local -a fold_opts=()
+    [[ $fold ]] && fold_opts=(--fold)
+
     invoke greple "${md_opts[@]}" "${pass_md[@]}" -- \
-        --filestyle=once --color=always "$@"
+        --filter --filestyle=once --color=always \
+        "${fold_opts[@]}" "$@"
 }
 ```
 
-- `-Mmd::config(...)`: Module config parameters (mode, base_color, table, rule, heading_markup, hashed.*)
+- `-Mmd::config(...)`: Module config parameters (mode, base_color, foldwidth, table, rule, heading_markup, hashed.*)
 - `--show LABEL=VALUE`: Field visibility control
+- `--fold`: Greple option defined by md module's `finalize()` (expands to `--fold-by $foldwidth`)
 - `pass_md[]`: Passthrough options for md module (e.g., `--colormap` via `:>pass_md`)
 - Options before `--` are module-specific; after `--` are greple options
 
@@ -427,7 +420,7 @@ Code-related theme keys map directly to module labels:
 
 The `code_block` label includes `;E` (erase line) for full-width background on fenced code blocks. `code_inline` has explicit foreground (`L00`/`L25`) to prevent heading foreground from bleeding through in cumulative coloring.
 
-Regex patterns (in `patterns_default`, used for `--exclude` in the fold stage):
+Regex patterns used by the md module:
 
 Fenced code blocks ([CommonMark](https://spec.commonmark.org/0.31.2/#fenced-code-blocks)):
 ```
@@ -463,42 +456,20 @@ Dark mode uses dark background with light text (h1-h3), base color text (h4-h6):
 
 Pattern: light uses `+y` to lighten (reduce emphasis), dark uses `-y` to darken (reduce emphasis).
 
-### Greple::tee Module
+### Text Folding (md module)
 
-The `-Mtee` module allows greple to pipe matched regions through external commands.
+Text folding is handled within the `App::Greple::md` module using `-Mtee` to pipe matched regions through `ansifold`. The md module defines `--fold-by` as a greple option in its `__DATA__` section, and `--fold` is dynamically defined in `finalize()` via `$mod->setopt()`.
 
-#### Text Folding with ansifold
+#### Fold Architecture
 
-```bash
-# Patterns defined in patterns_default array:
-#   item_prefix  '^\h*(?:[*-]|(?:\d+|#)[.)])\h+'
-#   def_pattern  '(?:\A|\G\n|\n\n).+\n\n?(:\h+.*\n)'
-#   autoindent   '^\h*(?:[*-]|(?:\d+|#)[.)]|:)\h+|^\h+'
+- `foldwidth` config parameter (default: 80) controls the fold width
+- `finalize()` defines `--fold` as `--fold-by $foldwidth` via `$mod->setopt()`
+- mdee passes `foldwidth=$width` in config and `--fold` as a greple option when fold is enabled
+- The `--fold-by` option in `__DATA__` uses `-Mtee "&ansifold"` with `--exclude` patterns for code blocks, HTML comments, and tables
 
-greple \
-    -Mtee "&ansifold" --crmode --autoindent="${pattern[autoindent]}" -sw${width} -- \
-    --exclude "${pattern[code_block]}" \
-    --exclude "${pattern[comment]}" \
-    --exclude "${pattern[table]}" \
-    -G -E "${pattern[item_prefix]}.*\\n" -E "${pattern[def_pattern]}" \
-    --crmode --all --need=0 --no-color
-```
+#### Definition List Pattern
 
-- `--exclude`: Exclude code blocks, comments, and tables from fold processing
-- `pattern` associative array: Built from `patterns_default`, joins multiple patterns with same name using `|`
-
-- `-Mtee`: Load tee module
-- `"&ansifold"`: Call ansifold as function (not subprocess)
-- `--crmode`: Handle carriage returns
-- `--autoindent="..."`: Auto-indent pattern for list items and definitions
-- `-sw${width}`: Silent mode with width
-- `--`: Separator between tee args and greple args
-- `-GE "..."`: Pattern to match list items
-- `-E "..."`: Pattern to match definition lists
-
-##### Definition List Pattern
-
-`def_pattern: '(?:\A|\G\n|\n\n).+\n\n?(:\h+.*\n)'`
+`(?:\A|\G\n|\n\n).+\n\n?(:\h+.*\n)`
 
 - `(?:\A|\G\n|\n\n)`: Start of file, or after previous match, or after blank line
 - `.+\n`: Term line
@@ -726,8 +697,8 @@ Sources the library with OPTS array name and arguments.
 ### Dependencies
 
 - App::Greple - Pattern matching and highlighting tool with extensive regex support
-- App::Greple::md - Greple module for Markdown syntax highlighting and table formatting (handles colorization via `colorize()` and table formatting via `format_table()`)
-- App::ansifold - ANSI-aware text folding utility that wraps long lines while preserving escape sequences and maintaining proper indentation for nested list items
+- App::Greple::md - Greple module for Markdown syntax highlighting, table formatting, and text folding (handles colorization via `colorize()`, table formatting via `format_table()`, and fold via `-Mtee "&ansifold"`)
+- App::ansifold - ANSI-aware text folding utility that wraps long lines while preserving escape sequences and maintaining proper indentation for nested list items (called from md module via Greple::tee)
 - App::ansicolumn - Column formatting tool with ANSI support that aligns table columns while preserving color codes (called from md module via Command::Run)
 - App::nup - Paged output
 - App::ansiecho - Color output
@@ -769,7 +740,7 @@ Lines starting with whitespace are not currently folded. Adding `^\h+.*\n` to th
 
 2. **List continuation lines**: Indented continuation lines (without list markers) may be intentionally formatted across multiple lines. Folding them would merge separate items.
 
-The `autoindent` pattern in `patterns_default` already includes `|^\h+` in preparation. The `--exclude` mechanism (using `pattern` associative array) is in place for code blocks, comments, and tables.
+The `autoindent` pattern in the md module's `--fold-by` option already includes `|^\h+` in preparation. The `--exclude` mechanism in the option definition handles code blocks, comments, and tables.
 
 ### OSC 8 Hyperlinks
 

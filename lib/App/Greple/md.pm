@@ -25,6 +25,8 @@ App::Greple::md - Greple module for Markdown syntax highlighting
 
     greple -Mmd --no-table -- file.md
 
+    greple -Mmd --fold file.md
+
 =head1 DESCRIPTION
 
 B<App::Greple::md> is a L<greple|App::Greple> module for viewing
@@ -33,8 +35,9 @@ Markdown files in the terminal with syntax highlighting.
 It colorizes headings, bold, italic, strikethrough, inline code,
 fenced code blocks, HTML comments, blockquotes, horizontal rules,
 links, and images.  Tables are formatted with aligned columns and
-optional Unicode box-drawing borders.  Links become clickable via
-OSC 8 terminal hyperlinks in supported terminals.
+optional Unicode box-drawing borders.  Long lines in list items can
+be folded with proper indentation.  Links become clickable via OSC 8
+terminal hyperlinks in supported terminals.
 
 Nested elements are handled with cumulative coloring: for example,
 a link inside a heading retains both its link color and the heading
@@ -43,6 +46,24 @@ background color.
 For a complete Markdown viewing experience with line folding,
 multi-column output, and themes, see L<App::mdee>, which uses this
 module as its highlighting engine.
+
+=head1 COMMAND OPTIONS
+
+The following options are defined as greple command options
+(specified after C<-->).
+
+=head2 B<--fold>
+
+Enable text folding for list items and definition lists.  Long lines
+are wrapped with proper indentation using L<ansifold(1)|App::ansifold>
+via L<Greple::tee>.  Code blocks, HTML comments, and tables are
+excluded from folding.  The fold width is controlled by the
+C<foldwidth> config parameter (default: 80).
+
+    greple -Mmd --fold file.md
+    greple -Mmd::config(foldwidth=60) -- --fold file.md
+
+Supported list markers: C<*>, C<->, C<1.>, C<1)>, C<#.>, C<#)>.
 
 =head1 MODULE OPTIONS
 
@@ -146,6 +167,7 @@ Available parameters:
 
     mode            light or dark (default: light)
     base_color      base color override
+    foldwidth       fold width in columns (default: 80)
     table           table formatting (default: 1)
     rule            box-drawing characters (default: 1)
     osc8            OSC 8 hyperlinks (default: 1)
@@ -229,6 +251,10 @@ Concise ANSI color specification format used for color labels.
 
 ANSI-aware column formatting used for table alignment.
 
+=item L<App::ansifold>
+
+ANSI-aware text folding used for line wrapping in list items.
+
 =back
 
 =head1 AUTHOR
@@ -252,6 +278,7 @@ my $config = Getopt::EX::Config->new(
     mode       => '',  # light / dark
     osc8       => 1,   # OSC 8 hyperlinks
     base_color => '',  # override base color
+    foldwidth  => 80,  # fold width
     table      => 1,   # table formatting
     rule       => 1,   # box-drawing characters for tables
     heading_markup => 0,  # inline formatting in headings
@@ -327,7 +354,8 @@ my %show;
 sub finalize {
     my($mod, $argv) = @_;
     $config->deal_with($argv,
-                       "mode|m=s", "base_color|B=s", "table!", "rule!",
+                       "mode|m=s", "base_color|B=s",
+                       "foldwidth=i", "table!", "rule!",
                        "heading_markup|hm:s",
                        "hashed=s%",
                        "colormap|cm=s" => \@opt_cm,
@@ -336,6 +364,9 @@ sub finalize {
     my $hm = $config->{heading_markup};
     if (defined $hm && $hm eq '') {
         $config->{heading_markup} = 'all';
+    }
+    if (my $w = $config->{foldwidth}) {
+        $mod->setopt('--fold', "--fold-by $w");
     }
 }
 
@@ -635,3 +666,16 @@ __DATA__
 option default \
     -G --filter --filestyle=once --color=always \
     --begin &__PACKAGE__::begin
+
+option --fold-by \
+    -Mtee "&ansifold" --crmode \
+        --autoindent='^\h*(?:[*-]|(?:\d+|#)[.)]|:)\h+|^\h+' \
+        --smart --width=$<shift> \
+    -- \
+    --exclude '^ {0,3}(?<bt>`{3,}+|~{3,}+)(.*)\n((?s:.*?))^ {0,3}(\g{bt})' \
+    --exclude '^<!--(?![->])(?s:.+?)-->' \
+    --exclude '^ {0,3}([│|├].+[│|┤]\n){3,}' \
+    --cm N -E '^\h*(?:[*-]|(?:\d+|#)[.)])\h+.*\n' \
+    --cm N -E '(?:\A|\G\n|\n\n).+\n\n?(:\h+.*\n)' \
+    --crmode
+

@@ -93,16 +93,24 @@ function specs via L<Getopt::EX::Colormap>.
     greple -Mmd --cm h1=RD -- file.md
     greple -Mmd --cm bold='${base}D' -- file.md
 
-=head2 B<--heading-markup>, B<--hm>
+=head2 B<--heading-markup>[=I<STEPS>], B<--hm>[=I<STEPS>]
 
-Enable inline markup processing inside headings.  By default,
+Control inline markup processing inside headings.  By default,
 headings are rendered with uniform heading color without processing
 bold, italic, strikethrough, or inline code inside them.  Links
 are always processed as OSC 8 hyperlinks regardless of this option.
-With this option, all inline formatting becomes visible within
-headings using cumulative coloring.
 
-    greple -Mmd --hm -- file.md
+Without an argument, all inline formatting becomes visible within
+headings using cumulative coloring.  With an argument, only the
+specified steps are processed inside headings.  Steps are separated
+by colons.
+
+Available steps: C<inline_code>, C<horizontal_rules>, C<bold>,
+C<italic>, C<strike>.
+
+    greple -Mmd --hm -- file.md                  # all markup
+    greple -Mmd --hm=bold -- file.md              # bold only
+    greple -Mmd --hm=bold:italic -- file.md       # bold and italic
 
 =head2 B<--hashed> I<LEVEL>=I<VALUE>
 
@@ -136,12 +144,14 @@ Nested hash parameters use dot notation:
 
 Available parameters:
 
-    mode          light or dark (default: light)
-    base_color    base color override
-    table         table formatting (default: 1)
-    rule          box-drawing characters (default: 1)
-    osc8          OSC 8 hyperlinks (default: 1)
-    hashed.h1-h6  closing hashes per level (default: 0)
+    mode            light or dark (default: light)
+    base_color      base color override
+    table           table formatting (default: 1)
+    rule            box-drawing characters (default: 1)
+    osc8            OSC 8 hyperlinks (default: 1)
+    heading_markup  inline markup in headings (default: 0)
+                    0=off, 1/all=all, or colon-separated steps
+    hashed.h1-h6    closing hashes per level (default: 0)
 
 =head2 OSC 8 Hyperlinks
 
@@ -318,10 +328,15 @@ sub finalize {
     my($mod, $argv) = @_;
     $config->deal_with($argv,
                        "mode|m=s", "base_color|B=s", "table!", "rule!",
-                       "heading-markup|hm!",
+                       "heading_markup|hm:s",
                        "hashed=s%",
                        "colormap|cm=s" => \@opt_cm,
                        "show=s%" => \%show);
+    # --hm with no argument gives "": treat as "all"
+    my $hm = $config->{heading_markup};
+    if (defined $hm && $hm eq '') {
+        $config->{heading_markup} = 'all';
+    }
 }
 
 sub setup_colors {
@@ -432,112 +447,139 @@ my $LT = qr/(?:`[^`\n]*+`|\\.|[^`\\\n\]]++)+/;
 # Processes all patterns with multiline regexes.
 #
 
-sub colorize_code_blocks {
-    s{^( {0,3})(`{3,}|~{3,})(.*)\n((?s:.*?))^( {0,3})\2(\h*)$}{
-        my($oi, $fence, $lang, $body, $ci, $trail) = ($1, $2, $3, $4, $5, $6);
-        my $result = md_color('code_mark', "$oi$fence");
-        $result .= md_color('code_info', $lang) if length($lang);
-        $result .= "\n";
-        if (length($body)) {
-            $result .= join '', map { md_color('code_block', $_) }
-                split /(?<=\n)/, $body;
-        }
-        $result .= md_color('code_mark', "$ci$fence") . $trail;
-        protect($result)
-    }mge;
-}
+#
+# Pipeline steps as code refs
+#
 
-sub colorize_inline_code {
-    s/(?<bt>`++)(((?!\g{bt}).)+)(\g{bt})/
-        protect(md_color('code_mark', $+{bt}) . md_color('code_inline', $2) . md_color('code_mark', $4))
-    /ge;
-}
-
-sub colorize_comments {
-    s/(^<!--(?![->])(?s:.*?)-->)/protect(md_color('comment', $1))/mge;
-}
-
-sub colorize_image_links {
-    s{\[!\[($LT)\]\(([^)\n]+)\)\]\(<?([^>)\s\n]+)>?\)}{
-        protect(
-            osc8($2, md_color('image_link', "!"))
-            . osc8($3, md_color('image_link', "[$1]"))
-        )
-    }ge;
-}
-
-sub colorize_images {
-    s{!\[($LT)\]\(<?([^>)\s\n]+)>?\)}{
-        protect(osc8($2, md_color('image', "![$1]")))
-    }ge;
-}
-
-sub colorize_links {
-    s{(?<![!\e])\[($LT)\]\(<?([^>)\s\n]+)>?\)}{
-        protect(osc8($2, md_color('link', "[$1]")))
-    }ge;
-}
-
-sub colorize_horizontal_rules {
-    s/^([ ]{0,3}(?:[-*_][ ]*){3,})$/protect(md_color('horizontal_rule', $1))/mge;
-}
-
-sub colorize_bold {
-    s/(?<![\\`])\*\*.*?(?<!\\)\*\*/md_color('bold', $&)/ge;
-    s/(?<![\\`\w])__.*?(?<!\\)__(?!\w)/md_color('bold', $&)/ge;
-}
-
-sub colorize_italic {
-    s/(?<![\\`\w])_(?:(?!_).)+(?<!\\)_(?!\w)/md_color('italic', $&)/ge;
-    s/(?<![\\`\*])\*(?:(?!\*).)+(?<!\\)\*(?!\*)/md_color('italic', $&)/ge;
-}
-
-sub colorize_strike {
-    s/(?<![\\`])~~.+?(?<!\\)~~/md_color('strike', $&)/ge;
-}
-
-sub colorize_headings {
-    my $hashed = $config->{hashed};
-    my $inline = $config->{heading_markup};
-    for my $n (reverse 1..6) {
-        next unless active("h$n");
-        my $hdr = '#' x $n;
-        s{^($hdr\h+.*)$}{
-            my $line = $1;
-            $line .= " $hdr"
-                if $hashed->{"h$n"} && $line !~ /\#$/;
-            my $colored = md_color("h$n",
-                $inline ? restore($line) : $line);
-            $inline ? $colored : protect($colored);
+my %colorize = (
+    code_blocks => sub {
+        s{^( {0,3})(`{3,}|~{3,})(.*)\n((?s:.*?))^( {0,3})\2(\h*)$}{
+            my($oi, $fence, $lang, $body, $ci, $trail) = ($1, $2, $3, $4, $5, $6);
+            my $result = md_color('code_mark', "$oi$fence");
+            $result .= md_color('code_info', $lang) if length($lang);
+            $result .= "\n";
+            if (length($body)) {
+                $result .= join '', map { md_color('code_block', $_) }
+                    split /(?<=\n)/, $body;
+            }
+            $result .= md_color('code_mark', "$ci$fence") . $trail;
+            protect($result)
         }mge;
-    }
-}
+    },
+    comments => sub {
+        s/(^<!--(?![->])(?s:.*?)-->)/protect(md_color('comment', $1))/mge;
+    },
+    image_links => sub {
+        s{\[!\[($LT)\]\(([^)\n]+)\)\]\(<?([^>)\s\n]+)>?\)}{
+            protect(
+                osc8($2, md_color('image_link', "!"))
+                . osc8($3, md_color('image_link', "[$1]"))
+            )
+        }ge;
+    },
+    images => sub {
+        s{!\[($LT)\]\(<?([^>)\s\n]+)>?\)}{
+            protect(osc8($2, md_color('image', "![$1]")))
+        }ge;
+    },
+    links => sub {
+        s{(?<![!\e])\[($LT)\]\(<?([^>)\s\n]+)>?\)}{
+            protect(osc8($2, md_color('link', "[$1]")))
+        }ge;
+    },
+    inline_code => sub {
+        s/(?<bt>`++)(((?!\g{bt}).)+)(\g{bt})/
+            protect(md_color('code_mark', $+{bt}) . md_color('code_inline', $2) . md_color('code_mark', $4))
+        /ge;
+    },
+    headings => sub {
+        my $hashed = $config->{hashed};
+        for my $n (reverse 1..6) {
+            next unless active("h$n");
+            my $hdr = '#' x $n;
+            s{^($hdr\h+.*)$}{
+                my $line = $1;
+                $line .= " $hdr"
+                    if $hashed->{"h$n"} && $line !~ /\#$/;
+                protect(md_color("h$n", restore($line)));
+            }mge;
+        }
+    },
+    horizontal_rules => sub {
+        s/^([ ]{0,3}(?:[-*_][ ]*){3,})$/protect(md_color('horizontal_rule', $1))/mge;
+    },
+    bold => sub {
+        s/(?<![\\`])\*\*.*?(?<!\\)\*\*/md_color('bold', $&)/ge;
+        s/(?<![\\`\w])__.*?(?<!\\)__(?!\w)/md_color('bold', $&)/ge;
+    },
+    italic => sub {
+        s/(?<![\\`\w])_(?:(?!_).)+(?<!\\)_(?!\w)/md_color('italic', $&)/ge;
+        s/(?<![\\`\*])\*(?:(?!\*).)+(?<!\\)\*(?!\*)/md_color('italic', $&)/ge;
+    },
+    strike => sub {
+        s/(?<![\\`])~~.+?(?<!\\)~~/md_color('strike', $&)/ge;
+    },
+    blockquotes => sub {
+        s/^(>+\h?)(.*)$/md_color('blockquote', $1) . $2/mge;
+    },
+);
 
-sub colorize_blockquotes {
-    s/^(>+\h?)(.*)$/md_color('blockquote', $1) . $2/mge;
+#
+# Pipeline configuration
+#
+
+# Always before headings (protection + links)
+my @protect_steps = qw(code_blocks comments image_links images links);
+
+# Inline steps controlled by heading_markup
+my @inline_steps  = qw(inline_code horizontal_rules bold italic strike);
+
+# Always last
+my @final_steps   = qw(blockquotes);
+
+# Step-to-label mapping for active() check (unmapped = always active)
+my %step_label = (
+    headings         => 'header',
+    horizontal_rules => 'horizontal_rule',
+    bold             => 'bold',
+    italic           => 'italic',
+    strike           => 'strike',
+    blockquotes      => 'blockquote',
+);
+
+sub build_pipeline {
+    my $hm = $config->{heading_markup};
+
+    # heading_markup disabled: headings before all inline steps
+    if (!$hm) {
+        return (@protect_steps, 'headings', @inline_steps, @final_steps);
+    }
+
+    # "all" or "1": all inline steps before headings
+    my %before;
+    if ($hm eq '1' || $hm =~ /^all$/i) {
+        %before = map { $_ => 1 } @inline_steps;
+    } else {
+        # "bold:italic" → collect word tokens, filter to valid inline steps
+        my %valid = map { $_ => 1 } @inline_steps;
+        %before = map { $_ => 1 } grep { $valid{$_} } ($hm =~ /(\w+)/g);
+    }
+
+    my @before_h = grep {  $before{$_} } @inline_steps;
+    my @after_h  = grep { !$before{$_} } @inline_steps;
+
+    return (@protect_steps, @before_h, 'headings', @after_h, @final_steps);
 }
 
 sub colorize {
     setup_colors();
     @protected = ();
 
-    colorize_code_blocks();
-    colorize_comments();
-    colorize_image_links();
-    colorize_images();
-    colorize_links();
-
-    colorize_headings() if !$config->{heading_markup} && active('header');
-
-    colorize_inline_code();
-    colorize_horizontal_rules() if active('horizontal_rule');
-    colorize_bold()             if active('bold');
-    colorize_italic()           if active('italic');
-    colorize_strike()           if active('strike');
-
-    colorize_headings()         if $config->{heading_markup} && active('header');
-
-    colorize_blockquotes()      if active('blockquote');
+    for my $step (build_pipeline()) {
+        my $label = $step_label{$step};
+        next if $label && !active($label);
+        $colorize{$step}->();
+    }
 
     $_ = restore($_);
     $_;

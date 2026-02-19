@@ -447,7 +447,7 @@ run_greple() {
     done
 
     invoke greple "${md_opts[@]}" "${pass_md[@]}" -- \
-        --filestyle=once --color=always \
+        --filter --filestyle=once --color=always \
         "$@"
 }
 
@@ -458,7 +458,7 @@ run_fold() {
         --exclude "${pattern[comment]}" \
         --exclude "${pattern[table]}" \
         -G -E "${pattern[item_prefix]}.*\\n" -E "${pattern[def_pattern]}" \
-        --crmode --all --need=0 --no-color
+        --filter --crmode --no-color
 }
 
 run_nup()    { invoke nup "${nup_opts[@]}"; }
@@ -1105,9 +1105,10 @@ and C<--[no-]nup> options.
 
 =head4 Syntax Highlighting
 
-The first stage uses L<greple(1)|App::Greple> with the C<-G> (grep mode) and
-C<--ci=G> (capture index) options to apply different colors to each
-captured group in regular expressions.
+The first stage uses L<greple(1)|App::Greple> with the C<--filter>
+option, which sets C<--all --need=0 --exit=0> to run as a filter
+without requiring pattern arguments.  Syntax highlighting is handled
+entirely by the C<-Mmd> module.
 
 Supported Markdown elements:
 

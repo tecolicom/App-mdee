@@ -42,8 +42,8 @@
       },
       "runtime" : {
          "requires" : {
-            "App::Greple" : "10.03",
-            "App::Greple::md" : "0.9901",
+            "App::Greple" : "10.04",
+            "App::Greple::md" : "0.9902",
             "App::Greple::tee" : "1.04",
             "App::ansicolumn" : "1.51",
             "App::ansiecho" : "0",

@@ -567,9 +567,10 @@ and `--[no-]nup` options.
 
 #### Syntax Highlighting
 
-The first stage uses [greple(1)](https://metacpan.org/pod/App%3A%3AGreple) with the `-G` (grep mode) and
-`--ci=G` (capture index) options to apply different colors to each
-captured group in regular expressions.
+The first stage uses [greple(1)](https://metacpan.org/pod/App%3A%3AGreple) with the `--filter`
+option, which sets `--all --need=0 --exit=0` to run as a filter
+without requiring pattern arguments.  Syntax highlighting is handled
+entirely by the `-Mmd` module.
 
 Supported Markdown elements:
 

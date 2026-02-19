@@ -4,7 +4,7 @@ package App::mdee;
 # POD documentation is appended from script/mdee at release time.
 # See minil.toml for details.
 
-our $VERSION = "0.19";
+our $VERSION = "0.20";
 
 1;
 =encoding utf-8
@@ -47,7 +47,7 @@ mdee - em·dee, Markdown Easy on the Eyes
 
 =head1 VERSION
 
-Version 0.19
+Version 0.20
 
 =cut
 =head1 DESCRIPTION
@@ -151,8 +151,7 @@ and pipeline stage names.
 
 =item C<-dd>
 
-Above, plus pattern definitions (C<pattern[]>) and full command lines
-for each pipeline stage.
+Above, plus full command lines for each pipeline stage.
 
 =back
 
@@ -288,7 +287,7 @@ Theme files are searched in the following order:
 =back
 
 Theme files are Bash scripts that can modify C<theme_light[base]>,
-C<theme_dark[base]>, C<md_config[]>, and/or C<pattern[]>:
+C<theme_dark[base]>, and/or C<md_config[]>:
 
     # theme/warm.sh — change base color
     theme_light[base]='<Coral>=y25'
@@ -296,9 +295,6 @@ C<theme_dark[base]>, C<md_config[]>, and/or C<pattern[]>:
 
     # theme/hashed.sh — enable closing hashes on h3-h6
     md_config+=(hashed.h3=1 hashed.h4=1 hashed.h5=1 hashed.h6=1)
-
-    # modify matching pattern
-    pattern[link]='...'
 
 Use C<-d> to dump current theme values in sourceable format.
 
@@ -521,10 +517,10 @@ The C<default> associative array supports the following keys:
 
 =back
 
-B<Overriding theme colors and patterns>
+B<Overriding theme colors>
 
-Config.sh can modify theme variables and patterns directly, using the
-same mechanism as theme files:
+Config.sh can modify theme variables directly, using the same
+mechanism as theme files:
 
     # Change base color for both modes
     theme_light[base]='<DarkCyan>=y25'
@@ -533,14 +529,11 @@ same mechanism as theme files:
     # Enable md module features
     md_config+=(hashed.h3=1 hashed.h4=1 hashed.h5=1 hashed.h6=1)
 
-    # Modify matching patterns
-    pattern[link]='...'
-
 Changing the base color automatically affects all derived colors
 (h1, h2, bold, etc.) because the md module expands C<${base}>
 references.
 
-Use C<-d> to dump current theme and pattern values in sourceable format.
+Use C<-d> to dump current theme values in sourceable format.
 
 B<Color specification format>
 
@@ -619,10 +612,7 @@ The overall data flow is:
     Input File
         |
         v
-    [greple -Mmd] --- Syntax Highlighting + Table Formatting
-        |
-        v
-    [ansifold] --- Text Folding (optional)
+    [greple -Mmd] --- Syntax Highlighting + Table Formatting + Text Folding
         |
         v
     [nup] --- Paged Output (nup style)
@@ -636,14 +626,14 @@ The overall data flow is:
 
 B<em·dee> dynamically constructs a pipeline based on enabled options.
 Each stage is defined as a Bash function (e.g., C<run_greple>,
-C<run_fold>).  The C<--dryrun> option displays the function-based
+C<run_nup>).  The C<--dryrun> option displays the function-based
 pipeline without execution.
 
 =head3 Processing Stages
 
-The pipeline consists of configurable stages.  Each stage can be
-enabled or disabled independently using C<--[no-]fold>, C<--[no-]table>,
-and C<--[no-]nup> options.
+The pipeline consists of configurable stages.  Processing options
+can be enabled or disabled independently using C<--[no-]fold>,
+C<--[no-]table>, and C<--[no-]nup> options.
 
 =head4 Syntax Highlighting
 
@@ -684,9 +674,11 @@ Code block detection follows the CommonMark specification:
 
 =head4 Text Folding
 
-The second stage wraps long lines in list items using L<ansifold(1)|App::ansifold>
-via L<Greple::tee>.  It preserves ANSI escape sequences and maintains
-proper indentation for nested lists.
+Text folding is handled within the L<App::Greple::md> module
+using L<Greple::tee> to pipe matched regions through
+L<ansifold(1)|App::ansifold>.  It preserves ANSI escape sequences
+and maintains proper indentation for nested lists.  Code blocks,
+HTML comments, and tables are excluded from folding.
 
 Recognized list markers include C<*>, C<->, C<1.>, C<1)>, C<#.>,
 and C<#)>.  The C<#> marker is Pandoc's auto-numbered list syntax.
@@ -719,8 +711,8 @@ chained via C<--theme=NAME1,NAME2,...>.
 
 Color definitions are managed by the L<App::Greple::md> module.
 The C<theme_light> and C<theme_dark> arrays contain only the base
-color.  Theme files can modify the base color, pass configuration
-to the md module via C<md_config[]>, and modify C<pattern[]>:
+color.  Theme files can modify the base color and pass configuration
+to the md module via C<md_config[]>:
 
     # theme/warm.sh — change base color
     theme_light[base]='<Coral>=y25'
@@ -728,9 +720,6 @@ to the md module via C<md_config[]>, and modify C<pattern[]>:
 
     # theme/hashed.sh — enable closing hashes
     md_config+=(hashed.h3=1 hashed.h4=1 hashed.h5=1 hashed.h6=1)
-
-    # modify matching patterns
-    pattern[link]='...'
 
 The C<md_config[]> entries are passed as config parameters to the
 L<App::Greple::md> module.

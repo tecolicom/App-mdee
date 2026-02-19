@@ -2,6 +2,12 @@ Revision history for Perl extension App-mdee
 
 {{$NEXT}}
 
+0.20 2026-02-19T11:57:33Z
+
+    - Migrate text folding to md module (foldlist config parameter)
+    - Rename nup_opts to pass_nup for consistency with pass_md
+    - Require App::Greple::md 0.9904
+
 0.19 2026-02-19T04:49:23Z
 
     - Add --colormap option to pass colormap specs to md module

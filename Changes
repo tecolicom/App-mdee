@@ -2,6 +2,13 @@ Revision history for Perl extension App-Greple-md
 
 {{$NEXT}}
 
+0.9904 2026-02-19T11:43:43Z
+
+    - Display inline code as `content´ with configurable tick markers
+    - Collapse multi-backtick delimiters to single pair, strip spaces
+    - Add tick_open/tick_close config parameters
+    - Prevent link/image patterns from matching inside code spans
+
 0.9903 2026-02-19T08:47:05Z
 
     - Add --fold option for text folding via ansifold (-Mtee)

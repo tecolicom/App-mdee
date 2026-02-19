@@ -420,6 +420,8 @@ Code-related theme keys map directly to module labels:
 
 The `code_block` label includes `;E` (erase line) for full-width background on fenced code blocks. `code_tick` has background color matching `code_inline` for visual continuity, with dimmer foreground. `code_inline` has explicit foreground (`L00`/`L25`) to prevent heading foreground from bleeding through in cumulative coloring.
 
+Inline code backticks are displayed as `` `content´ `` using `code_tick` color for the markers. Multi-backtick delimiters (`` `` ``, ` ``` `, etc.) are collapsed to a single pair, with optional surrounding spaces stripped per CommonMark. The open/close markers are configurable via `tick_open`/`tick_close` config parameters (default: `` ` `` / `´`).
+
 Regex patterns used by the md module:
 
 Fenced code blocks ([CommonMark](https://spec.commonmark.org/0.31.2/#fenced-code-blocks)):
@@ -429,7 +431,10 @@ Fenced code blocks ([CommonMark](https://spec.commonmark.org/0.31.2/#fenced-code
 
 Inline code ([CommonMark Code Spans](https://spec.commonmark.org/0.31.2/#code-spans)):
 ```
-(?<bt>`++)((?:(?!\g{bt}).)++)(\g{bt})
+# Multi-backtick: strip optional spaces, collapse to single tick
+(`{2,}+) ?((?:(?!\1).)+?) ?(\1)
+# Single backtick
+`([^`\n]+)`
 ```
 
 ### Header Colors

@@ -223,8 +223,8 @@ Colors follow L<Term::ANSIColor::Concise> format.
     h2      L25D/${base}+y20;E       L00D/${base}-y15;E
     h3      L25DN/${base}+y30        L00DN/${base}-y25
     h4      ${base}UD                ${base}UD
-    h5      ${base}+y20;U            ${base}-y20;U
-    h6      ${base}+y20              ${base}-y20
+    h5      ${base}U                 ${base}U
+    h6      ${base}                  ${base}
 
 =head2 Inline Formatting
 
@@ -237,7 +237,8 @@ Colors follow L<Term::ANSIColor::Concise> format.
 
     LABEL        LIGHT              DARK
     code_mark    L20                L10
-    code_info    ${base_name}=y70   ${base_name}=y20
+    code_tick    L15/L23            L15/L05
+    code_info    ${base_name}=y70   ${base_name}=y40
     code_block   /L23;E             /L05;E
     code_inline  L00/L23            L25/L05
 
@@ -324,6 +325,7 @@ my %base_color = (
 
 my %default_colors = (
     code_mark       => 'L20',
+    code_tick       => 'L15/L23',
     code_info       => '${base_name}=y70',
     code_block      => '/L23;E',
     code_inline     => 'L00/L23',
@@ -335,8 +337,8 @@ my %default_colors = (
     h2              => 'L25D/${base}+y20;E',
     h3              => 'L25DN/${base}+y30',
     h4              => '${base}UD',
-    h5              => '${base}+y20;U',
-    h6              => '${base}+y20',
+    h5              => '${base}U',
+    h6              => '${base}',
     bold            => 'D',
     italic          => 'I',
     strike          => 'X',
@@ -346,15 +348,16 @@ my %default_colors = (
 
 my %dark_overrides = (
     code_mark       => 'L10',
-    code_info       => '${base_name}=y20',
+    code_tick       => 'L15/L05',
+    code_info       => '${base_name}=y40',
     code_block      => '/L05;E',
     code_inline     => 'L25/L05',
     h1              => 'L00D/${base};E',
     h2              => 'L00D/${base}-y15;E',
     h3              => 'L00DN/${base}-y25',
     h4              => '${base}UD',
-    h5              => '${base}-y20;U',
-    h6              => '${base}-y20',
+    h5              => '${base}U',
+    h6              => '${base}',
 );
 
 sub default_theme {
@@ -552,7 +555,7 @@ my %colorize = (
     },
     inline_code => sub {
         s/(?<bt>`++)(((?!\g{bt}).)+)(\g{bt})/
-            protect(md_color('code_mark', $+{bt}) . md_color('code_inline', $2) . md_color('code_mark', $4))
+            protect(md_color('code_tick', $+{bt}) . md_color('code_inline', $2) . md_color('code_tick', $4))
         /ge;
     },
     headings => sub {

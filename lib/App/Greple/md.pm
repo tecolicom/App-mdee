@@ -83,7 +83,7 @@ C<E<0x2524>>, C<E<0x253C>>).
 
     greple -Mmd --no-rule -- file.md
 
-=head2 B<--cm> I<LABEL>=I<SPEC>
+=head2 B<--colormap> I<LABEL>=I<SPEC>, B<--cm> I<LABEL>=I<SPEC>
 
 Override the color for a specific element.  I<LABEL> is one of
 the color labels listed in L</COLOR LABELS>.  I<SPEC> follows
@@ -92,6 +92,17 @@ function specs via L<Getopt::EX::Colormap>.
 
     greple -Mmd --cm h1=RD -- file.md
     greple -Mmd --cm bold='${base}D' -- file.md
+
+=head2 B<--heading-markup>, B<--hm>
+
+Enable inline markup processing inside headings.  By default,
+headings are rendered with uniform heading color without processing
+bold, italic, strikethrough, or inline code inside them.  Links
+are always processed as OSC 8 hyperlinks regardless of this option.
+With this option, all inline formatting becomes visible within
+headings using cumulative coloring.
+
+    greple -Mmd --hm -- file.md
 
 =head2 B<--hashed> I<LEVEL>=I<VALUE>
 
@@ -143,37 +154,48 @@ Disable with:
 =head1 COLOR LABELS
 
 The following labels identify colorizable elements.  Use them
-with C<--cm> to customize colors or C<--show> to control
-visibility.
-
-=head2 Code
-
-    code_mark        Code delimiters (fences and backticks)
-    code_info        Fenced code block info string (language name)
-    code_block       Fenced code block body
-    code_inline      Inline code body
+with C<--colormap> (C<--cm>) to customize colors or C<--show> to control
+visibility.  Default values are shown as C<light / dark>.
+Colors follow L<Term::ANSIColor::Concise> format.
 
 =head2 Headings
 
-    h1 - h6          Heading levels 1 through 6
+    LABEL   LIGHT                    DARK
+    h1      L25D/${base};E           L00D/${base};E
+    h2      L25D/${base}+y20;E       L00D/${base}-y15;E
+    h3      L25DN/${base}+y30        L00DN/${base}-y25
+    h4      ${base}UD                ${base}UD
+    h5      ${base}+y20;U            ${base}-y20;U
+    h6      ${base}+y20              ${base}-y20
 
 =head2 Inline Formatting
 
-    bold             Bold (**text** or __text__)
-    italic           Italic (*text* or _text_)
-    strike           Strikethrough (~~text~~)
+    LABEL   LIGHT / DARK
+    bold    D
+    italic  I
+    strike  X
+
+=head2 Code
+
+    LABEL        LIGHT              DARK
+    code_mark    L20                L10
+    code_info    ${base_name}=y70   ${base_name}=y20
+    code_block   /L23;E             /L05;E
+    code_inline  L00/L23            L25/L05
 
 =head2 Block Elements
 
-    blockquote       Blockquote marker (>)
-    horizontal_rule  Horizontal rules (---, ***, ___)
-    comment          HTML comments (<!-- ... -->)
+    LABEL            LIGHT / DARK
+    blockquote       ${base}D
+    horizontal_rule  L15
+    comment          ${base}+r60
 
 =head2 Links
 
-    link             Inline links [text](url)
-    image            Images ![alt](url)
-    image_link       Image links [![alt](img)](url)
+    LABEL        LIGHT / DARK
+    link         I
+    image        I
+    image_link   I
 
 =head1 SEE ALSO
 
@@ -222,6 +244,7 @@ my $config = Getopt::EX::Config->new(
     base_color => '',  # override base color
     table      => 1,   # table formatting
     rule       => 1,   # box-drawing characters for tables
+    heading_markup => 0,  # inline formatting in headings
     hashed     => { h1 => 0, h2 => 0, h3 => 0, h4 => 0, h5 => 0, h6 => 0 },
 );
 
@@ -295,8 +318,9 @@ sub finalize {
     my($mod, $argv) = @_;
     $config->deal_with($argv,
                        "mode|m=s", "base_color|B=s", "table!", "rule!",
+                       "heading-markup|hm!",
                        "hashed=s%",
-                       "cm=s" => \@opt_cm,
+                       "colormap|cm=s" => \@opt_cm,
                        "show=s%" => \%show);
 }
 
@@ -380,7 +404,7 @@ sub protect {
 
 sub restore {
     my $s = shift;
-    $s =~ s{$PR}{$protected[$1] // die "restore failed: index $1"}ge;
+    1 while $s =~ s{$PR}{$protected[$1] // die "restore failed: index $1"}ge;
     $s;
 }
 
@@ -408,14 +432,7 @@ my $LT = qr/(?:`[^`\n]*+`|\\.|[^`\\\n\]]++)+/;
 # Processes all patterns with multiline regexes.
 #
 
-sub colorize {
-    setup_colors();
-    @protected = ();
-
-    ############################################################
-    # 1. Fenced code blocks (multiline)
-    ############################################################
-
+sub colorize_code_blocks {
     s{^( {0,3})(`{3,}|~{3,})(.*)\n((?s:.*?))^( {0,3})\2(\h*)$}{
         my($oi, $fence, $lang, $body, $ci, $trail) = ($1, $2, $3, $4, $5, $6);
         my $result = md_color('code_mark', "$oi$fence");
@@ -428,114 +445,101 @@ sub colorize {
         $result .= md_color('code_mark', "$ci$fence") . $trail;
         protect($result)
     }mge;
+}
 
-    ############################################################
-    # 2. Inline code protection
-    ############################################################
-
+sub colorize_inline_code {
     s/(?<bt>`++)(((?!\g{bt}).)+)(\g{bt})/
         protect(md_color('code_mark', $+{bt}) . md_color('code_inline', $2) . md_color('code_mark', $4))
     /ge;
+}
 
-    ############################################################
-    # 3. HTML comment protection (multiline)
-    ############################################################
-
+sub colorize_comments {
     s/(^<!--(?![->])(?s:.*?)-->)/protect(md_color('comment', $1))/mge;
+}
 
-    ############################################################
-    # 4. Image links: [![alt](img)](url)
-    ############################################################
-
+sub colorize_image_links {
     s{\[!\[($LT)\]\(([^)\n]+)\)\]\(<?([^>)\s\n]+)>?\)}{
         protect(
             osc8($2, md_color('image_link', "!"))
             . osc8($3, md_color('image_link', "[$1]"))
         )
     }ge;
+}
 
-    ############################################################
-    # 5. Images: ![alt](url)
-    ############################################################
-
+sub colorize_images {
     s{!\[($LT)\]\(<?([^>)\s\n]+)>?\)}{
         protect(osc8($2, md_color('image', "![$1]")))
     }ge;
+}
 
-    ############################################################
-    # 6. Links: [text](url) (not preceded by !)
-    ############################################################
-
+sub colorize_links {
     s{(?<![!\e])\[($LT)\]\(<?([^>)\s\n]+)>?\)}{
         protect(osc8($2, md_color('link', "[$1]")))
     }ge;
+}
 
-    ############################################################
-    # 7. Horizontal rule (before emphasis to prevent conflict)
-    ############################################################
+sub colorize_horizontal_rules {
+    s/^([ ]{0,3}(?:[-*_][ ]*){3,})$/protect(md_color('horizontal_rule', $1))/mge;
+}
 
-    if (active('horizontal_rule')) {
-        s/^([ ]{0,3}(?:[-*_][ ]*){3,})$/protect(md_color('horizontal_rule', $1))/mge;
+sub colorize_bold {
+    s/(?<![\\`])\*\*.*?(?<!\\)\*\*/md_color('bold', $&)/ge;
+    s/(?<![\\`\w])__.*?(?<!\\)__(?!\w)/md_color('bold', $&)/ge;
+}
+
+sub colorize_italic {
+    s/(?<![\\`\w])_(?:(?!_).)+(?<!\\)_(?!\w)/md_color('italic', $&)/ge;
+    s/(?<![\\`\*])\*(?:(?!\*).)+(?<!\\)\*(?!\*)/md_color('italic', $&)/ge;
+}
+
+sub colorize_strike {
+    s/(?<![\\`])~~.+?(?<!\\)~~/md_color('strike', $&)/ge;
+}
+
+sub colorize_headings {
+    my $hashed = $config->{hashed};
+    my $inline = $config->{heading_markup};
+    for my $n (reverse 1..6) {
+        next unless active("h$n");
+        my $hdr = '#' x $n;
+        s{^($hdr\h+.*)$}{
+            my $line = $1;
+            $line .= " $hdr"
+                if $hashed->{"h$n"} && $line !~ /\#$/;
+            my $colored = md_color("h$n",
+                $inline ? restore($line) : $line);
+            $inline ? $colored : protect($colored);
+        }mge;
     }
+}
 
-    ############################################################
-    # 8. Bold: **text** and __text__
-    ############################################################
+sub colorize_blockquotes {
+    s/^(>+\h?)(.*)$/md_color('blockquote', $1) . $2/mge;
+}
 
-    if (active('bold')) {
-        s/(?<![\\`])\*\*.*?(?<!\\)\*\*/md_color('bold', $&)/ge;
-        s/(?<![\\`\w])__.*?(?<!\\)__(?!\w)/md_color('bold', $&)/ge;
-    }
+sub colorize {
+    setup_colors();
+    @protected = ();
 
-    ############################################################
-    # 9. Italic: _text_ and *text*
-    ############################################################
+    colorize_code_blocks();
+    colorize_comments();
+    colorize_image_links();
+    colorize_images();
+    colorize_links();
 
-    if (active('italic')) {
-        s/(?<![\\`\w])_(?:(?!_).)+(?<!\\)_(?!\w)/md_color('italic', $&)/ge;
-        s/(?<![\\`\*])\*(?:(?!\*).)+(?<!\\)\*(?!\*)/md_color('italic', $&)/ge;
-    }
+    colorize_headings() if !$config->{heading_markup} && active('header');
 
-    ############################################################
-    # 10. Strikethrough: ~~text~~
-    ############################################################
+    colorize_inline_code();
+    colorize_horizontal_rules() if active('horizontal_rule');
+    colorize_bold()             if active('bold');
+    colorize_italic()           if active('italic');
+    colorize_strike()           if active('strike');
 
-    if (active('strike')) {
-        s/(?<![\\`])~~.+?(?<!\\)~~/md_color('strike', $&)/ge;
-    }
+    colorize_headings()         if $config->{heading_markup} && active('header');
 
-    ############################################################
-    # 11. Headings h6 -> h1 (cumulative over emphasis)
-    ############################################################
-
-    if (active('header')) {
-        my $hashed = $config->{hashed};
-        for my $n (reverse 1..6) {
-            next unless active("h$n");
-            my $hdr = '#' x $n;
-            s{^($hdr\h+.*)$}{
-                my $line = $1;
-                $line .= " $hdr"
-                    if $hashed->{"h$n"} && $line !~ /\#$/;
-                md_color("h$n", restore($line));
-            }mge;
-        }
-    }
-
-    ############################################################
-    # 12. Blockquote: color only the > marker
-    ############################################################
-
-    if (active('blockquote')) {
-        s/^(>+\h?)(.*)$/md_color('blockquote', $1) . $2/mge;
-    }
-
-    ############################################################
-    # 13. Restore protected regions
-    ############################################################
+    colorize_blockquotes()      if active('blockquote');
 
     $_ = restore($_);
-
     $_;
 }
 

@@ -413,7 +413,7 @@ Code-related theme keys map directly to module labels:
 # Dark mode
 [code_mark]='L10'
 [code_tick]='L15/L05'
-[code_info]='${base_name}=y40'
+[code_info]='L10'
 [code_block]='/L05;E'
 [code_inline]='L25/L05'
 ```

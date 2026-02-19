@@ -396,7 +396,8 @@ Code-related theme keys map directly to module labels:
 
 | Theme Key | Module Label | Description |
 |-----------|-------------|-------------|
-| `code_mark` | `code_mark` | Delimiters (fences and backticks) |
+| `code_mark` | `code_mark` | Fenced code block delimiters (``` ``` ```, `~~~`) |
+| `code_tick` | `code_tick` | Inline code backticks (`` ` ``) |
 | `code_info` | `code_info` | Fenced code block info string |
 | `code_block` | `code_block` | Fenced code block body (with `;E`) |
 | `code_inline` | `code_inline` | Inline code body (without `;E`) |
@@ -404,18 +405,20 @@ Code-related theme keys map directly to module labels:
 ```bash
 # Light mode
 [code_mark]='L20'
+[code_tick]='L15/L23'
 [code_info]='${base_name}=y70'
 [code_block]='/L23;E'
 [code_inline]='L00/L23'
 
 # Dark mode
 [code_mark]='L10'
-[code_info]='${base_name}=y20'
+[code_tick]='L15/L05'
+[code_info]='${base_name}=y40'
 [code_block]='/L05;E'
 [code_inline]='L25/L05'
 ```
 
-The `code_block` label includes `;E` (erase line) for full-width background on fenced code blocks. `code_inline` has explicit foreground (`L00`/`L25`) to prevent heading foreground from bleeding through in cumulative coloring.
+The `code_block` label includes `;E` (erase line) for full-width background on fenced code blocks. `code_tick` has background color matching `code_inline` for visual continuity, with dimmer foreground. `code_inline` has explicit foreground (`L00`/`L25`) to prevent heading foreground from bleeding through in cumulative coloring.
 
 Regex patterns used by the md module:
 
@@ -437,8 +440,8 @@ Light mode uses light background with dark text (h1-h3), base color text (h4-h6)
 [h2]='L25D/${base}+y20;E'  # Lighter background
 [h3]='L25DN/${base}+y30'   # Normal weight, even lighter
 [h4]='${base}UD'           # Base color, underline, bold
-[h5]='${base}+y20;U'       # Lighter base, underline
-[h6]='${base}+y20'         # Lighter base
+[h5]='${base}U'            # Base color, underline
+[h6]='${base}'             # Base color
 ```
 
 Dark mode uses dark background with light text (h1-h3), base color text (h4-h6):
@@ -447,8 +450,8 @@ Dark mode uses dark background with light text (h1-h3), base color text (h4-h6):
 [h2]='L00D/${base}-y15;E'  # Darker background
 [h3]='L00DN/${base}-y25'   # Normal weight, even darker
 [h4]='${base}UD'           # Base color, underline, bold
-[h5]='${base}-y20;U'       # Darker base, underline
-[h6]='${base}-y20'         # Darker base
+[h5]='${base}U'            # Base color, underline
+[h6]='${base}'             # Base color
 ```
 
 Pattern: light uses `+y` to lighten (reduce emphasis), dark uses `-y` to darken (reduce emphasis).
@@ -685,7 +688,7 @@ If a function with the same name as an option exists, it's called after parsing:
 
 ```bash
 pager() {
-    [[ $pager ]] && nup_opts+=("--pager=$pager") || nup_opts+=("--no-pager")
+    [[ $pager ]] && pass_nup+=("--pager=$pager") || pass_nup+=("--no-pager")
 }
 ```
 

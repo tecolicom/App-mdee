@@ -24,6 +24,8 @@ mdee - em·dee, Markdown Easy on the Eyes
      -m  --mode=#           light or dark (default: light)
      -B  --base-color=#     override base color of theme
                             (e.g., Ivory, #780043, (120,0,67))
+    --cm --colormap=L=SPEC  override color for element (e.g., h1=RD)
+    --hm --heading-markup   enable markup in headings
          --show=#           set field visibility (e.g., italic=1)
      -C  --pane=#           number of columns
      -R  --row=#            number of rows
@@ -320,6 +322,44 @@ bold text, etc.).
 
 ## Highlight Options
 
+- **--colormap**=_LABEL_=_SPEC_, **--cm**=_LABEL_=_SPEC_
+
+    Override the color for a specific element.  _LABEL_ is one of the
+    color labels listed below.  _SPEC_ follows
+    [Term::ANSIColor::Concise](https://metacpan.org/pod/Term%3A%3AANSIColor%3A%3AConcise) format.
+
+        --colormap h1=RD               # red bold headings
+        --colormap code_block=/L20;E   # dark background for code blocks
+        --colormap bold='${base}D'     # base color bold
+
+    Available labels:
+
+        h1 - h6           Heading levels 1 through 6
+        bold              Bold (**text** or __text__)
+        italic            Italic (*text* or _text_)
+        strike            Strikethrough (~~text~~)
+        link              Inline links [text](url)
+        image             Images ![alt](url)
+        image_link        Image links [![alt](img)](url)
+        blockquote        Blockquote marker (>)
+        horizontal_rule   Horizontal rules (---, ***, ___)
+        comment           HTML comments (<!-- ... -->)
+        code_mark         Code delimiters (fences and backticks)
+        code_info         Fenced code block info string
+        code_block        Fenced code block body
+        code_inline       Inline code body
+
+    This option can be specified multiple times.
+
+- **--heading-markup**, **--hm**
+
+    Enable inline markup processing inside headings.  By default,
+    headings are rendered with uniform heading color without processing
+    bold, italic, strikethrough, or inline code inside them.  Links
+    are always processed as OSC 8 hyperlinks regardless of this option.
+    With this option, all inline formatting becomes visible within
+    headings using cumulative coloring.
+
 - **--show**=_FIELD_\[=_VALUE_\],...
 
     Control field visibility for highlighting.  Empty value or `0` disables
@@ -600,7 +640,7 @@ mode (`=y25` for light, `=y80` for dark).
 ### Color Specifications
 
 Colors are specified using [Term::ANSIColor::Concise](https://metacpan.org/pod/Term%3A%3AANSIColor%3A%3AConcise) format.
-The `--cm` option maps colors to captured groups.  For example,
+The `--colormap` (`--cm`) option maps colors to captured groups.  For example,
 `L00D/${base};E` specifies gray foreground on base-colored background.
 
 The color specification supports modifiers:

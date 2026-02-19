@@ -238,7 +238,7 @@ Colors follow L<Term::ANSIColor::Concise> format.
     LABEL        LIGHT              DARK
     code_mark    L20                L10
     code_tick    L15/L23            L15/L05
-    code_info    ${base_name}=y70   ${base_name}=y40
+    code_info    ${base_name}=y70   L10
     code_block   /L23;E             /L05;E
     code_inline  L00/L23            L25/L05
 
@@ -349,7 +349,7 @@ my %default_colors = (
 my %dark_overrides = (
     code_mark       => 'L10',
     code_tick       => 'L15/L05',
-    code_info       => '${base_name}=y40',
+    code_info       => 'L10',
     code_block      => '/L05;E',
     code_inline     => 'L25/L05',
     h1              => 'L00D/${base};E',

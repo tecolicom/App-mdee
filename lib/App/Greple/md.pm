@@ -443,7 +443,7 @@ my $LT = qr/(?:`[^`\n]*+`|\\.|[^`\\\n\]]++)+/;
 #
 # colorize() - the main function
 #
-# Receives entire file content in $_ (--begin with -G --all --need=0).
+# Receives entire file content in $_ (--begin with -G --filter).
 # Processes all patterns with multiline regexes.
 #
 
@@ -633,7 +633,5 @@ sub fix_separator {
 __DATA__
 
 option default \
-    -G --all --need=0 --filestyle=once --color=always \
-    --exit=0 \
-    -E '(*FAIL)' \
+    -G --filter --filestyle=once --color=always \
     --begin &__PACKAGE__::begin

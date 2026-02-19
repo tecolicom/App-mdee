@@ -132,7 +132,7 @@ mdee - em·dee, Markdown Easy on the Eyes
 Usage: $myname [ options ] file ...
 END
 
-declare -a nup_opts=(--document --no-filename)
+declare -a pass_nup=(--document --no-filename)
 declare -a pass_md=()
 declare -A show=()
 declare -A default=()
@@ -163,10 +163,10 @@ declare -A OPTS=(
     [        pager |    ?!         # pager command         ]=
     [         pane | C  :=i        # number of columns     ]=0
     [   pane-width | S  :=i        # pane width            ]=85
-    [         grid | G  :>nup_opts # grid layout           ]=
-    [          row | R  :>nup_opts # number of rows        ]=
-    [         page | P  :>nup_opts # page height           ]=
-    [ border-style | bs :>nup_opts # border style          ]=
+    [         grid | G  :>pass_nup # grid layout           ]=
+    [          row | R  :>pass_nup # number of rows        ]=
+    [         page | P  :>pass_nup # page height           ]=
+    [ border-style | bs :>pass_nup # border style          ]=
 )
 
 ##############################################################################
@@ -228,7 +228,7 @@ version() {
 }
 
 pager() {
-    [[ $pager ]] && nup_opts+=("--pager=$pager") || nup_opts+=("--no-pager")
+    [[ $pager ]] && pass_nup+=("--pager=$pager") || pass_nup+=("--no-pager")
 }
 
 filter() {
@@ -371,6 +371,9 @@ done
     for _e in "${pass_md[@]}"; do
         printf "pass_md: '%s'\n" "$_e" >&2
     done
+    for _e in "${pass_nup[@]}"; do
+        printf "pass_nup: '%s'\n" "$_e" >&2
+    done
     (( debug > 1 )) && {
         for key in "${!pattern[@]}"; do
             printf "pattern[%s]='%s'\n" "$key" "${pattern[$key]//\'/\'\\\'\'}"
@@ -444,17 +447,17 @@ run_greple() {
         "$@"
 }
 
-run_nup()    { invoke nup "${nup_opts[@]}"; }
-run_column() { invoke nup "${nup_opts[@]}" --no-pager --fold --pane=1; }
+run_nup()    { invoke nup "${pass_nup[@]}"; }
+run_column() { invoke nup "${pass_nup[@]}" --no-pager --fold --pane=1; }
 run_pager()  { invoke ${PAGER:-less}; }
 
 # Set defaults for less environment
 export LESS="${LESS:--R}"
 export LESSANSIENDCHARS="${LESSANSIENDCHARS:-mK}"
 
-# Add pane/pane-width to nup_opts
-(( pane_width != 85 )) && nup_opts+=("--pane-width=$pane_width")
-(( pane != 0 ))        && nup_opts+=("--pane=$pane")
+# Add pane/pane-width to pass_nup
+(( pane_width != 85 )) && pass_nup+=("--pane-width=$pane_width")
+(( pane != 0 ))        && pass_nup+=("--pane=$pane")
 
 # Collect pipeline stages
 declare -a stages=(run_greple)

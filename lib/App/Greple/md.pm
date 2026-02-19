@@ -199,6 +199,8 @@ Available parameters:
     osc8            OSC 8 hyperlinks (default: 1)
     heading_markup  inline markup in headings (default: 0)
                     0=off, 1/all=all, or colon-separated steps
+    tick_open       inline code open marker (default: `)
+    tick_close      inline code close marker (default: ´)
     hashed.h1-h6    closing hashes per level (default: 0)
 
 =head2 OSC 8 Hyperlinks
@@ -241,6 +243,12 @@ Colors follow L<Term::ANSIColor::Concise> format.
     code_info    ${base_name}=y70   L10
     code_block   /L23;E             /L05;E
     code_inline  L00/L23            L25/L05
+
+Inline code backticks are displayed as C<`contentE<0xb4>> using
+C<code_tick> color.  Multi-backtick delimiters are collapsed to a
+single pair with optional surrounding spaces stripped (per CommonMark).
+The open/close markers can be customized via C<tick_open>/C<tick_close>
+config parameters.
 
 =head2 Block Elements
 
@@ -311,6 +319,8 @@ my $config = Getopt::EX::Config->new(
     table      => 1,   # table formatting
     rule       => 1,   # box-drawing characters for tables
     heading_markup => 0,  # inline formatting in headings
+    tick_open  => '`',       # inline code open marker
+    tick_close => "\x{b4}",  # inline code close marker (´)
     hashed     => { h1 => 0, h2 => 0, h3 => 0, h4 => 0, h5 => 0, h6 => 0 },
 );
 
@@ -387,7 +397,7 @@ sub finalize {
     $config->deal_with($argv,
                        "mode|m=s", "base_color|B=s",
                        "colorize!", "foldlist!", "foldwidth=i", "table!", "rule!",
-                       "heading_markup|hm:s",
+                       "heading_markup|hm:s", "tick_open=s", "tick_close=s",
                        "hashed=s%",
                        "colormap|cm=s" => \@opt_cm,
                        "show=s%" => \%show);
@@ -536,7 +546,7 @@ my %colorize = (
         s/(^<!--(?![->])(?s:.*?)-->)/protect(md_color('comment', $1))/mge;
     },
     image_links => sub {
-        s{\[!\[($LT)\]\(([^)\n]+)\)\]\(<?([^>)\s\n]+)>?\)}{
+        s{(?<!`)\[!\[($LT)\]\(([^)\n]+)\)\]\(<?([^>)\s\n]+)>?\)}{
             protect(
                 osc8($2, md_color('image_link', "!"))
                 . osc8($3, md_color('image_link', "[$1]"))
@@ -544,18 +554,25 @@ my %colorize = (
         }ge;
     },
     images => sub {
-        s{!\[($LT)\]\(<?([^>)\s\n]+)>?\)}{
+        s{(?<![`\[])!\[($LT)\]\(<?([^>)\s\n]+)>?\)}{
             protect(osc8($2, md_color('image', "![$1]")))
         }ge;
     },
     links => sub {
-        s{(?<![!\e])\[($LT)\]\(<?([^>)\s\n]+)>?\)}{
+        s{(?<![!\e`])\[($LT)\]\(<?([^>)\s\n]+)>?\)}{
             protect(osc8($2, md_color('link', "[$1]")))
         }ge;
     },
     inline_code => sub {
-        s/(?<bt>`++)(((?!\g{bt}).)+)(\g{bt})/
-            protect(md_color('code_tick', $+{bt}) . md_color('code_inline', $2) . md_color('code_tick', $4))
+        state $to = $config->{tick_open};
+        state $tc = $config->{tick_close};
+        # Multi-backtick: strip optional spaces, show single tick
+        s/(`{2,}+) ?((?:(?!\1).)+?) ?(\1)/
+            protect(md_color('code_tick', $to) . md_color('code_inline', $2) . md_color('code_tick', $tc))
+        /ge;
+        # Single backtick
+        s/`([^`\n]+)`/
+            protect(md_color('code_tick', $to) . md_color('code_inline', $1) . md_color('code_tick', $tc))
         /ge;
     },
     headings => sub {

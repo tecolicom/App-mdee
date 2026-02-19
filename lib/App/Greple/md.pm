@@ -516,6 +516,18 @@ sub osc8 {
 
 my $LT = qr/(?:`[^`\n]*+`|\\.|[^`\\\n\]]++)+/;
 
+# Skip over code spans in link/image patterns.
+# Used as the first alternative in s{$SKIP_CODE|<link pattern>}{...}ge
+# so that code spans are matched and skipped, preventing link/image
+# patterns from matching inside them.
+my $SKIP_CODE = qr{(?x)
+    (?<_bt> `++ )           # opening backtick(s)
+    (?: (?! \g{_bt} ) . )+? # content (not containing same-length backticks)
+    \g{_bt}                 # closing backtick(s) matching opener
+    (*SKIP)                 # mark: don't retry positions before here
+    (*FAIL)                 # fail: skip this match, resume after it
+};
+
 #
 # colorize() - the main function
 #
@@ -546,21 +558,21 @@ my %colorize = (
         s/(^<!--(?![->])(?s:.*?)-->)/protect(md_color('comment', $1))/mge;
     },
     image_links => sub {
-        s{(?<!`)\[!\[($LT)\]\(([^)\n]+)\)\]\(<?([^>)\s\n]+)>?\)}{
+        s{$SKIP_CODE|\[!\[(?<text>$LT)\]\((?<img>[^)\n]+)\)\]\(<?(?<url>[^>)\s\n]+)>?\)}{
             protect(
-                osc8($2, md_color('image_link', "!"))
-                . osc8($3, md_color('image_link', "[$1]"))
+                osc8($+{img}, md_color('image_link', "!"))
+                . osc8($+{url}, md_color('image_link', "[$+{text}]"))
             )
         }ge;
     },
     images => sub {
-        s{(?<![`\[])!\[($LT)\]\(<?([^>)\s\n]+)>?\)}{
-            protect(osc8($2, md_color('image', "![$1]")))
+        s{$SKIP_CODE|!\[(?<text>$LT)\]\(<?(?<url>[^>)\s\n]+)>?\)}{
+            protect(osc8($+{url}, md_color('image', "![$+{text}]")))
         }ge;
     },
     links => sub {
-        s{(?<![!\e`])\[($LT)\]\(<?([^>)\s\n]+)>?\)}{
-            protect(osc8($2, md_color('link', "[$1]")))
+        s{$SKIP_CODE|(?<![!\e])\[(?<text>$LT)\]\(<?(?<url>[^>)\s\n]+)>?\)}{
+            protect(osc8($+{url}, md_color('link', "[$+{text}]")))
         }ge;
     },
     inline_code => sub {

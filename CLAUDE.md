@@ -609,7 +609,7 @@ Three link types (processed in order to handle nesting):
 
 OSC 8 format: `\e]8;;URL\e\TEXT\e]8;;\e\`
 
-Each link is colored with the `link`/`image`/`image_link` label (`I` = italic), wrapped in OSC 8, and protected to prevent later patterns from matching inside. The link pattern uses `(?<![!\e])` lookbehind to prevent both image link prefix `!` and protect placeholder `\e[` from being matched as link start.
+Each link is colored with the `link`/`image`/`image_link` label (`I` = italic), wrapped in OSC 8, and protected to prevent later patterns from matching inside. The link pattern uses `` (?<![!\e`]) `` lookbehind to prevent image link prefix `!`, protect placeholder `\e[`, and backtick (code span) from being matched as link start. The image pattern uses `` (?<![`\[]) `` to prevent matching inside code spans and image_link constructs.
 
 #### Link Text Matching Pattern
 

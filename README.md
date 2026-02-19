@@ -25,7 +25,7 @@ mdee - em·dee, Markdown Easy on the Eyes
      -B  --base-color=#     override base color of theme
                             (e.g., Ivory, #780043, (120,0,67))
     --cm --colormap=L=SPEC  override color for element (e.g., h1=RD)
-    --hm --heading-markup   enable markup in headings
+    --hm --heading-markup=#  enable markup in headings (all/bold/...)
          --show=#           set field visibility (e.g., italic=1)
      -C  --pane=#           number of columns
      -R  --row=#            number of rows
@@ -351,14 +351,23 @@ bold text, etc.).
 
     This option can be specified multiple times.
 
-- **--heading-markup**, **--hm**
+- **--heading-markup**=_STEPS_, **--hm** _STEPS_
 
-    Enable inline markup processing inside headings.  By default,
+    Control inline markup processing inside headings.  By default,
     headings are rendered with uniform heading color without processing
     bold, italic, strikethrough, or inline code inside them.  Links
     are always processed as OSC 8 hyperlinks regardless of this option.
-    With this option, all inline formatting becomes visible within
-    headings using cumulative coloring.
+
+    Use `all` or `1` to enable all inline formatting within headings
+    using cumulative coloring.  To select specific steps, list them
+    separated by colons.
+
+    Available steps: `inline_code`, `horizontal_rules`, `bold`,
+    `italic`, `strike`.
+
+        mdee --hm all file.md              # all markup
+        mdee --hm bold file.md             # bold only
+        mdee --hm bold:italic file.md      # bold and italic
 
 - **--show**=_FIELD_\[=_VALUE_\],...
 

@@ -37,7 +37,7 @@ mdee - em·dee, Markdown Easy on the Eyes
      -B  --base-color=#     override base color of theme
                             (e.g., Ivory, #780043, (120,0,67))
     --cm --colormap=L=SPEC  override color for element (e.g., h1=RD)
-    --hm --heading-markup   enable markup in headings
+    --hm --heading-markup=#  enable markup in headings (all/bold/...)
          --show=#           set field visibility (e.g., italic=1)
      -C  --pane=#           number of columns
      -R  --row=#            number of rows
@@ -158,7 +158,7 @@ declare -A OPTS=(
     [   base-color | B  :          # base color            ]=
     [       adjust |    %          # color adjustment      ]=
     [ colormap|cm  |    :>pass_md  # color map             ]=
-    [heading-markup|hm             # markup in headings    ]=
+    [heading-markup|hm  :          # markup in headings    ]=
     [         show |    %!         # field visibility      ]=
     [        pager |    ?!         # pager command         ]=
     [         pane | C  :=i        # number of columns     ]=0
@@ -430,7 +430,7 @@ run_greple() {
     # Add table/rule/heading_markup params
     [[ $table ]] && config_params+=("table=1") || config_params+=("table=0")
     [[ $rule  ]] && config_params+=("rule=1")  || config_params+=("rule=0")
-    [[ $heading_markup ]] && config_params+=("heading_markup=1")
+    [[ $heading_markup ]] && config_params+=("heading_markup=$heading_markup")
 
     # Add md_config entries from themes
     config_params+=("${md_config[@]}")
@@ -858,14 +858,23 @@ Available labels:
 
 This option can be specified multiple times.
 
-=item B<--heading-markup>, B<--hm>
+=item B<--heading-markup>=I<STEPS>, B<--hm> I<STEPS>
 
-Enable inline markup processing inside headings.  By default,
+Control inline markup processing inside headings.  By default,
 headings are rendered with uniform heading color without processing
 bold, italic, strikethrough, or inline code inside them.  Links
 are always processed as OSC 8 hyperlinks regardless of this option.
-With this option, all inline formatting becomes visible within
-headings using cumulative coloring.
+
+Use C<all> or C<1> to enable all inline formatting within headings
+using cumulative coloring.  To select specific steps, list them
+separated by colons.
+
+Available steps: C<inline_code>, C<horizontal_rules>, C<bold>,
+C<italic>, C<strike>.
+
+    mdee --hm all file.md              # all markup
+    mdee --hm bold file.md             # bold only
+    mdee --hm bold:italic file.md      # bold and italic
 
 =item B<--show>=I<FIELD>[=I<VALUE>],...
 

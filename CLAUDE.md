@@ -300,7 +300,7 @@ run_greple() {
     # base_color, table, rule, heading_markup params
     [[ $table ]] && config_params+=("table=1") || config_params+=("table=0")
     [[ $rule  ]] && config_params+=("rule=1")  || config_params+=("rule=0")
-    [[ $heading_markup ]] && config_params+=("heading_markup=1")
+    [[ $heading_markup ]] && config_params+=("heading_markup=$heading_markup")
     config_params+=("${md_config[@]}")
 
     local IFS=','
@@ -365,48 +365,40 @@ reset and re-inserts the outer color after it. This enables **cumulative colorin
 The heading color resumes after the link, including background color for
 text that follows the link on the same heading line.
 
-Each processing step is an independent function (`colorize_code_blocks`,
-`colorize_inline_code`, `colorize_comments`, `colorize_image_links`,
-`colorize_images`, `colorize_links`, `colorize_headings`,
-`colorize_horizontal_rules`, `colorize_bold`, `colorize_italic`,
-`colorize_strike`, `colorize_blockquotes`). The `active()` checks and
-call order are controlled in `colorize()`.
+Each processing step is a code ref in the `%colorize` hash. The pipeline
+order is determined by `build_pipeline()` based on `heading_markup`.
+The `active()` checks and step execution are controlled in `colorize()`.
 
-Processing order in `colorize()` depends on `heading_markup`:
+#### Pipeline Architecture
 
-**Default (`heading_markup=0`):**
-1. Fenced code blocks → protect
-2. HTML comments → protect
-3. Image links, images, links → protect (with OSC 8)
-4. **Headings (h6→h1) → protect** (before inline formatting)
-5. Inline code → protect
-6. Horizontal rules → protect
-7. Bold, italic, strikethrough
-8. Blockquotes
-9. Restore all protected regions (loops for nested placeholders)
+Steps are organized into three groups:
 
-Headings are processed early so that bold, italic, strikethrough, and
-inline code inside headings are not processed. Links are processed
-before headings so that OSC 8 hyperlinks in headings remain clickable.
-The heading output is protected, preventing later steps from matching
-inside. The `restore()` function loops (`1 while ...`) to handle
-nested placeholders (e.g., links protected inside a protected heading).
+```perl
+my @protect_steps = qw(code_blocks comments image_links images links);
+my @inline_steps  = qw(inline_code horizontal_rules bold italic strike);
+my @final_steps   = qw(blockquotes);
+```
 
-**With `heading_markup=1` (`--heading-markup`):**
-1. Fenced code blocks → protect
-2. HTML comments → protect
-3. Image links, images, links → protect (with OSC 8)
-4. Inline code → protect
-5. Horizontal rules → protect
-6. Bold, italic, strikethrough
-7. **Headings (h6→h1, with `restore` for cumulative coloring)**
-8. Blockquotes
-9. Restore all protected regions
+The `headings` step always calls `restore()` → color → `protect()`,
+enabling cumulative coloring regardless of position. Its position
+in the pipeline is controlled by `heading_markup`:
 
-In this mode, headings are processed after emphasis. The heading step
-calls `restore($line)` before applying heading color, revealing protected
-regions for correct cumulative coloring where inline formatting is
-visible within headings.
+**`build_pipeline()` logic:**
+- `heading_markup=0` (default): `@protect_steps`, **headings**, `@inline_steps`, `@final_steps`
+- `heading_markup=1` or `all`: `@protect_steps`, `@inline_steps`, **headings**, `@final_steps`
+- `heading_markup=bold:italic`: `@protect_steps`, bold, italic, **headings**, inline_code, horizontal_rules, strike, `@final_steps`
+
+When `heading_markup` is a colon-separated step list, specified steps
+are moved before headings while remaining inline steps stay after.
+This allows selective markup inside headings (e.g., bold but not code).
+
+Links are always processed before headings (in `@protect_steps`), so
+OSC 8 hyperlinks in headings remain clickable regardless of
+`heading_markup`.
+
+The `%step_label` hash maps step names to `active()` label names
+(e.g., `headings` → `header`, `horizontal_rules` → `horizontal_rule`).
+Steps without a label mapping are always active.
 
 ### Code Color Labels
 
@@ -762,8 +754,10 @@ Link text matching uses `(?:` `` `[^`\n]*+` `` `|\\.|[^\]` `` ` `` `\\\n]++)+` t
 
 By default, inline code and emphasis inside headings are not processed
 (headings get uniform color). Links are always processed as OSC 8
-hyperlinks. With `--heading-markup`, all inline formatting is visible
-within headings via cumulative coloring.
+hyperlinks. With `--heading-markup` (`--hm`), all inline formatting
+is visible within headings via cumulative coloring. Specific steps
+can be selected: `--hm=bold:italic` processes only bold and italic
+inside headings.
 
 Reference-style links (`[text][ref]` with `[ref]: url` elsewhere) are not supported.
 

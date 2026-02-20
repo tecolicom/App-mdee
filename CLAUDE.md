@@ -9,20 +9,26 @@ em·dee (mdee: Markdown, Easy on the Eyes) is a Markdown viewer command implemen
 | Tool | Package | Role |
 |------|---------|------|
 | greple | App::Greple | Regex-based syntax highlighting |
-| greple -Mmd | App::Greple::md | Markdown syntax highlighting module |
 | ansifold | App::ansifold | ANSI-aware line folding (via md module) |
 | ansicolumn | App::ansicolumn | Table column alignment (via md module) |
 | nup | App::nup | Multi-column paged output |
 | ansiecho | App::ansiecho | Color output utility |
 | getoptlong.sh | Getopt::Long::Bash | Bash option parsing |
 | termcolor | Getopt::EX::termcolor | Terminal luminance detection |
+| - | Getopt::EX::Config | Module option handling |
+| - | Command::Run | Function call wrapper for ansicolumn |
 
 ## Project Structure
 
 - `script/mdee` - Main script (Bash) with POD documentation
 - `lib/App/mdee.pm` - Perl module (version info only, generated from script/mdee)
-- `t/` - Test files
-- `t/test.md` - Color test file
+- `lib/App/Greple/md.pm` - Greple module for Markdown syntax highlighting (bundled)
+- `t/00_compile.t` - Compile tests for both App::mdee and App::Greple::md
+- `t/01_mdee.t` - mdee command integration tests
+- `t/02_colorize.t` - md module colorize tests (uses t/runner)
+- `t/Util.pm` - Test helper for greple-based tests
+- `t/runner/` - Submodule (p5-script-runner) for finding greple path
+- `t/test.md` - Test Markdown file
 
 **Important:** Documentation (POD) must be written in `script/mdee`. At release time, `minil release` hooks append the POD from `script/mdee` to `lib/App/mdee.pm` (see `minil.toml`).
 
@@ -762,13 +768,15 @@ Sources the library with OPTS array name and arguments.
 ### Dependencies
 
 - App::Greple - Pattern matching and highlighting tool with extensive regex support
-- App::Greple::md - Greple module for Markdown syntax highlighting, table formatting, and text folding (handles colorization via `colorize()`, table formatting via `format_table()`, and fold via `-Mtee "&ansifold"`)
+- App::Greple::md - Greple module for Markdown syntax highlighting, table formatting, and text folding (**bundled in this repo** at `lib/App/Greple/md.pm`)
 - App::ansifold - ANSI-aware text folding utility that wraps long lines while preserving escape sequences and maintaining proper indentation for nested list items (called from md module via Greple::tee)
 - App::ansicolumn - Column formatting tool with ANSI support that aligns table columns while preserving color codes (called from md module via Command::Run)
 - App::nup - Paged output
 - App::ansiecho - Color output
 - Getopt::Long::Bash - Option parsing
 - Getopt::EX::termcolor - Terminal detection
+- Getopt::EX::Config - Module option handling for md module
+- Command::Run - Function call wrapper used by md module for ansicolumn
 
 ## Limitations
 

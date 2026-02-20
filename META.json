@@ -43,13 +43,14 @@
       "runtime" : {
          "requires" : {
             "App::Greple" : "10.04",
-            "App::Greple::md" : "0.9904",
             "App::Greple::tee" : "1.04",
             "App::ansicolumn" : "1.51",
             "App::ansiecho" : "0",
             "App::ansifold" : "1.35",
             "App::nup" : "0.9906",
+            "Command::Run" : "0",
             "File::Share" : "0",
+            "Getopt::EX::Config" : "1.0202",
             "Getopt::EX::termcolor" : "0",
             "Getopt::Long::Bash" : "v0.7.2",
             "Term::ANSIColor::Concise" : "3.02",

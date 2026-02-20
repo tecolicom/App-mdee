@@ -18,6 +18,8 @@ Underscore bold: __double underscore__ and italic: _single underscore_.
 
 More text with `code` inside.
 
+Multi-backtick: `` `**` `` and ``` ``code`` ```.
+
 ```bash
 echo "code block"
 ```

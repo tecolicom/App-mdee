@@ -176,6 +176,14 @@ C<--show LABEL=0> or C<--show LABEL=> disables the label.
 C<--show LABEL> or C<--show LABEL=1> enables it.
 C<all> is a special key that sets all labels at once.
 
+Controllable labels: C<bold>, C<italic>, C<strike>, C<code_inline>,
+C<header> (h1-h6), C<horizontal_rule>, C<blockquote>.
+
+The following elements are always processed and cannot be disabled:
+C<comment>, C<code_block> (C<code_mark>, C<code_info>),
+C<link>, C<image>, C<image_link>.
+Use C<--cm LABEL=> to remove their color without disabling processing.
+
 =head1 CONFIGURATION
 
 Module parameters can also be set using the C<config()> function
@@ -516,17 +524,22 @@ sub osc8 {
 
 my $LT = qr/(?:`[^`\n]*+`|\\.|[^`\\\n\]]++)+/;
 
-# Skip over code spans in link/image patterns.
+# Code span pattern (both single and multi-backtick).
+# Captures: _bt (backtick delimiter), _content (code body).
+# Used directly in inline_code step and as basis for $SKIP_CODE.
+my $CODE = qr{(?x)
+    (?<_bt> `++ )               # opening backtick(s)
+    (?<_content>
+        (?: (?! \g{_bt} ) . )+? # content (not containing same-length backticks)
+    )
+    \g{_bt}                     # closing backtick(s) matching opener
+};
+
+# Skip code spans in link/image patterns.
 # Used as the first alternative in s{$SKIP_CODE|<link pattern>}{...}ge
 # so that code spans are matched and skipped, preventing link/image
 # patterns from matching inside them.
-my $SKIP_CODE = qr{(?x)
-    (?<_bt> `++ )           # opening backtick(s)
-    (?: (?! \g{_bt} ) . )+? # content (not containing same-length backticks)
-    \g{_bt}                 # closing backtick(s) matching opener
-    (*SKIP)                 # mark: don't retry positions before here
-    (*FAIL)                 # fail: skip this match, resume after it
-};
+my $SKIP_CODE = qr{$CODE (*SKIP)(*FAIL)}x;
 
 #
 # colorize() - the main function
@@ -536,11 +549,32 @@ my $SKIP_CODE = qr{(?x)
 #
 
 #
-# Pipeline steps as code refs
+# Pipeline step class
+#
+
+package App::Greple::md::Step {
+    sub new {
+        my($class, %args) = @_;
+        bless \%args, $class;
+    }
+    sub label  { $_[0]->{label} }
+    sub active { !$_[0]->{label} || App::Greple::md::active($_[0]->{label}) }
+    sub run    { $_[0]->{code}->() }
+}
+
+sub Step {
+    my $code = pop;
+    my $label = shift;
+    App::Greple::md::Step->new(label => $label, code => $code);
+}
+
+#
+# Pipeline steps: Step(sub{}) = always active, Step(label => sub{}) = controllable
 #
 
 my %colorize = (
-    code_blocks => sub {
+
+    code_blocks => Step(sub {
         s{^( {0,3})(`{3,}|~{3,})(.*)\n((?s:.*?))^( {0,3})\2(\h*)$}{
             my($oi, $fence, $lang, $body, $ci, $trail) = ($1, $2, $3, $4, $5, $6);
             my $result = md_color('code_mark', "$oi$fence");
@@ -553,41 +587,45 @@ my %colorize = (
             $result .= md_color('code_mark', "$ci$fence") . $trail;
             protect($result)
         }mge;
-    },
-    comments => sub {
+    }),
+
+    comments => Step(sub {
         s/(^<!--(?![->])(?s:.*?)-->)/protect(md_color('comment', $1))/mge;
-    },
-    image_links => sub {
+    }),
+
+    image_links => Step(sub {
         s{$SKIP_CODE|\[!\[(?<text>$LT)\]\((?<img>[^)\n]+)\)\]\(<?(?<url>[^>)\s\n]+)>?\)}{
             protect(
                 osc8($+{img}, md_color('image_link', "!"))
                 . osc8($+{url}, md_color('image_link', "[$+{text}]"))
             )
         }ge;
-    },
-    images => sub {
+    }),
+
+    images => Step(sub {
         s{$SKIP_CODE|!\[(?<text>$LT)\]\(<?(?<url>[^>)\s\n]+)>?\)}{
             protect(osc8($+{url}, md_color('image', "![$+{text}]")))
         }ge;
-    },
-    links => sub {
+    }),
+
+    links => Step(sub {
         s{$SKIP_CODE|(?<![!\e])\[(?<text>$LT)\]\(<?(?<url>[^>)\s\n]+)>?\)}{
             protect(osc8($+{url}, md_color('link', "[$+{text}]")))
         }ge;
-    },
-    inline_code => sub {
+    }),
+
+    inline_code => Step(code_inline => sub {
         state $to = $config->{tick_open};
         state $tc = $config->{tick_close};
-        # Multi-backtick: strip optional spaces, show single tick
-        s/(`{2,}+) ?((?:(?!\1).)+?) ?(\1)/
-            protect(md_color('code_tick', $to) . md_color('code_inline', $2) . md_color('code_tick', $tc))
-        /ge;
-        # Single backtick
-        s/`([^`\n]+)`/
-            protect(md_color('code_tick', $to) . md_color('code_inline', $1) . md_color('code_tick', $tc))
-        /ge;
-    },
-    headings => sub {
+        s{$CODE}{
+            my $content = $+{_content};
+            # Strip optional leading/trailing space for multi-backtick (CommonMark)
+            $content =~ s/^ (.+) $/$1/ if length($+{_bt}) >= 2;
+            protect(md_color('code_tick', $to) . md_color('code_inline', $content) . md_color('code_tick', $tc))
+        }ge;
+    }),
+
+    headings => Step(header => sub {
         my $hashed = $config->{hashed};
         for my $n (reverse 1..6) {
             next unless active("h$n");
@@ -599,24 +637,29 @@ my %colorize = (
                 protect(md_color("h$n", restore($line)));
             }mge;
         }
-    },
-    horizontal_rules => sub {
+    }),
+
+    horizontal_rules => Step(horizontal_rule => sub {
         s/^([ ]{0,3}(?:[-*_][ ]*){3,})$/protect(md_color('horizontal_rule', $1))/mge;
-    },
-    bold => sub {
-        s/(?<![\\`])\*\*.*?(?<!\\)\*\*/md_color('bold', $&)/ge;
-        s/(?<![\\`\w])__.*?(?<!\\)__(?!\w)/md_color('bold', $&)/ge;
-    },
-    italic => sub {
-        s/(?<![\\`\w])_(?:(?!_).)+(?<!\\)_(?!\w)/md_color('italic', $&)/ge;
-        s/(?<![\\`\*])\*(?:(?!\*).)+(?<!\\)\*(?!\*)/md_color('italic', $&)/ge;
-    },
-    strike => sub {
-        s/(?<![\\`])~~.+?(?<!\\)~~/md_color('strike', $&)/ge;
-    },
-    blockquotes => sub {
+    }),
+
+    bold => Step(bold => sub {
+        s{$SKIP_CODE|(?<!\\)\*\*.*?(?<!\\)\*\*}{md_color('bold', ${^MATCH})}gep;
+        s{$SKIP_CODE|(?<![\\w])__.*?(?<!\\)__(?!\w)}{md_color('bold', ${^MATCH})}gep;
+    }),
+
+    italic => Step(italic => sub {
+        s{$SKIP_CODE|(?<![\\w])_(?:(?!_).)+(?<!\\)_(?!\w)}{md_color('italic', ${^MATCH})}gep;
+        s{$SKIP_CODE|(?<![\\*])\*(?:(?!\*).)+(?<!\\)\*(?!\*)}{md_color('italic', ${^MATCH})}gep;
+    }),
+
+    strike => Step(strike => sub {
+        s{$SKIP_CODE|(?<!\\)~~.+?(?<!\\)~~}{md_color('strike', ${^MATCH})}gep;
+    }),
+
+    blockquotes => Step(blockquote => sub {
         s/^(>+\h?)(.*)$/md_color('blockquote', $1) . $2/mge;
-    },
+    }),
 );
 
 #
@@ -631,16 +674,6 @@ my @inline_steps  = qw(inline_code horizontal_rules bold italic strike);
 
 # Always last
 my @final_steps   = qw(blockquotes);
-
-# Step-to-label mapping for active() check (unmapped = always active)
-my %step_label = (
-    headings         => 'header',
-    horizontal_rules => 'horizontal_rule',
-    bold             => 'bold',
-    italic           => 'italic',
-    strike           => 'strike',
-    blockquotes      => 'blockquote',
-);
 
 sub build_pipeline {
     my $hm = $config->{heading_markup};
@@ -670,10 +703,9 @@ sub colorize {
     setup_colors();
     @protected = ();
 
-    for my $step (build_pipeline()) {
-        my $label = $step_label{$step};
-        next if $label && !active($label);
-        $colorize{$step}->();
+    for my $name (build_pipeline()) {
+        my $step = $colorize{$name};
+        $step->run if $step->active;
     }
 
     $_ = restore($_);
@@ -685,7 +717,7 @@ sub colorize {
 #
 
 sub begin {
-    colorize()    if $config->{colorize};
+    colorize()     if $config->{colorize};
     format_table() if $config->{table};
 }
 

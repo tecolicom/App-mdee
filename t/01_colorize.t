@@ -46,6 +46,15 @@ SKIP: {
     my $no_sub = run("-Mmd --cm 'h3=RD' -- $test_md")->stdout;
     my ($h3_plain) = map { $strip->($_) } grep { /Heading 3/ } split /\n/, $no_sub;
     unlike($h3_plain, qr/### Heading 3 ###/, "no sub{} means no closing hashes");
+
+    # Multi-backtick code span: spaces should be stripped (CommonMark)
+    my ($multi_bt) = map { $strip->($_) } grep { /Multi-backtick/ } split /\n/, $out;
+    like($multi_bt, qr/\`\`\*\*\`\N{ACUTE ACCENT}/, "multi-backtick strips spaces around content");
+    unlike($multi_bt, qr/\` \`\*\*\`\N{ACUTE ACCENT} \`/, "multi-backtick does not preserve inner spaces");
+
+    # Code span protection: bold/strike not processed inside code spans
+    my ($code_prot) = grep { /inline code with/ } split /\n/, $out;
+    unlike($code_prot, qr/\e\[1m/, "bold not applied inside inline code");
 }
 
 done_testing;

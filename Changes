@@ -2,6 +2,16 @@ Revision history for Perl extension App-Greple-md
 
 {{$NEXT}}
 
+0.9905 2026-02-20T05:32:13Z
+
+    - Introduce Step class for OO pipeline architecture
+    - Extract $CODE pattern as shared base for inline_code and $SKIP_CODE
+    - Use $SKIP_CODE with (*SKIP)(*FAIL) for emphasis code span protection
+    - Use /p flag with ${^MATCH} instead of $& in bold/italic/strike
+    - Add inline_code controllability via --show code_inline=
+    - Document --show controllable vs always-active elements
+    - Add tests for multi-backtick space stripping and code span protection
+
 0.9904 2026-02-19T11:43:43Z
 
     - Display inline code as `content´ with configurable tick markers

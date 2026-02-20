@@ -110,7 +110,7 @@ output to stdout without a pager, suitable for piping into
 other commands.
 
 <div>
-    <p><img width="750" src="https://raw.githubusercontent.com/tecolicom/App-mdee/main/images/3-column.png">
+    <p><img width="1000" src="https://raw.githubusercontent.com/tecolicom/App-mdee/main/images/3-column.png">
 </div>
 
 # INSTALLATION

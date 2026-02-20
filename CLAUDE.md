@@ -57,14 +57,8 @@ theme_dark[base]='<Coral>=y80'
 ```
 
 ```bash
-# share/theme/hashed.sh — append closing hashes to h3-h6
-for _mode in light dark; do
-    declare -n _theme="theme_${_mode}"
-    _theme[h3]+=';sub{s/(?<!#)$/ ###/r}'
-    _theme[h4]+=';sub{s/(?<!#)$/ ####/r}'
-    _theme[h5]+=';sub{s/(?<!#)$/ #####/r}'
-    _theme[h6]+=';sub{s/(?<!#)$/ ######/r}'
-done
+# share/theme/hashed.sh — enable closing hashes on h3-h6 via md module config
+md_config+=(hashed.h3=1 hashed.h4=1 hashed.h5=1 hashed.h6=1)
 ```
 
 #### Chaining Themes
@@ -94,14 +88,15 @@ The `find_share_dir()` function discovers the installed share directory via `@IN
 
 #### User Configuration as Theme
 
-Config.sh and theme files can also modify colors directly:
+Config.sh and theme files can also modify colors and md module config:
 
 ```bash
-# config.sh or theme file: modify colors
-for _array in theme_light theme_dark; do
-    declare -n _theme=$_array
-    _theme[h3]+=';sub{s/(?<!#)$/ ###/r}'
-done
+# config.sh or theme file: change base color
+theme_light[base]='<DarkCyan>=y25'
+theme_dark[base]='<DarkCyan>=y80'
+
+# config.sh or theme file: enable hashed headings via md module config
+md_config+=(hashed.h3=1 hashed.h4=1 hashed.h5=1 hashed.h6=1)
 ```
 
 #### Theme Listing
@@ -355,9 +350,32 @@ reset and re-inserts the outer color after it. This enables **cumulative colorin
 The heading color resumes after the link, including background color for
 text that follows the link on the same heading line.
 
-Each processing step is a code ref in the `%colorize` hash. The pipeline
-order is determined by `build_pipeline()` based on `heading_markup`.
-The `active()` checks and step execution are controlled in `colorize()`.
+Each processing step is a `Step` object in the `%colorize` hash, created
+by `Step(sub{})` (always active) or `Step(label => sub{})` (controllable
+via `--show`). The pipeline order is determined by `build_pipeline()`
+based on `heading_markup`.
+
+```perl
+package App::Greple::md::Step {
+    sub new    { my($class, %args) = @_; bless \%args, $class }
+    sub label  { $_[0]->{label} }
+    sub active { !$_[0]->{label} || App::Greple::md::active($_[0]->{label}) }
+    sub run    { $_[0]->{code}->() }
+}
+
+sub Step {
+    my $code = pop;
+    my $label = shift;
+    App::Greple::md::Step->new(label => $label, code => $code);
+}
+
+# Always active (no label):
+code_blocks => Step(sub { ... }),
+
+# Controllable via --show (with label):
+bold => Step(bold => sub { ... }),
+headings => Step(header => sub { ... }),
+```
 
 #### Pipeline Architecture
 
@@ -386,9 +404,14 @@ Links are always processed before headings (in `@protect_steps`), so
 OSC 8 hyperlinks in headings remain clickable regardless of
 `heading_markup`.
 
-The `%step_label` hash maps step names to `active()` label names
-(e.g., `headings` → `header`, `horizontal_rules` → `horizontal_rule`).
-Steps without a label mapping are always active.
+The `colorize()` loop calls `$step->active` and `$step->run`:
+
+```perl
+for my $name (build_pipeline()) {
+    my $step = $colorize{$name};
+    $step->run if $step->active;
+}
+```
 
 ### Code Color Labels
 
@@ -429,13 +452,7 @@ Fenced code blocks ([CommonMark](https://spec.commonmark.org/0.31.2/#fenced-code
 ^ {0,3}(?<bt>`{3,}+|~{3,}+)(.*)\n((?s:.*?))^ {0,3}(\g{bt})
 ```
 
-Inline code ([CommonMark Code Spans](https://spec.commonmark.org/0.31.2/#code-spans)):
-```
-# Multi-backtick: strip optional spaces, collapse to single tick
-(`{2,}+) ?((?:(?!\1).)+?) ?(\1)
-# Single backtick
-`([^`\n]+)`
-```
+Inline code ([CommonMark Code Spans](https://spec.commonmark.org/0.31.2/#code-spans)) uses the `$CODE` pattern, which matches both single and multi-backtick spans. For multi-backtick (2+), optional leading/trailing spaces are stripped per CommonMark spec.
 
 ### Header Colors
 
@@ -559,28 +576,30 @@ The md module's `active()` function checks show flags and skips regex substituti
 
 ### Emphasis Patterns (CommonMark)
 
-Bold and italic patterns follow [CommonMark emphasis rules](https://spec.commonmark.org/0.31.2/#emphasis-and-strong-emphasis). These are processed in the md module's `colorize()`, before headings:
+Bold and italic patterns follow [CommonMark emphasis rules](https://spec.commonmark.org/0.31.2/#emphasis-and-strong-emphasis). These are processed in the md module's `colorize()`, before headings. Each pattern uses `$SKIP_CODE` as first alternative to skip code spans:
 
 ```perl
 # Bold: ** and __  (color: D = bold weight only)
-s/(?<![\\`])\*\*.*?(?<!\\)\*\*/md_color('bold', $&)/ge;
-s/(?<![\\`\w])__.*?(?<!\\)__(?!\w)/md_color('bold', $&)/ge;
+s{$SKIP_CODE|(?<!\\)\*\*.*?(?<!\\)\*\*}{md_color('bold', ${^MATCH})}gep;
+s{$SKIP_CODE|(?<![\\w])__.*?(?<!\\)__(?!\w)}{md_color('bold', ${^MATCH})}gep;
 
 # Italic: * and _  (color: I = italic only)
-s/(?<![\\`\w])_(?:(?!_).)+(?<!\\)_(?!\w)/md_color('italic', $&)/ge;
-s/(?<![\\`\*])\*(?:(?!\*).)+(?<!\\)\*(?!\*)/md_color('italic', $&)/ge;
+s{$SKIP_CODE|(?<![\\w])_(?:(?!_).)+(?<!\\)_(?!\w)}{md_color('italic', ${^MATCH})}gep;
+s{$SKIP_CODE|(?<![\\*])\*(?:(?!\*).)+(?<!\\)\*(?!\*)}{md_color('italic', ${^MATCH})}gep;
 
 # Strikethrough  (color: X = strikethrough)
-s/(?<![\\`])~~.+?(?<!\\)~~/md_color('strike', $&)/ge;
+s{$SKIP_CODE|(?<!\\)~~.+?(?<!\\)~~}{md_color('strike', ${^MATCH})}gep;
 ```
 
 Key rules:
-- `(?<!\\)` / `` (?<![\\`]) ``: Not preceded by backslash or backtick (escape handling and inline code protection)
-- `` (?<![\\`\w]) `` / `(?!\w)`: Word boundaries for `_`/`__` (prevents `foo_bar_baz` matching and avoids matching inside inline code)
+- `$SKIP_CODE` as first alternative: code spans are matched and skipped via `(*SKIP)(*FAIL)`, preventing emphasis from matching inside code
+- `(?<!\\)`: Not preceded by backslash (escape handling)
+- `(?<![\\w])` / `(?!\w)`: Word boundaries for `_`/`__` (prevents `foo_bar_baz` matching)
 - `(?<!\*)` / `(?!\*)`: Not adjacent to `*` (distinguishes `*italic*` from `**bold**`)
 - `(?:(?!\*).)+`: Match any character except `*`, and `.` excludes newlines (single-line only)
 - `__` requires word boundaries (same as `_`)
 - `**` doesn't require word boundaries (can be used mid-word)
+- `/p` flag with `${^MATCH}`: safe alternative to `$&` for accessing matched text
 
 ### OSC 8 Hyperlinks
 
@@ -609,7 +628,42 @@ Three link types (processed in order to handle nesting):
 
 OSC 8 format: `\e]8;;URL\e\TEXT\e]8;;\e\`
 
-Each link is colored with the `link`/`image`/`image_link` label (`I` = italic), wrapped in OSC 8, and protected to prevent later patterns from matching inside. The link pattern uses `` (?<![!\e`]) `` lookbehind to prevent image link prefix `!`, protect placeholder `\e[`, and backtick (code span) from being matched as link start. The image pattern uses `` (?<![`\[]) `` to prevent matching inside code spans and image_link constructs.
+Each link is colored with the `link`/`image`/`image_link` label (`I` = italic), wrapped in OSC 8, and protected to prevent later patterns from matching inside.
+
+#### Code Span Pattern and `(*SKIP)(*FAIL)` Protection
+
+Per CommonMark, code spans have higher priority than links and emphasis. The md module defines `$CODE` as the base pattern for code spans, and derives `$SKIP_CODE` from it:
+
+```perl
+# Code span pattern (both single and multi-backtick).
+# Captures: _bt (backtick delimiter), _content (code body).
+my $CODE = qr{(?x)
+    (?<_bt> `++ )               # opening backtick(s)
+    (?<_content>
+        (?: (?! \g{_bt} ) . )+? # content (not containing same-length backticks)
+    )
+    \g{_bt}                     # closing backtick(s) matching opener
+};
+
+# Skip code spans — used as first alternative in substitutions
+my $SKIP_CODE = qr{$CODE (*SKIP)(*FAIL)}x;
+```
+
+`$CODE` is used directly in the `inline_code` step for code span processing. `$SKIP_CODE` is used as the first alternative in link/image/bold/italic/strike substitutions:
+
+```perl
+s{$SKIP_CODE|(?<![!\e])\[(?<text>$LT)\]\(<?(?<url>[^>)\s\n]+)>?\)}{
+    protect(osc8($+{url}, md_color('link', "[$+{text}]")))
+}ge;
+```
+
+How `(*SKIP)(*FAIL)` works:
+1. `$CODE` matches a code span (e.g., `` `code` ``)
+2. `(*SKIP)` marks this position — the regex engine won't retry earlier positions
+3. `(*FAIL)` forces a match failure — the substitution skips this region
+4. The engine resumes after the code span, so the second alternative can only match outside code spans
+
+This replaces per-pattern backtick lookbehinds (which only checked the immediately preceding character and couldn't handle cases like `` `` `code` `` `` where a space separates the backtick from `[`). The link pattern retains `(?<![!\e])` lookbehind for image link prefix `!` and protect placeholder `\e[`.
 
 #### Link Text Matching Pattern
 

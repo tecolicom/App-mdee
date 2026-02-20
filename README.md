@@ -63,8 +63,23 @@ available.  Combine them with [nup(1)](https://metacpan.org/pod/App%3A%3Anup) fo
 The pipeline combines [greple(1)](https://metacpan.org/pod/App%3A%3AGreple) for colorization and
 [nup(1)](https://metacpan.org/pod/App%3A%3Anup) for multi-column paged output.
 
-Supported elements: headers (h1-h6), bold, italic, strikethrough,
-inline code, code blocks, HTML comments, tables, and list items.
+The following elements are highlighted.  Elements marked with
+`--show` can be individually disabled via the `--show` option.
+Others are always processed for structural integrity.
+
+    --show    bold (**bold**, __bold__)
+    --show    italic (*italic*, _italic_)
+    --show    strike (~~strike~~)
+    --show    code_inline (`code`)
+    --show    header, h1-h6 (# heading)
+    --show    horizontal_rule (---, ***, ___)
+    --show    blockquote (> quote)
+    always    code_block (``` or ~~~), code_mark, code_info
+    always    comment (<!-- ... -->)
+    always    link, image, image_link ([text](url))
+
+Tables and list item folding are controlled by `--table` and
+`--fold` options, not by `--show`.
 
 ## Multi-column Layout and Pagination
 
@@ -378,11 +393,9 @@ bold text, etc.).
     Multiple fields can be specified with commas or by repeating the option.
     The special field `all` affects all fields and is processed first.
 
-    Available fields: `comment`, `bold`, `italic`, `strike`, `h1`,
-    `h2`, `h3`, `h4`, `h5`, `h6`, `code_mark`, `code_info`, `code_block`,
-    `code_inline`, `link`, `image`, `image_link`.
-
-    All fields are enabled by default.
+    See ["DESCRIPTION"](#description) for the list of available fields and
+    elements that are always active.
+    All controllable fields are enabled by default.
 
 ## Layout Options (passed to nup)
 

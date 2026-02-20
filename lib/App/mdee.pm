@@ -4,7 +4,7 @@ package App::mdee;
 # POD documentation is appended from script/mdee at release time.
 # See minil.toml for details.
 
-our $VERSION = "0.20";
+our $VERSION = "1.00";
 
 1;
 =encoding utf-8
@@ -47,7 +47,7 @@ mdee - em·dee, Markdown Easy on the Eyes
 
 =head1 VERSION
 
-Version 0.20
+Version 1.00
 
 =cut
 =head1 DESCRIPTION
@@ -74,8 +74,23 @@ available.  Combine them with L<nup(1)|App::nup> for similar paged output
 The pipeline combines L<greple(1)|App::Greple> for colorization and
 L<nup(1)|App::nup> for multi-column paged output.
 
-Supported elements: headers (h1-h6), bold, italic, strikethrough,
-inline code, code blocks, HTML comments, tables, and list items.
+The following elements are highlighted.  Elements marked with
+C<--show> can be individually disabled via the C<--show> option.
+Others are always processed for structural integrity.
+
+    --show    bold (**bold**, __bold__)
+    --show    italic (*italic*, _italic_)
+    --show    strike (~~strike~~)
+    --show    code_inline (`code`)
+    --show    header, h1-h6 (# heading)
+    --show    horizontal_rule (---, ***, ___)
+    --show    blockquote (> quote)
+    always    code_block (``` or ~~~), code_mark, code_info
+    always    comment (<!-- ... -->)
+    always    link, image, image_link ([text](url))
+
+Tables and list item folding are controlled by C<--table> and
+C<--fold> options, not by C<--show>.
 
 =head2 Multi-column Layout and Pagination
 
@@ -107,7 +122,7 @@ other commands.
 
 =begin html
 
-<p><img width="750" src="https://raw.githubusercontent.com/tecolicom/App-mdee/main/images/3-column.png">
+<p><img width="1000" src="https://raw.githubusercontent.com/tecolicom/App-mdee/main/images/3-column.png">
 
 =end html
 
@@ -427,11 +442,9 @@ the field; any other value (including C<1>) enables it.
 Multiple fields can be specified with commas or by repeating the option.
 The special field C<all> affects all fields and is processed first.
 
-Available fields: C<comment>, C<bold>, C<italic>, C<strike>, C<h1>,
-C<h2>, C<h3>, C<h4>, C<h5>, C<h6>, C<code_mark>, C<code_info>, C<code_block>,
-C<code_inline>, C<link>, C<image>, C<image_link>.
-
-All fields are enabled by default.
+See L</DESCRIPTION> for the list of available fields and
+elements that are always active.
+All controllable fields are enabled by default.
 
 =back
 

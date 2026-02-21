@@ -1,3 +1,7 @@
 /App-mdee-*/
 /.build/
+/Build
+/MYMETA.*
+/_build_params
+/blib/
 local/

@@ -284,10 +284,11 @@ config parameters.
     link         I
     image        I
     image_link   I
-    link_mark    I
+    link_mark    -       -
 
 C<link_mark> colors the brackets (C<[>, C<]>) around link and image
-text.  The C<!> prefix for images uses the C<image> or C<image_link>
+text.  Undefined by default, falls back to C<emphasis_mark>.
+The C<!> prefix for images uses the C<image> or C<image_link>
 color.  Hide brackets with C<--cm 'link_mark=sub{""}'> (used by
 the C<nomark> theme).
 
@@ -371,7 +372,6 @@ my %default_colors = (
     link            => 'I',
     image           => 'I',
     image_link      => 'I',
-    link_mark       => 'I',
     h1              => 'L25D/${base};E',
     h2              => 'L25D/${base}+y20;E',
     h3              => 'L25DN/${base}+y30',
@@ -628,20 +628,20 @@ my %colorize = (
         s{$SKIP_CODE|\[!\[(?<text>$LT)\]\((?<img>[^)\n]+)\)\]\(<?(?<url>[^>)\s\n]+)>?\)}{
             protect(
                 osc8($+{img}, md_color('image_link', "!"))
-                . osc8($+{url}, md_color('link_mark', "[") . md_color('image_link', $+{text}) . md_color('link_mark', "]"))
+                . osc8($+{url}, mark_color('link', "[") . md_color('image_link', $+{text}) . mark_color('link', "]"))
             )
         }ge;
     }),
 
     images => Step(sub {
         s{$SKIP_CODE|!\[(?<text>$LT)\]\(<?(?<url>[^>)\s\n]+)>?\)}{
-            protect(osc8($+{url}, md_color('image', "!") . md_color('link_mark', "[") . md_color('image', $+{text}) . md_color('link_mark', "]")))
+            protect(osc8($+{url}, md_color('image', "!") . mark_color('link', "[") . md_color('image', $+{text}) . mark_color('link', "]")))
         }ge;
     }),
 
     links => Step(sub {
         s{$SKIP_CODE|(?<![!\e])\[(?<text>$LT)\]\(<?(?<url>[^>)\s\n]+)>?\)}{
-            protect(osc8($+{url}, md_color('link_mark', "[") . md_color('link', $+{text}) . md_color('link_mark', "]")))
+            protect(osc8($+{url}, mark_color('link', "[") . md_color('link', $+{text}) . mark_color('link', "]")))
         }ge;
     }),
 

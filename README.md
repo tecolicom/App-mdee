@@ -379,7 +379,7 @@ bold text, etc.).
         link              Inline links [text](url)
         image             Images ![alt](url)
         image_link        Image links [![alt](img)](url)
-        link_mark         Link/image brackets ([ ])
+        link_mark         Link/image brackets (overrides emphasis_mark)
         blockquote        Blockquote marker (>)
         horizontal_rule   Horizontal rules (---, ***, ___)
         comment           HTML comments (<!-- ... -->)

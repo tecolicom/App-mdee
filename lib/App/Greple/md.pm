@@ -678,7 +678,7 @@ my %colorize = (
         s{$SKIP_CODE|(?<!\\)(?<m>\*\*\*)(?<t>.*?)(?<!\\)\g{m}}{
             protect(mark_color('bold', $+{m}) . md_color('bold', md_color('italic', $+{t})) . mark_color('bold', $+{m}))
         }gep;
-        s{$SKIP_CODE|(?<![\\w])(?<m>___)(?<t>.*?)(?<!\\)\g{m}(?!\w)}{
+        s{$SKIP_CODE|(?<![\\\w])(?<m>___)(?<t>.*?)(?<!\\)\g{m}(?!\w)}{
             protect(mark_color('bold', $+{m}) . md_color('bold', md_color('italic', $+{t})) . mark_color('bold', $+{m}))
         }gep;
     }),
@@ -687,13 +687,13 @@ my %colorize = (
         s{$SKIP_CODE|(?<!\\)(?<m>\*\*)(?<t>.*?)(?<!\\)\g{m}}{
             mark_color('bold', $+{m}) . md_color('bold', $+{t}) . mark_color('bold', $+{m})
         }gep;
-        s{$SKIP_CODE|(?<![\\w])(?<m>__)(?<t>.*?)(?<!\\)\g{m}(?!\w)}{
+        s{$SKIP_CODE|(?<![\\\w])(?<m>__)(?<t>.*?)(?<!\\)\g{m}(?!\w)}{
             mark_color('bold', $+{m}) . md_color('bold', $+{t}) . mark_color('bold', $+{m})
         }gep;
     }),
 
     italic => Step(italic => sub {
-        s{$SKIP_CODE|(?<![\\w])(?<m>_)(?<t>(?:(?!_).)+)(?<!\\)\g{m}(?!\w)}{
+        s{$SKIP_CODE|(?<![\\\w])(?<m>_)(?<t>(?:(?!_).)+)(?<!\\)\g{m}(?!\w)}{
             mark_color('italic', $+{m}) . md_color('italic', $+{t}) . mark_color('italic', $+{m})
         }gep;
         s{$SKIP_CODE|(?<![\\*])(?<m>\*)(?<t>(?:(?!\*).)+)(?<!\\)\g{m}(?!\*)}{

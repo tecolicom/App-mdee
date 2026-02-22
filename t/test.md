@@ -74,6 +74,8 @@ multi-line comment
 
 Escaped: \**not bold\** and \`not code\`
 
+Word boundaries: abc_def_ghi and foo__bar__baz and x___y___z.
+
 ## Table Example
 
 |Name|Description|Status|

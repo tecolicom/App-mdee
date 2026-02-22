@@ -708,8 +708,8 @@ containing comment-like text (e.g., `` `<!-->` ``).
 Emphasis patterns (bold and italic) do not span multiple lines.
 Multi-line emphasis text is not supported.
 
-Nested emphasis (e.g., `***bold italic***`,
-`**bold _italic_**`) is not supported.
+`***bold italic***` and `___bold italic___` are supported.
+Other nested forms (e.g., `**bold _italic_**`) are not.
 
 ## Links
 

@@ -674,6 +674,15 @@ my %colorize = (
         s/^([ ]{0,3}(?:[-*_][ ]*){3,})$/protect(md_color('horizontal_rule', $1))/mge;
     }),
 
+    bold_italic => Step(bold => sub {
+        s{$SKIP_CODE|(?<!\\)(?<m>\*\*\*)(?<t>.*?)(?<!\\)\g{m}}{
+            protect(mark_color('bold', $+{m}) . md_color('bold', md_color('italic', $+{t})) . mark_color('bold', $+{m}))
+        }gep;
+        s{$SKIP_CODE|(?<![\\w])(?<m>___)(?<t>.*?)(?<!\\)\g{m}(?!\w)}{
+            protect(mark_color('bold', $+{m}) . md_color('bold', md_color('italic', $+{t})) . mark_color('bold', $+{m}))
+        }gep;
+    }),
+
     bold => Step(bold => sub {
         s{$SKIP_CODE|(?<!\\)(?<m>\*\*)(?<t>.*?)(?<!\\)\g{m}}{
             mark_color('bold', $+{m}) . md_color('bold', $+{t}) . mark_color('bold', $+{m})
@@ -711,7 +720,7 @@ my %colorize = (
 my @protect_steps = qw(code_blocks comments image_links images links);
 
 # Inline steps controlled by heading_markup
-my @inline_steps  = qw(inline_code horizontal_rules bold italic strike);
+my @inline_steps  = qw(inline_code horizontal_rules bold_italic bold italic strike);
 
 # Always last
 my @final_steps   = qw(blockquotes);

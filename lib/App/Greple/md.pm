@@ -284,6 +284,12 @@ config parameters.
     link         I
     image        I
     image_link   I
+    link_mark    I
+
+C<link_mark> colors the brackets (C<[>, C<]>) around link and image
+text.  The C<!> prefix for images uses the C<image> or C<image_link>
+color.  Hide brackets with C<--cm 'link_mark=sub{""}'> (used by
+the C<nomark> theme).
 
 =head1 SEE ALSO
 
@@ -365,6 +371,7 @@ my %default_colors = (
     link            => 'I',
     image           => 'I',
     image_link      => 'I',
+    link_mark       => 'I',
     h1              => 'L25D/${base};E',
     h2              => 'L25D/${base}+y20;E',
     h3              => 'L25DN/${base}+y30',
@@ -621,20 +628,20 @@ my %colorize = (
         s{$SKIP_CODE|\[!\[(?<text>$LT)\]\((?<img>[^)\n]+)\)\]\(<?(?<url>[^>)\s\n]+)>?\)}{
             protect(
                 osc8($+{img}, md_color('image_link', "!"))
-                . osc8($+{url}, md_color('image_link', "[$+{text}]"))
+                . osc8($+{url}, md_color('link_mark', "[") . md_color('image_link', $+{text}) . md_color('link_mark', "]"))
             )
         }ge;
     }),
 
     images => Step(sub {
         s{$SKIP_CODE|!\[(?<text>$LT)\]\(<?(?<url>[^>)\s\n]+)>?\)}{
-            protect(osc8($+{url}, md_color('image', "![$+{text}]")))
+            protect(osc8($+{url}, md_color('image', "!") . md_color('link_mark', "[") . md_color('image', $+{text}) . md_color('link_mark', "]")))
         }ge;
     }),
 
     links => Step(sub {
         s{$SKIP_CODE|(?<![!\e])\[(?<text>$LT)\]\(<?(?<url>[^>)\s\n]+)>?\)}{
-            protect(osc8($+{url}, md_color('link', "[$+{text}]")))
+            protect(osc8($+{url}, md_color('link_mark', "[") . md_color('link', $+{text}) . md_color('link_mark', "]")))
         }ge;
     }),
 

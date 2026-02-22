@@ -271,6 +271,27 @@ bold text, etc.).
         # theme/hashed.sh — enable closing hashes on h3-h6
         md_config+=(hashed.h3=1 hashed.h4=1 hashed.h5=1 hashed.h6=1)
 
+        # theme/nomark.sh — hide emphasis markers and code backticks
+        pass_md+=(--cm 'emphasis_mark=+;sub{""}')
+        pass_md+=(--cm 'code_tick=+;sub{""}')
+
+    Built-in themes:
+
+    - `hashed` (default)
+
+        Append closing hashes to h3-h6 headers.
+
+    - `warm`
+
+        Change base color to Coral.
+
+    - `nomark`
+
+        Hide emphasis markers (`**`, `*`, `__`, `_`, `~~`) and
+        inline code backticks.  Content text keeps its formatting
+        (bold, italic, strikethrough, code) but the surrounding
+        markers are not displayed.
+
     Use `-d` to dump current theme values in sourceable format.
 
 - **-m** _MODE_, **--mode**=_MODE_

@@ -1255,6 +1255,9 @@ containing comment-like text (e.g., C<< `<!-->` >>).
 Emphasis patterns (bold and italic) do not span multiple lines.
 Multi-line emphasis text is not supported.
 
+Nested emphasis (e.g., C<***bold italic***>,
+C<< **bold _italic_** >>) is not supported.
+
 =head2 Links
 
 Link patterns do not span multiple lines.  The link text and URL must

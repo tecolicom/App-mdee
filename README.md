@@ -708,6 +708,9 @@ containing comment-like text (e.g., `` `<!-->` ``).
 Emphasis patterns (bold and italic) do not span multiple lines.
 Multi-line emphasis text is not supported.
 
+Nested emphasis (e.g., `***bold italic***`,
+`**bold _italic_**`) is not supported.
+
 ## Links
 
 Link patterns do not span multiple lines.  The link text and URL must

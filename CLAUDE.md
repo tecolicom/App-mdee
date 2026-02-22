@@ -811,6 +811,8 @@ Only HTML comments starting at the beginning of a line are highlighted. Inline c
 
 Emphasis patterns do not span multiple lines. Multi-line bold or italic text is not supported.
 
+Nested emphasis (e.g., `***bold italic***`, `**bold _italic_**`) is not supported. Each pattern matches independently, so nesting produces incorrect marker separation.
+
 ### Links
 
 Link patterns do not span multiple lines. The link text and URL must be on the same line.

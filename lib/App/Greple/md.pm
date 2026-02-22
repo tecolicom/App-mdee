@@ -239,10 +239,22 @@ Colors follow L<Term::ANSIColor::Concise> format.
 
 =head2 Inline Formatting
 
-    LABEL   LIGHT / DARK
-    bold    D
-    italic  I
-    strike  X
+    LABEL           LIGHT   DARK
+    bold            D
+    italic          I
+    strike          X
+    emphasis_mark   L18     L10
+    bold_mark       -       -
+    italic_mark     -       -
+    strike_mark     -       -
+
+Emphasis markers (C<**>, C<*>, C<__>, C<_>, C<~~>) are colored with
+C<emphasis_mark>, separately from the content text.  C<bold_mark>,
+C<italic_mark>, C<strike_mark> are undefined by default and fall back
+to C<emphasis_mark>.  Define them via C<--cm> to override per type:
+
+    greple -Mmd --cm emphasis_mark=R -- file.md    # all markers red
+    greple -Mmd --cm bold_mark=G -- file.md        # bold markers green
 
 =head2 Code
 
@@ -362,6 +374,7 @@ my %default_colors = (
     bold            => 'D',
     italic          => 'I',
     strike          => 'X',
+    emphasis_mark   => 'L18',
     blockquote      => '${base}D',
     horizontal_rule => 'L15',
 );
@@ -378,6 +391,7 @@ my %dark_overrides = (
     h4              => '${base}UD',
     h5              => '${base}U',
     h6              => '${base}',
+    emphasis_mark   => 'L10',
 );
 
 sub default_theme {
@@ -483,6 +497,14 @@ sub active {
 sub md_color {
     my($label, $text) = @_;
     $cm->color($label, $text);
+}
+
+sub mark_color {
+    my($type, $text) = @_;
+    my $label = "${type}_mark";
+    $label = 'emphasis_mark' unless exists $cm->{HASH}{$label}
+                                 && $cm->{HASH}{$label} ne '';
+    md_color($label, $text);
 }
 
 #
@@ -646,17 +668,27 @@ my %colorize = (
     }),
 
     bold => Step(bold => sub {
-        s{$SKIP_CODE|(?<!\\)\*\*.*?(?<!\\)\*\*}{md_color('bold', ${^MATCH})}gep;
-        s{$SKIP_CODE|(?<![\\w])__.*?(?<!\\)__(?!\w)}{md_color('bold', ${^MATCH})}gep;
+        s{$SKIP_CODE|(?<!\\)(?<m>\*\*)(?<t>.*?)(?<!\\)\g{m}}{
+            mark_color('bold', $+{m}) . md_color('bold', $+{t}) . mark_color('bold', $+{m})
+        }gep;
+        s{$SKIP_CODE|(?<![\\w])(?<m>__)(?<t>.*?)(?<!\\)\g{m}(?!\w)}{
+            mark_color('bold', $+{m}) . md_color('bold', $+{t}) . mark_color('bold', $+{m})
+        }gep;
     }),
 
     italic => Step(italic => sub {
-        s{$SKIP_CODE|(?<![\\w])_(?:(?!_).)+(?<!\\)_(?!\w)}{md_color('italic', ${^MATCH})}gep;
-        s{$SKIP_CODE|(?<![\\*])\*(?:(?!\*).)+(?<!\\)\*(?!\*)}{md_color('italic', ${^MATCH})}gep;
+        s{$SKIP_CODE|(?<![\\w])(?<m>_)(?<t>(?:(?!_).)+)(?<!\\)\g{m}(?!\w)}{
+            mark_color('italic', $+{m}) . md_color('italic', $+{t}) . mark_color('italic', $+{m})
+        }gep;
+        s{$SKIP_CODE|(?<![\\*])(?<m>\*)(?<t>(?:(?!\*).)+)(?<!\\)\g{m}(?!\*)}{
+            mark_color('italic', $+{m}) . md_color('italic', $+{t}) . mark_color('italic', $+{m})
+        }gep;
     }),
 
     strike => Step(strike => sub {
-        s{$SKIP_CODE|(?<!\\)~~.+?(?<!\\)~~}{md_color('strike', ${^MATCH})}gep;
+        s{$SKIP_CODE|(?<!\\)(?<m>~~)(?<t>.+?)(?<!\\)\g{m}}{
+            mark_color('strike', $+{m}) . md_color('strike', $+{t}) . mark_color('strike', $+{m})
+        }gep;
     }),
 
     blockquotes => Step(blockquote => sub {

@@ -419,9 +419,9 @@ for my $name (build_pipeline()) {
 }
 ```
 
-### Code Color Labels
+### Code & Emphasis Color Labels
 
-Code-related theme keys map directly to module labels:
+Code-related and emphasis-related theme keys map directly to module labels:
 
 | Theme Key | Module Label | Description |
 |-----------|-------------|-------------|
@@ -430,6 +430,11 @@ Code-related theme keys map directly to module labels:
 | `code_info` | `code_info` | Fenced code block info string |
 | `code_block` | `code_block` | Fenced code block body (with `;E`) |
 | `code_inline` | `code_inline` | Inline code body (without `;E`) |
+| `emphasis_mark` | `emphasis_mark` | Emphasis markers (`**`, `*`, `__`, `_`, `~~`) |
+
+`emphasis_mark` is the default color for all emphasis markers. Per-type overrides
+(`bold_mark`, `italic_mark`, `strike_mark`) can be defined via `--cm` and take
+priority when present. This follows the same pattern as `code_tick` / `code_inline`.
 
 ```bash
 # Light mode
@@ -438,6 +443,7 @@ Code-related theme keys map directly to module labels:
 [code_info]='${base_name}=y70'
 [code_block]='/L23;E'
 [code_inline]='L00/L23'
+[emphasis_mark]='L18'
 
 # Dark mode
 [code_mark]='L10'
@@ -445,6 +451,7 @@ Code-related theme keys map directly to module labels:
 [code_info]='L10'
 [code_block]='/L05;E'
 [code_inline]='L25/L05'
+[emphasis_mark]='L10'
 ```
 
 The `code_block` label includes `;E` (erase line) for full-width background on fenced code blocks. `code_tick` has background color matching `code_inline` for visual continuity, with dimmer foreground. `code_inline` has explicit foreground (`L00`/`L25`) to prevent heading foreground from bleeding through in cumulative coloring.
@@ -585,19 +592,35 @@ The md module's `active()` function checks show flags and skips regex substituti
 Bold and italic patterns follow [CommonMark emphasis rules](https://spec.commonmark.org/0.31.2/#emphasis-and-strong-emphasis). These are processed in the md module's `colorize()`, before headings. Each pattern uses `$SKIP_CODE` as first alternative to skip code spans:
 
 ```perl
-# Bold: ** and __  (color: D = bold weight only)
-s{$SKIP_CODE|(?<!\\)\*\*.*?(?<!\\)\*\*}{md_color('bold', ${^MATCH})}gep;
-s{$SKIP_CODE|(?<![\\w])__.*?(?<!\\)__(?!\w)}{md_color('bold', ${^MATCH})}gep;
+# Bold: ** and __  (markers colored separately via mark_color)
+s{$SKIP_CODE|(?<!\\)(?<m>\*\*)(?<t>.*?)(?<!\\)\g{m}}{
+    mark_color('bold', $+{m}) . md_color('bold', $+{t}) . mark_color('bold', $+{m})
+}gep;
+s{$SKIP_CODE|(?<![\\w])(?<m>__)(?<t>.*?)(?<!\\)\g{m}(?!\w)}{
+    mark_color('bold', $+{m}) . md_color('bold', $+{t}) . mark_color('bold', $+{m})
+}gep;
 
-# Italic: * and _  (color: I = italic only)
-s{$SKIP_CODE|(?<![\\w])_(?:(?!_).)+(?<!\\)_(?!\w)}{md_color('italic', ${^MATCH})}gep;
-s{$SKIP_CODE|(?<![\\*])\*(?:(?!\*).)+(?<!\\)\*(?!\*)}{md_color('italic', ${^MATCH})}gep;
+# Italic: * and _
+s{$SKIP_CODE|(?<![\\w])(?<m>_)(?<t>(?:(?!_).)+)(?<!\\)\g{m}(?!\w)}{
+    mark_color('italic', $+{m}) . md_color('italic', $+{t}) . mark_color('italic', $+{m})
+}gep;
+s{$SKIP_CODE|(?<![\\*])(?<m>\*)(?<t>(?:(?!\*).)+)(?<!\\)\g{m}(?!\*)}{
+    mark_color('italic', $+{m}) . md_color('italic', $+{t}) . mark_color('italic', $+{m})
+}gep;
 
-# Strikethrough  (color: X = strikethrough)
-s{$SKIP_CODE|(?<!\\)~~.+?(?<!\\)~~}{md_color('strike', ${^MATCH})}gep;
+# Strikethrough
+s{$SKIP_CODE|(?<!\\)(?<m>~~)(?<t>.+?)(?<!\\)\g{m}}{
+    mark_color('strike', $+{m}) . md_color('strike', $+{t}) . mark_color('strike', $+{m})
+}gep;
 ```
 
+`mark_color($type, $text)` checks if `${type}_mark` (e.g., `bold_mark`) exists
+in the colormap; if not, falls back to `emphasis_mark`. This allows per-type
+overrides via `--cm bold_mark=G` while defaulting to the shared `emphasis_mark`.
+
 Key rules:
+- Named captures `(?<m>...)` and `(?<t>...)` separate markers from content
+- `\g{m}` backreference ensures opening and closing markers match (prevents `**...__` mixing)
 - `$SKIP_CODE` as first alternative: code spans are matched and skipped via `(*SKIP)(*FAIL)`, preventing emphasis from matching inside code
 - `(?<!\\)`: Not preceded by backslash (escape handling)
 - `(?<![\\w])` / `(?!\w)`: Word boundaries for `_`/`__` (prevents `foo_bar_baz` matching)
@@ -605,7 +628,7 @@ Key rules:
 - `(?:(?!\*).)+`: Match any character except `*`, and `.` excludes newlines (single-line only)
 - `__` requires word boundaries (same as `_`)
 - `**` doesn't require word boundaries (can be used mid-word)
-- `/p` flag with `${^MATCH}`: safe alternative to `$&` for accessing matched text
+- `/p` flag with `${^MATCH}`: safe alternative to `$&` for accessing matched text (used by `$SKIP_CODE`)
 
 ### OSC 8 Hyperlinks
 

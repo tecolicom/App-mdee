@@ -389,7 +389,7 @@ Steps are organized into three groups:
 
 ```perl
 my @protect_steps = qw(code_blocks comments image_links images links);
-my @inline_steps  = qw(inline_code horizontal_rules bold italic strike);
+my @inline_steps  = qw(inline_code horizontal_rules bold_italic bold italic strike);
 my @final_steps   = qw(blockquotes);
 ```
 
@@ -596,12 +596,12 @@ Bold and italic patterns follow [CommonMark emphasis rules](https://spec.commonm
 s{$SKIP_CODE|(?<!\\)(?<m>\*\*)(?<t>.*?)(?<!\\)\g{m}}{
     mark_color('bold', $+{m}) . md_color('bold', $+{t}) . mark_color('bold', $+{m})
 }gep;
-s{$SKIP_CODE|(?<![\\w])(?<m>__)(?<t>.*?)(?<!\\)\g{m}(?!\w)}{
+s{$SKIP_CODE|(?<![\\\w])(?<m>__)(?<t>.*?)(?<!\\)\g{m}(?!\w)}{
     mark_color('bold', $+{m}) . md_color('bold', $+{t}) . mark_color('bold', $+{m})
 }gep;
 
 # Italic: * and _
-s{$SKIP_CODE|(?<![\\w])(?<m>_)(?<t>(?:(?!_).)+)(?<!\\)\g{m}(?!\w)}{
+s{$SKIP_CODE|(?<![\\\w])(?<m>_)(?<t>(?:(?!_).)+)(?<!\\)\g{m}(?!\w)}{
     mark_color('italic', $+{m}) . md_color('italic', $+{t}) . mark_color('italic', $+{m})
 }gep;
 s{$SKIP_CODE|(?<![\\*])(?<m>\*)(?<t>(?:(?!\*).)+)(?<!\\)\g{m}(?!\*)}{
@@ -623,7 +623,7 @@ Key rules:
 - `\g{m}` backreference ensures opening and closing markers match (prevents `**...__` mixing)
 - `$SKIP_CODE` as first alternative: code spans are matched and skipped via `(*SKIP)(*FAIL)`, preventing emphasis from matching inside code
 - `(?<!\\)`: Not preceded by backslash (escape handling)
-- `(?<![\\w])` / `(?!\w)`: Word boundaries for `_`/`__` (prevents `foo_bar_baz` matching)
+- `(?<![\\\w])` / `(?!\w)`: Word boundaries for `_`/`__`/`___` (prevents `foo_bar_baz` matching)
 - `(?<!\*)` / `(?!\*)`: Not adjacent to `*` (distinguishes `*italic*` from `**bold**`)
 - `(?:(?!\*).)+`: Match any character except `*`, and `.` excludes newlines (single-line only)
 - `__` requires word boundaries (same as `_`)

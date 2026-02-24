@@ -37,7 +37,7 @@ mdee - em·dee, Markdown Easy on the Eyes
 
 # VERSION
 
-Version 1.01
+Version 1.02
 
 # DESCRIPTION
 

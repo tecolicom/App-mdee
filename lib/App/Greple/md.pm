@@ -776,10 +776,31 @@ sub format_table {
 
     s{(^ {0,3}\|.+\|\n){3,}}{
         my $block = $&;
+        my @align = parse_separator(\$block);
         my $formatted = call_ansicolumn($block,
-            '-s', '|', '-o', $sep, '-t', '--cu=1');
+            '-s', '|', '-o', $sep, '-t', '--cu=1', @align);
         fix_separator($formatted, $sep);
     }mge;
+}
+
+sub parse_separator {
+    my $blockref = shift;
+    my $SEP = qr/^\h*\|(?:\h*:?-+:?\h*\|)+\h*$/m;
+    my ($sep_line) = $$blockref =~ /($SEP)/;  # capture full line
+    return unless defined $sep_line;
+    my @cells = split /\|/, $sep_line, -1;
+    shift @cells; pop @cells;
+    s/^\h+|\h+$//g for @cells;
+    my @right  = grep { $cells[$_-1] =~ /^-+:$/  } 1..@cells;
+    my @center = grep { $cells[$_-1] =~ /^:-+:$/ } 1..@cells;
+    # +1 offset: leading | creates empty column 1 in ansicolumn
+    @right  = map { $_ + 1 } @right;
+    @center = map { $_ + 1 } @center;
+    $$blockref =~ s{$SEP}{ ${^MATCH} =~ tr/:/-/r }mpe;
+    my @opts;
+    push @opts, '--table-right='  . join(',', @right)  if @right;
+    push @opts, '--table-center=' . join(',', @center) if @center;
+    @opts;
 }
 
 sub call_ansicolumn {

@@ -207,6 +207,8 @@ Use [tecolicom/tap](https://github.com/tecolicom/homebrew-tap):
 
     Enable or disable table formatting.  When enabled, Markdown tables
     are formatted using [ansicolumn(1)](https://metacpan.org/pod/App%3A%3Aansicolumn) for aligned column display.
+    Column alignment specified in the separator line (`:---` for left,
+    `:---:` for center, `---:` for right) is respected.
     Default is enabled.
 
 - **--\[no-\]nup**
@@ -637,9 +639,17 @@ Table formatting is handled within the [App::Greple::md](https://metacpan.org/po
 (after syntax highlighting, before output).  Markdown tables are
 detected by the pattern `^ {0,3}(\|.+\|\n){3,}` and formatted with
 aligned columns using [ansicolumn(1)](https://metacpan.org/pod/App%3A%3Aansicolumn) while
-preserving ANSI colors.  When `--rule` is enabled (default),
-ASCII pipe characters are replaced with Unicode box-drawing
-characters (`│`, `├`, `┤`, `┼`, `─`).
+preserving ANSI colors.
+
+Column alignment is parsed from the separator line: `:---` (left,
+default), `:---:` (center), `---:` (right).  The `parse_separator()`
+function extracts alignment markers and passes `--table-right` and
+`--table-center` options to [ansicolumn(1)](https://metacpan.org/pod/App%3A%3Aansicolumn) (requires
+version 1.53 or later).  Colons are stripped from the separator line
+before further processing.
+
+When `--rule` is enabled (default), ASCII pipe characters are replaced
+with Unicode box-drawing characters (`│`, `├`, `┤`, `┼`, `─`).
 
 ### Output Stage
 

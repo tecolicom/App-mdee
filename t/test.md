@@ -84,6 +84,13 @@ Word boundaries: abc_def_ghi and foo__bar__baz and x___y___z.
 |ansifold|ANSI-aware text folding|active|
 |ansicolumn|Column formatting with ANSI support|active|
 
+## Aligned Table
+
+| Left | Center | Right | Default |
+|:-----|:------:|------:|---------|
+| a    | b      | c     | d       |
+| long | x      | y     | z       |
+
 ## List Example
 
 - First item with `inline code`

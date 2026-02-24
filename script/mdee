@@ -680,6 +680,8 @@ The C<#.> and C<#)> forms are Pandoc's auto-numbered list syntax.
 
 Enable or disable table formatting.  When enabled, Markdown tables
 are formatted using L<ansicolumn(1)|App::ansicolumn> for aligned column display.
+Column alignment specified in the separator line (C<:---> for left,
+C<:---:> for center, C<---:> for right) is respected.
 Default is enabled.
 
 =item B<--[no-]nup>
@@ -1178,9 +1180,17 @@ Table formatting is handled within the L<App::Greple::md> module
 (after syntax highlighting, before output).  Markdown tables are
 detected by the pattern C<^ {0,3}(\|.+\|\n){3,}> and formatted with
 aligned columns using L<ansicolumn(1)|App::ansicolumn> while
-preserving ANSI colors.  When C<--rule> is enabled (default),
-ASCII pipe characters are replaced with Unicode box-drawing
-characters (C<│>, C<├>, C<┤>, C<┼>, C<─>).
+preserving ANSI colors.
+
+Column alignment is parsed from the separator line: C<:---> (left,
+default), C<:---:> (center), C<---:> (right).  The C<parse_separator()>
+function extracts alignment markers and passes C<--table-right> and
+C<--table-center> options to L<ansicolumn(1)|App::ansicolumn> (requires
+version 1.53 or later).  Colons are stripped from the separator line
+before further processing.
+
+When C<--rule> is enabled (default), ASCII pipe characters are replaced
+with Unicode box-drawing characters (C<│>, C<├>, C<┤>, C<┼>, C<─>).
 
 =head3 Output Stage
 

@@ -26,6 +26,8 @@ em·dee (mdee: Markdown, Easy on the Eyes) is a Markdown viewer command implemen
 - `t/00_compile.t` - Compile tests for both App::mdee and App::Greple::md
 - `t/01_mdee.t` - mdee command integration tests
 - `t/02_colorize.t` - md module colorize tests (uses t/runner)
+- `t/03_nofork.t` - nofork vs fork table formatting tests
+- `t/04_table_align.t` - Table alignment tests (parse_separator unit + integration)
 - `t/Util.pm` - Test helper for greple-based tests
 - `t/runner/` - Submodule (p5-script-runner) for finding greple path
 - `t/test.md` - Test Markdown file
@@ -528,13 +530,23 @@ Stage execution is controlled by config flags: `colorize` (default: 1), `table` 
 
 `format_table()` detects table blocks via `^ {0,3}\|.+\|\n){3,}` and processes each block:
 
-1. **Column alignment** — `call_ansicolumn()` invokes `App::ansicolumn::ansicolumn()` via `Command::Run` (same pattern as the tee module's `call()` function):
+1. **Alignment parsing** — `parse_separator()` analyzes the separator line (e.g., `|:---|:---:|---:|---|`):
+   - Finds separator line via `/^\h*\|(?:\h*:?-+:?\h*\|)+\h*$/m` (each cell requires at least one `-`)
+   - Splits cells with `split /\|/, $sep_line, -1` (the `-1` limit preserves trailing empty fields from the final `|`)
+   - Detects `:---:` (center) and `---:` (right) patterns; `:---` and `---` are left-aligned (default, no option needed)
+   - Adds `+1` offset to column numbers because the leading `|` creates an empty column 1 in ansicolumn's split
+   - Strips colons from separator line (`tr/:/-/`) so `fix_separator()` works unchanged
+   - Returns `--table-right=N[,N...]` and/or `--table-center=N[,N...]` options (requires App::ansicolumn >= 1.53)
+
+2. **Column alignment** — `call_ansicolumn()` invokes `App::ansicolumn::ansicolumn()` via `Command::Run` (same pattern as the tee module's `call()` function):
    - `-s '|'`: Input separator
    - `-o $sep`: Output separator (`│` when rule is enabled, `|` otherwise)
    - `-t`: Table mode (auto-determine column widths)
    - `--cu=1`: Column unit (minimum column width)
+   - `--table-right=N`: Right-align specified columns (from `parse_separator`)
+   - `--table-center=N`: Center-align specified columns (from `parse_separator`)
 
-2. **Separator fix** — `fix_separator()` converts separator lines to box-drawing characters:
+3. **Separator fix** — `fix_separator()` converts separator lines to box-drawing characters:
    - Rule mode: `tr[│ -][┼──]` converts middle part, wrapped with `├`/`┤`
    - Non-rule mode: `tr[ ][-]` replaces spaces with dashes, wrapped with `|`
 

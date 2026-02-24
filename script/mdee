@@ -1279,6 +1279,15 @@ text) are not processed.
 Reference-style links (C<[text][ref]> with C<[ref]: url> elsewhere)
 are not supported.
 
+=head2 Table Alignment
+
+Column alignment assumes that cell content in the source is not
+pre-padded.  If the source table is already formatted with aligned
+spacing (e.g., C<| c     |>), the embedded spaces become part of
+the cell content and alignment directives in the separator line
+will not produce the expected result.  This is by design: pre-formatted
+tables are assumed to be correctly aligned as-is.
+
 =head2 OSC 8 Hyperlinks
 
 Links are converted to OSC 8 terminal hyperlinks for clickable URLs:

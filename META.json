@@ -44,7 +44,7 @@
          "requires" : {
             "App::Greple" : "10.04",
             "App::Greple::tee" : "1.04",
-            "App::ansicolumn" : "1.55",
+            "App::ansicolumn" : "1.56",
             "App::ansiecho" : "0",
             "App::ansifold" : "1.35",
             "App::nup" : "0.9906",

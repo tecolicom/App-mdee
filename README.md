@@ -25,6 +25,7 @@ mdee - em·dee, Markdown Easy on the Eyes
      -m  --mode=#           light or dark (default: light)
      -B  --base-color=#     override base color of theme
                             (e.g., Ivory, #780043, (120,0,67))
+         --config=KEY=VALUE  override theme value (e.g., file='L25D/R;E')
     --cm --colormap=L=SPEC  override color for element (e.g., h1=RD)
     --hm --heading-markup=# enable markup in headings (all/bold/...)
          --show=#           set field visibility (e.g., italic=1)

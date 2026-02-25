@@ -206,14 +206,14 @@ mdee -f --fold file.md      # filter + fold override
 Style defaults are applied after option parsing using a sentinel value:
 
 ```bash
-[        style | s  :          # output style      ]=nup
-[       filter | f   !         # filter mode       ]=
-[        plain | p   !         # plain mode        ]=
-[         fold |               # line folding      ]=_
-[        table |               # table formatting  ]=_
-[         trim |               # trim table cell spaces]=1
-[          nup |               # use nup           ]=_
-[         rule |               # table rule lines  ]=_
+[        style | s  :       # output style      ]=nup
+[       filter | f   !      # filter mode       ]=
+[        plain | p   !      # plain mode        ]=
+[         fold |            # line folding      ]=_
+[        table |            # table formatting  ]=_
+[         trim |            # trim table cell spaces]=1
+[          nup |            # use nup           ]=_
+[         rule |            # table rule lines  ]=_
 ```
 
 - `fold`/`table`/`nup`/`rule` default to sentinel `_` (not user-set)

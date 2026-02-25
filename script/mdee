@@ -37,6 +37,7 @@ mdee - em·dee, Markdown Easy on the Eyes
      -m  --mode=#           light or dark (default: light)
      -B  --base-color=#     override base color of theme
                             (e.g., Ivory, #780043, (120,0,67))
+         --config=KEY=VALUE  override theme value (e.g., file='L25D/R;E')
     --cm --colormap=L=SPEC  override color for element (e.g., h1=RD)
     --hm --heading-markup=# enable markup in headings (all/bold/...)
          --show=#           set field visibility (e.g., italic=1)
@@ -156,6 +157,7 @@ declare -A OPTS=(
     [        theme | t  @          # color theme           ]=hashed
     [         mode | m  :          # light or dark         ]=
     [   base-color | B  :          # base color            ]=
+    [       config |    %!         # theme override        ]=
     [       adjust |    %          # color adjustment      ]=
     [ colormap|cm  |    :>pass_md  # color map             ]=
     [heading-markup|hm  :          # markup in headings    ]=
@@ -173,8 +175,8 @@ declare -A OPTS=(
 # Theme base colors
 ##############################################################################
 
-declare -A theme_light=([base]='<RoyalBlue>=y25')
-declare -A theme_dark=([base]='<RoyalBlue>=y80')
+declare -A theme_light=([base]='<RoyalBlue>=y25' [file]='L25D/${base};E' [file_format]='\n  %s\n\n')
+declare -A theme_dark=([base]='<RoyalBlue>=y80' [file]='L00D/${base};E' [file_format]='\n  %s\n\n')
 declare -a md_config=()
 declare -a show_fields=(
     bold strike italic code_inline
@@ -244,6 +246,13 @@ trace() {
 
 _theme_specified=
 theme() { _theme_specified=1; }
+
+config() {
+    local arg=$2
+    if [[ $arg == *=* ]]; then
+        config[${arg%%=*}]="${arg#*=}"
+    fi
+}
 
 show() {
     local arg=$2 key val
@@ -346,6 +355,21 @@ done < <(uniq_array "${theme[@]}")
 
 # Override base color if specified via --base-color or default[base_color]
 : ${base_color:=${default[base_color]:-}}
+if [[ $base_color ]]; then
+    if [[ $base_color =~ ^[A-Za-z][A-Za-z0-9_]*$ ]]; then
+        theme_light[base]="<${base_color}>${adjust[light]}"
+        theme_dark[base]="<${base_color}>${adjust[dark]}"
+    else
+        theme_light[base]="$base_color"
+        theme_dark[base]="$base_color"
+    fi
+fi
+
+# Apply --config overrides to both theme arrays
+for _key in "${!config[@]}"; do
+    theme_light[$_key]="${config[$_key]}"
+    theme_dark[$_key]="${config[$_key]}"
+done
 
 # Validate --show field names
 is_show_field() {
@@ -442,8 +466,14 @@ run_greple() {
         md_opts+=(--show "${name}=${show[$name]}")
     done
 
+    # File label color from theme (expand ${base} placeholder)
+    local -n _tr="theme_${mode}"
+    local _file_cm="${_tr[file]//'${base}'/${_tr[base]}}"
+
     invoke greple "${md_opts[@]}" "${pass_md[@]}" -- \
         --filter --filestyle=once --color=always \
+        --format "FILE=${_tr[file_format]}" --cm "FILE=${_file_cm}" \
+        --begin 'sub{STDOUT->printflush("\f") if state $once++}' \
         "$@"
 }
 

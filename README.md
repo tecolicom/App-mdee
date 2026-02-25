@@ -789,7 +789,30 @@ does not override them.
 
 # SEE ALSO
 
-[nup(1)](https://metacpan.org/pod/App%3A%3Anup), [greple(1)](https://metacpan.org/pod/App%3A%3AGreple), [ansifold(1)](https://metacpan.org/pod/App%3A%3Aansifold), [ansicolumn(1)](https://metacpan.org/pod/App%3A%3Aansicolumn)
+- [App::Greple::md](https://metacpan.org/pod/App%3A%3AGreple%3A%3Amd)
+
+    Greple module for Markdown syntax highlighting, table formatting,
+    and text folding.  Bundled with this distribution.
+
+- [greple](https://metacpan.org/pod/greple)
+
+    General-purpose extensible grep tool used for pattern matching.
+
+- [nup](https://metacpan.org/pod/nup)
+
+    Multi-column paged output formatter.
+
+- [ansifold](https://metacpan.org/dist/App-ansifold/view/script/ansifold)
+
+    ANSI-aware text folding for line wrapping.
+
+- [ansicolumn](https://metacpan.org/pod/ansicolumn)
+
+    ANSI-aware column formatting for table alignment.
+
+- [https://github.com/tecolicom/App-mdee](https://github.com/tecolicom/App-mdee)
+
+    Repository and bug tracker.
 
 # AUTHOR
 

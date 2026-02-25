@@ -365,10 +365,11 @@ if [[ $base_color ]]; then
     fi
 fi
 
-# Apply --config overrides to both theme arrays
+# Apply --config overrides to both theme arrays and md module
 for _key in "${!config[@]}"; do
     theme_light[$_key]="${config[$_key]}"
     theme_dark[$_key]="${config[$_key]}"
+    pass_md+=(--cm "${_key}=${config[$_key]}")
 done
 
 # Validate --show field names
@@ -893,15 +894,23 @@ with full color specifications (X11 names, RGB hex, or RGB decimal).
 
 =item B<--config>=I<KEY>=I<VALUE>
 
-Override a theme value from the command line.  The value is applied to
-both light and dark theme arrays.  The C<${base}> placeholder can be
-used and will be expanded at runtime.
+Override theme values and color labels from the command line.
+This is a unified interface for both bash-side theme keys and
+md module color labels.  Values are applied to both light and
+dark themes.
 
-    mdee --config 'file=L25D/R;E' *.md         # red file label
-    mdee --config 'file=${base}D' *.md         # base color bold
-    mdee --config 'file_format=%s:' *.md       # simple format
+For md module labels (C<h1>, C<bold>, C<italic>, etc.), this is
+equivalent to C<--cm>.  For bash-side theme keys (C<file>,
+C<file_format>), this is the only command-line method.
+The C<${base}> placeholder can be used and will be expanded at
+runtime.
 
-Available theme keys:
+    mdee --config h1=RD *.md                    # red h1
+    mdee --config bold=GD --config italic=YI    # green bold, yellow italic
+    mdee --config 'file=L25D/R;E' *.md          # red file label
+    mdee --config 'file_format=%s:' *.md        # simple format
+
+Bash-side theme keys:
 
 =over 4
 

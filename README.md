@@ -373,15 +373,23 @@ bold text, etc.).
 
 - **--config**=_KEY_=_VALUE_
 
-    Override a theme value from the command line.  The value is applied to
-    both light and dark theme arrays.  The `${base}` placeholder can be
-    used and will be expanded at runtime.
+    Override theme values and color labels from the command line.
+    This is a unified interface for both bash-side theme keys and
+    md module color labels.  Values are applied to both light and
+    dark themes.
 
-        mdee --config 'file=L25D/R;E' *.md         # red file label
-        mdee --config 'file=${base}D' *.md         # base color bold
-        mdee --config 'file_format=%s:' *.md       # simple format
+    For md module labels (`h1`, `bold`, `italic`, etc.), this is
+    equivalent to `--cm`.  For bash-side theme keys (`file`,
+    `file_format`), this is the only command-line method.
+    The `${base}` placeholder can be used and will be expanded at
+    runtime.
 
-    Available theme keys:
+        mdee --config h1=RD *.md                    # red h1
+        mdee --config bold=GD --config italic=YI    # green bold, yellow italic
+        mdee --config 'file=L25D/R;E' *.md          # red file label
+        mdee --config 'file_format=%s:' *.md        # simple format
+
+    Bash-side theme keys:
 
     - `file` - Color spec for file label (default: `L25D/${base};E` for light, `L00D/${base};E` for dark)
     - `file_format` - Format string for file label passed to greple's `--format FILE=` (default: `\n  %s\n\n`)

@@ -783,8 +783,8 @@ Theme files are searched in the following order:
 
 =back
 
-Theme files are Bash scripts that can modify C<theme_light[base]>,
-C<theme_dark[base]>, and/or C<md_config[]>:
+Theme files are Bash scripts that can modify C<theme_light[]>,
+C<theme_dark[]>, C<md_config[]>, and/or C<pass_md[]>:
 
     # theme/warm.sh — change base color
     theme_light[base]='<Coral>=y25'
@@ -817,6 +817,12 @@ inline code backticks, and link brackets (C<[>, C<]>).
 Content text keeps its formatting (bold, italic,
 strikethrough, code, clickable links) but the surrounding
 markers are not displayed.
+
+=item C<fatchap>
+
+Add decorative border lines (C<#>) above and below h1 headings,
+using C<=+> to append a text transformation while preserving the
+original heading color.
 
 =back
 
@@ -884,6 +890,26 @@ C<--adjust> option:
 B<Note>: Basic ANSI color codes (C<R>, C<G>, C<B>, etc.) cannot be used
 because heading variations require luminance adjustment, which only works
 with full color specifications (X11 names, RGB hex, or RGB decimal).
+
+=item B<--config>=I<KEY>=I<VALUE>
+
+Override a theme value from the command line.  The value is applied to
+both light and dark theme arrays.  The C<${base}> placeholder can be
+used and will be expanded at runtime.
+
+    mdee --config 'file=L25D/R;E' *.md         # red file label
+    mdee --config 'file=${base}D' *.md         # base color bold
+    mdee --config 'file_format=%s:' *.md       # simple format
+
+Available theme keys:
+
+=over 4
+
+=item C<file> - Color spec for file label (default: C<L25D/${base};E> for light, C<L00D/${base};E> for dark)
+
+=item C<file_format> - Format string for file label passed to greple's C<--format FILE=> (default: C<\n  %s\n\n>)
+
+=back
 
 =back
 

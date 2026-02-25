@@ -272,8 +272,8 @@ bold text, etc.).
     - 1. User theme directory: `${XDG_CONFIG_HOME:-~/.config}/mdee/theme/NAME.sh`
     - 2. Share theme directory: installed with the distribution under `auto/share/dist/App-mdee/theme/`
 
-    Theme files are Bash scripts that can modify `theme_light[base]`,
-    `theme_dark[base]`, and/or `md_config[]`:
+    Theme files are Bash scripts that can modify `theme_light[]`,
+    `theme_dark[]`, `md_config[]`, and/or `pass_md[]`:
 
         # theme/warm.sh — change base color
         theme_light[base]='<Coral>=y25'
@@ -304,6 +304,12 @@ bold text, etc.).
         Content text keeps its formatting (bold, italic,
         strikethrough, code, clickable links) but the surrounding
         markers are not displayed.
+
+    - `fatchap`
+
+        Add decorative border lines (`#`) above and below h1 headings,
+        using `=+` to append a text transformation while preserving the
+        original heading color.
 
     Use `-d` to dump current theme values in sourceable format.
 
@@ -364,6 +370,21 @@ bold text, etc.).
     **Note**: Basic ANSI color codes (`R`, `G`, `B`, etc.) cannot be used
     because heading variations require luminance adjustment, which only works
     with full color specifications (X11 names, RGB hex, or RGB decimal).
+
+- **--config**=_KEY_=_VALUE_
+
+    Override a theme value from the command line.  The value is applied to
+    both light and dark theme arrays.  The `${base}` placeholder can be
+    used and will be expanded at runtime.
+
+        mdee --config 'file=L25D/R;E' *.md         # red file label
+        mdee --config 'file=${base}D' *.md         # base color bold
+        mdee --config 'file_format=%s:' *.md       # simple format
+
+    Available theme keys:
+
+    - `file` - Color spec for file label (default: `L25D/${base};E` for light, `L00D/${base};E` for dark)
+    - `file_format` - Format string for file label passed to greple's `--format FILE=` (default: `\n  %s\n\n`)
 
 ## Highlight Options
 

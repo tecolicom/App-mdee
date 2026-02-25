@@ -134,8 +134,13 @@ END
 
 declare -a pass_nup=(--document --no-filename)
 declare -a pass_md=()
+declare -a _config=()
 declare -A show=()
 declare -A default=()
+
+# Declared here because %! auto-assigns broken values to this hash;
+# the callback below populates _config[] instead, and this hash is ignored.
+declare -A config=()
 
 declare -A adjust=([light]='=y25' [dark]='=y80')
 declare -A OPTS=(
@@ -247,12 +252,7 @@ trace() {
 _theme_specified=
 theme() { _theme_specified=1; }
 
-config() {
-    local arg=$2
-    if [[ $arg == *=* ]]; then
-        config[${arg%%=*}]="${arg#*=}"
-    fi
-}
+config() { _config+=("$2"); }
 
 show() {
     local arg=$2 key val
@@ -365,11 +365,20 @@ if [[ $base_color ]]; then
     fi
 fi
 
-# Apply --config overrides to both theme arrays and md module
-for _key in "${!config[@]}"; do
-    theme_light[$_key]="${config[$_key]}"
-    theme_dark[$_key]="${config[$_key]}"
-    pass_md+=(--cm "${_key}=${config[$_key]}")
+# Apply --config overrides
+# - Dotted keys (hashed.h3) → md_config (module config parameters)
+# - Existing theme keys (file, file_format) → theme arrays only
+# - Other keys (h1, bold) → md module via --cm
+for _entry in "${_config[@]}"; do
+    _key=${_entry%%=*} _val=${_entry#*=}
+    if [[ $_key == *.* ]]; then
+        md_config+=("$_entry")
+    elif [[ -v theme_light[$_key] ]]; then
+        theme_light[$_key]="$_val"
+        theme_dark[$_key]="$_val"
+    else
+        pass_md+=(--cm "$_entry")
+    fi
 done
 
 # Validate --show field names

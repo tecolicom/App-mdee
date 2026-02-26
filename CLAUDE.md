@@ -153,6 +153,28 @@ The `--base-color` option default is empty (no override). Base color is determin
 2. `default[base_color]` in config.sh
 3. Theme's `[base]` key (e.g., `<RoyalBlue>=y25` for light)
 
+### The `--config` Option
+
+The `--config` option sets config parameters via `Getopt::EX::Config`. It uses `%!` (hash with callback) to preserve spaces in values, accumulating entries in `_config[]`.
+
+Routing logic:
+- Keys existing in `theme_light` (`base`, `file`, `file_format`) → consumed by bash, applied to both theme arrays
+- Everything else → appended to `md_config[]`, forwarded to md module as config params
+
+```bash
+for _entry in "${_config[@]}"; do
+    _key=${_entry%%=*} _val=${_entry#*=}
+    if [[ -v theme_light[$_key] ]]; then
+        theme_light[$_key]="$_val"
+        theme_dark[$_key]="$_val"
+    else
+        md_config+=("$_entry")
+    fi
+done
+```
+
+Color labels (h1, bold, etc.) go to md_config and are handled by the md module's `Getopt::EX::Config` (pre-declared with `undef` default). Priority: default colors → config params → `--cm`.
+
 ## Implementation Notes
 
 ### Pipeline Architecture
@@ -312,7 +334,7 @@ run_greple() {
 }
 ```
 
-- `-Mmd::config(...)`: Module config parameters (mode, base_color, foldlist, foldwidth, table, table_trim, rule, heading_markup, hashed.*)
+- `-Mmd::config(...)`: Module config parameters (mode, base_color, foldlist, foldwidth, table, table_trim, rule, heading_markup, hashed.*, color labels)
 - `--show LABEL=VALUE`: Field visibility control
 - `pass_md[]`: Passthrough options for md module (e.g., `--colormap` via `:>pass_md`)
 - Options before `--` are module-specific; after `--` are greple options
@@ -624,6 +646,7 @@ Config parameters from mdee:
 - `table=1`: Enable table formatting (default enabled in md module)
 - `table_trim=1`: Enable cell whitespace trimming (default enabled in md module)
 - `rule=1`: Enable box-drawing characters (default enabled in md module)
+- Color labels (e.g., `h1=RD`): Override default colors (pre-declared in `Config->new()` with `undef`, applied in `setup_colors()` before `${base}` expansion)
 
 ### Field Visibility with --show Option
 

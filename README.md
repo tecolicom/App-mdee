@@ -35,6 +35,7 @@ mdee - em·dee, Markdown Easy on the Eyes
      -P  --page=#           page height in lines
      -S  --pane-width=#     pane width (default: 85)
     --bs --border-style=#   border style
+         --[no-]page-number page number on border (default: on)
          --[no-]pager[=#]   pager command
 
 # VERSION
@@ -511,6 +512,11 @@ bold text, etc.).
 - **--bs**=_STYLE_, **--border-style**=_STYLE_
 
     Set the border style.
+
+- **--**\[**no-**\]**page-number**
+
+    Show page number on the bottom border of each column.  Enabled by
+    default.  Use `--no-page-number` to disable.
 
 ## Pager Options
 

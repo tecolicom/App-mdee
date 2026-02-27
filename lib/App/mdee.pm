@@ -4,7 +4,7 @@ package App::mdee;
 # POD documentation is appended from script/mdee at release time.
 # See minil.toml for details.
 
-our $VERSION = "1.04";
+our $VERSION = "1.05";
 
 1;
 =encoding utf-8
@@ -45,11 +45,12 @@ mdee - em·dee, Markdown Easy on the Eyes
      -P  --page=#           page height in lines
      -S  --pane-width=#     pane width (default: 85)
     --bs --border-style=#   border style
+         --[no-]page-number page number on border (default: on)
          --[no-]pager[=#]   pager command
 
 =head1 VERSION
 
-Version 1.04
+Version 1.05
 
 =cut
 =head1 DESCRIPTION
@@ -574,6 +575,11 @@ width.
 =item B<--bs>=I<STYLE>, B<--border-style>=I<STYLE>
 
 Set the border style.
+
+=item B<-->[B<no->]B<page-number>
+
+Show page number on the bottom border of each column.  Enabled by
+default.  Use C<--no-page-number> to disable.
 
 =back
 

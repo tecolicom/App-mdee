@@ -40,7 +40,7 @@ mdee - em·dee, Markdown Easy on the Eyes
 
 # VERSION
 
-Version 1.04
+Version 1.05
 
 # DESCRIPTION
 

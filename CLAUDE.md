@@ -142,7 +142,7 @@ The `--base-color` option default is empty (no override). Base color is determin
 The `--config` option sets config parameters via `Getopt::EX::Config`. It uses `%!` (hash with callback) to preserve spaces in values, accumulating entries in `_config[]`.
 
 Routing logic:
-- Keys existing in `theme_light` (`base`, `file`, `file_format`) → consumed by bash, applied to both theme arrays
+- Keys existing in `theme_light` (`base`, `FILE`, `FILE_FORMAT`) → consumed by bash, applied to both theme arrays
 - Everything else → appended to `md_config[]`, forwarded to md module as config params
 
 ```bash

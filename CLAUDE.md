@@ -36,6 +36,8 @@ em·dee (mdee: Markdown, Easy on the Eyes) is a Markdown viewer command implemen
 
 ## Development
 
+`./script/mdee` automatically adds `../lib` to `PERL5LIB` when `../lib/App/Greple` exists, so the local `lib/App/Greple/md.pm` is used during development without needing `cpanm .`.
+
 ### Testing Colors
 
 ```bash
@@ -158,6 +160,8 @@ done
 ```
 
 Color labels (h1, bold, etc.) go to md_config and are handled by the md module's `Getopt::EX::Config` (pre-declared with `undef` default). Priority: default colors → config params → `--cm`.
+
+Note: `--cm` is passed to the md module (before `--` in greple invocation), so it only works for md module labels (lowercase: `h1`, `bold`, etc.). Theme keys `FILE`/`FILE_FORMAT` are passed to greple's own `--cm` (after `--`), so they can only be set via `--config`, not `--cm`.
 
 ## Implementation Notes
 
@@ -455,7 +459,7 @@ s{(^ {0,3}\|.+\|\n){3,}}{
 ```perl
 sub parse_separator {
     my $blockref = shift;
-    my $SEP = qr/^\h*\|(?:\h*:?-+:?\h*\|)+\h*$/m;
+    my $SEP = qr/^\h*+\|(\h*+:?+-++:?+\h*+\|)++\h*+$/mn;
     my ($sep_line) = $$blockref =~ /($SEP)/;
     return ([], []) unless defined $sep_line;
     my @cells = split /\|/, $sep_line, -1;
@@ -463,16 +467,17 @@ sub parse_separator {
     s/^\h+|\h+$//g for @cells;
     my @right  = grep { $cells[$_-1] =~ /^-+:$/  } 1..@cells;
     my @center = grep { $cells[$_-1] =~ /^:-+:$/ } 1..@cells;
-    $$blockref =~ s{$SEP}{ ${^MATCH} =~ tr/:/-/r }mpe;
+    # Minimize dashes so separator width doesn't inflate column widths
+    $$blockref =~ s{$SEP}{ ${^MATCH} =~ s/:?-+:?/-/gr }mpe;
     (\@right, \@center);
 }
 ```
 
-   - Finds separator line via `$SEP` pattern (each cell requires at least one `-`)
+   - Finds separator line via `$SEP` pattern (each cell requires at least one `-`); all quantifiers are possessive, `/n` for non-capturing `()`
    - Splits cells with `split /\|/, $sep_line, -1` (the `-1` limit preserves trailing empty fields from the final `|`)
    - Detects `:---:` (center) and `---:` (right) patterns; `:---` and `---` are left-aligned (default, no option needed)
    - Returns raw 1-based column numbers as `(\@right, \@center)` — caller applies offset and builds option strings
-   - Strips colons from separator line (`tr/:/-/`) so `fix_separator()` works unchanged
+   - Minimizes dashes and strips colons (`s/:?-+:?/-/gr`) to prevent separator width from inflating column widths
    - Requires App::ansicolumn >= 1.55 (for `--table-right`, `--table-center`, `--table-remove`, `--item-format`, `--padding`)
 
 2. **Column alignment** — `call_ansicolumn()` invokes `App::ansicolumn::ansicolumn()` via `Command::Run` (same pattern as the tee module's `call()` function):

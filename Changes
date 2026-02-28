@@ -2,6 +2,12 @@ Revision history for Perl extension App-mdee
 
 {{$NEXT}}
 
+1.06 2026-02-28T03:37:45Z
+
+    - Rename theme keys file/file_format to FILE/FILE_FORMAT
+    - Fix table separator dashes inflating column widths
+    - Add development lib path setup for ./script/mdee
+
 1.0501 2026-02-27T14:54:43Z
 
     - Require App::nup 0.9907 for --page-number support

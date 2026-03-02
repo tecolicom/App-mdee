@@ -492,7 +492,7 @@ run_greple() {
 }
 
 run_nup()    { invoke nup "${pass_nup[@]}"; }
-run_column() { invoke nup "${pass_nup[@]}" --no-pager --fold --pane=1 - --pages; }
+run_column() { invoke nup "${pass_nup[@]}" --no-pager --no-paginate --pane=1 - --pages; }
 run_pager()  { invoke ${PAGER:-less}; }
 
 # Set defaults for less environment

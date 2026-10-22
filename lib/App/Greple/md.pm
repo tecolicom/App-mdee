@@ -890,7 +890,7 @@ option default \
 
 define {CODE_BLOCK}  ^ {0,3}(?<bt>`{3,}+|~{3,}+)(.*)\n((?s:.*?))^ {0,3}(\g{bt})
 define {COMMENT}     ^<!--(?![->])(?s:.+?)-->
-define {TABLE}       ^ {0,3}([│|├].+[│|┤]\n){3,}
+define {TABLE}       ^(?:[\x{2502}|\x{251C}\x{2500}\h-][^\n]*[\x{2502}|\x{253C}][^\n]*\n){3,}
 define {LIST_ITEM}   ^\h*(?:[*-]|(?:\d+|#)[.)])\h+.*\n
 define {DEFINITION}  (?:\A|\G\n|\n\n).+\n\n?(:\h+.*\n)
 

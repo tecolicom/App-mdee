@@ -36,4 +36,12 @@ my $notrim = run("'-Mmd::config(colorize=0,table=1,rule=1,table_trim=0,table_cel
 ok(!(grep { /^\S*$V[^$V]*$V(.*?)$V/ && ansi_width($1) > 12 } table_lines($notrim)),
    'non-trim mode shifts the cell list');
 
+# ansifold must not re-fold formatted table rows (TABLE exclude pattern)
+my $folded = run("'-Mmd::config(colorize=0,table=1,rule=1,foldlist=1,foldwidth=40,table_width=200)' $md")->stdout;
+my @f = map { $strip->($_) } split /\n/, $folded;
+my ($start) = grep { $f[$_] =~ /key.*description/ } 0..$#f;
+my ($end)   = grep { $f[$_] =~ /^\s*k2\s/ } 0..$#f;
+is($end - $start, 5, 'table rows are not re-folded by ansifold (header, rule, 4 rows)');
+ok(!(grep { !/[\x{2502}\x{253C}]/ } @f[$start..$end]), 'every table line keeps its rule character');
+
 done_testing;

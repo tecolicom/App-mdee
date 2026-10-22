@@ -44,4 +44,10 @@ my ($end)   = grep { $f[$_] =~ /^\s*k2\s/ } 0..$#f;
 is($end - $start, 5, 'table rows are not re-folded by ansifold (header, rule, 4 rows)');
 ok(!(grep { !/[\x{2502}\x{253C}]/ } @f[$start..$end]), 'every table line keeps its rule character');
 
+# list items containing | must still be folded (not mistaken for a table)
+my @list = grep { /grep foo|wc -l|cat a/ } @f;
+ok(@list == 3, 'fixture has three pipe-containing list items');
+my ($l1) = grep { $f[$_] =~ /grep foo/ } 0..$#f;
+like($f[$l1 + 1], qr/^\h+\S/, 'pipe-containing list items are folded by ansifold');
+
 done_testing;

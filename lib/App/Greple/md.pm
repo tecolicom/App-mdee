@@ -203,6 +203,11 @@ Available parameters:
     foldlist        text folding (default: 0)
     foldwidth       fold width in columns (default: 80)
     table           table formatting (default: 1)
+    table_trim      trim cell whitespace (default: 1)
+    table_width     table width in columns; cells of over-wide
+                    columns are wrapped (default: 0 = off)
+    table_cell      per-column widths passed to ansicolumn --cell,
+                    colon separated (e.g. 0:10:<20)
     rule            box-drawing characters (default: 1)
     osc8            OSC 8 hyperlinks (default: 1)
     heading_markup  inline markup in headings (default: 0)
@@ -355,6 +360,8 @@ my $config = Getopt::EX::Config->new(
     foldwidth  => 80,  # fold width
     table      => 1,   # table formatting
     table_trim => 1,   # trim cell content whitespace
+    table_width => 0,  # table width; wrap over-wide cells (0 = off)
+    table_cell => '',  # per-column widths for ansicolumn --cell (colon separated)
     rule       => 1,   # box-drawing characters for tables
     nofork     => 1,   # use nofork+raw for code ref calls
     heading_markup => 0,  # inline formatting in headings
@@ -438,7 +445,8 @@ sub finalize {
     my($mod, $argv) = @_;
     $config->deal_with($argv,
                        "mode|m=s", "base_color|B=s",
-                       "colorize!", "nofork!", "foldlist!", "foldwidth=i", "table!", "table_trim!", "rule!",
+                       "colorize!", "nofork!", "foldlist!", "foldwidth=i", "table!", "table_trim!",
+                       "table_width=i", "table_cell=s", "rule!",
                        "heading_markup|hm:s", "tick_open=s", "tick_close=s",
                        "hashed=s%",
                        "colormap|cm=s" => \@opt_cm,
@@ -806,7 +814,19 @@ sub format_table {
             @$right  ? ('--table-right='  . join(',', @$right))  : (),
             @$center ? ('--table-center=' . join(',', @$center)) : (),
         );
-        my $formatted = call_ansicolumn($block, @sep_opt, '-o', $sep, '-t', '--cu=1', @align);
+        # Fit table into table_width and/or per-column widths (table_cell).
+        # table_cell entries are colon separated because comma separates
+        # config parameters; non-trim mode has a phantom first column.
+        my @fit;
+        if ($config->{table_width} > 0) {
+            push @fit, '-w', $config->{table_width};
+        }
+        if ((my $cell = $config->{table_cell}) ne '') {
+            $cell =~ tr/:/,/;
+            $cell = "0,$cell" unless $config->{table_trim};
+            push @fit, '--cell', $cell;
+        }
+        my $formatted = call_ansicolumn($block, @sep_opt, '-o', $sep, '-t', '--cu=1', @align, @fit);
         fix_separator($formatted, $sep);
     }mge;
 }

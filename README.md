@@ -222,6 +222,16 @@ Use [tecolicom/tap](https://github.com/tecolicom/homebrew-tap):
     `:---:` for center, `---:` for right) is respected.
     Default is enabled.
 
+    When folding is enabled, a table wider than `--width` is fit into
+    that width: columns that fit keep their width, and the cells of
+    over-wide columns are wrapped.  A table that already fits is not
+    changed.  Use `--config table_width=0` to disable wrapping, or
+    `--config table_width=N` to use a different width.  Per-column
+    widths can be given with `--config table_cell=SPEC`, where SPEC
+    is a colon-separated list passed to ansicolumn's `--cell` option
+    (for example `0:10` fixes the second column at 10 columns, and
+    `'<30'` caps every column at 30).
+
 - **--\[no-\]trim**
 
     Trim whitespace from table cell content before formatting.
@@ -257,7 +267,7 @@ Use [tecolicom/tap](https://github.com/tecolicom/homebrew-tap):
     Set the fold width for text wrapping.  Default is calculated from
     `--pane-width` minus 5 (margin for borders and padding), which
     gives 80 when pane-width is 85.  Only effective when `--fold` is
-    enabled.
+    enabled.  The same width is used to fit tables (see `--table`).
 
 ## Theme Options
 
@@ -416,7 +426,8 @@ bold text, etc.).
     All other keys are passed to the md module as config parameters.
     See ["Highlight Options"](#highlight-options) for the list of available color labels.
     The md module also accepts operational parameters such as
-    `table_trim`, `rule`, `osc8`, `tick_open`, `tick_close`, etc.
+    `table_trim`, `table_width`, `table_cell`, `rule`, `osc8`,
+    `tick_open`, `tick_close`, etc.
 
 ## Highlight Options
 

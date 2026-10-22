@@ -4,6 +4,8 @@ use utf8;
 
 use Test::More;
 use File::Spec;
+use Encode qw(decode_utf8);
+use Text::ANSI::Fold::Util qw(ansi_width);
 
 # Skip tests on platforms without bash or with old bash
 BEGIN {
@@ -443,6 +445,21 @@ subtest 'share theme warm' => sub {
     my $out = `$mdee -d --dryrun --mode=light --theme=warm $test_md 2>&1`;
     is($?, 0, 'warm theme loads successfully');
     like($out, qr/Coral/, 'warm theme uses Coral base color');
+};
+
+subtest 'table wrap' => sub {
+    my $md = File::Spec->rel2abs('t/table_wrap.md');
+    my $strip = sub { local $_ = shift; s/\e\[[0-9;]*[mK]//g; s/\e\]8;;[^\e]*\e\\//g; $_ };
+    my $tlines = sub { grep { /[\x{2502}\x{253C}]/ } map { $strip->($_) } split /\n/, decode_utf8(shift) };
+    my @t = $tlines->(scalar `$mdee -s cat -w 40 $md`);
+    ok(@t > 6, 'wide table is wrapped');
+    ok(!(grep { ansi_width($_) > 40 } @t), 'table fits in --width');
+    my @off = $tlines->(scalar `$mdee -s cat -w 40 --config table_width=0 $md`);
+    ok((grep { ansi_width($_) > 40 } @off), '--config table_width=0 disables wrapping');
+    my $cell = `$mdee -s cat -w 40 --config table_cell=0:10 $md`;
+    isnt($cell, scalar `$mdee -s cat -w 40 $md`, '--config table_cell changes the layout');
+    my $dry = `$mdee -ddn -s cat -w 40 $md 2>&1`;
+    like($dry, qr/table_width=40/, 'table_width is passed to the md module');
 };
 
 done_testing;

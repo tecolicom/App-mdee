@@ -405,7 +405,7 @@ Text folding is handled within the `App::Greple::md` module using `-Mtee` to pip
 - When `foldlist=1` in config, `finalize()` adds `--fold-by $foldwidth` to the module's default option
 - mdee passes `foldlist=1,foldwidth=$width` in config when fold is enabled
 - The `--fold-by` option in `__DATA__` uses `-Mtee "&ansifold"` with `--exclude` patterns for code blocks, HTML comments, and tables
-- The `{TABLE}` exclude pattern matches *formatted* table output (three or more consecutive lines that start with a border/rule character, a dash, or whitespace and contain a column separator), so it works in trim and non-trim, rule and non-rule modes, including wrapped continuation lines. Non-ASCII characters in `__DATA__` patterns must be written as `\x{2502}`-style escapes: the pattern text is not decoded, so literal box-drawing characters never match decoded input
+- The `{TABLE}` exclude pattern matches *formatted* table output (three or more consecutive lines that start with a border/rule character, a dash, or whitespace and contain a column separator, and the block must include a separator row such as `───┼───`, so that list items containing `|` are not mistaken for a table), so it works in trim and non-trim, rule and non-rule modes, including wrapped continuation lines. Non-ASCII characters in `__DATA__` patterns must be written as `\x{2502}`-style escapes: the pattern text is not decoded, so literal box-drawing characters never match decoded input
 
 #### Definition List Pattern
 

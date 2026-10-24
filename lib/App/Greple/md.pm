@@ -208,6 +208,8 @@ Available parameters:
                     columns are wrapped (default: 0 = off)
     table_cell      per-column widths passed to ansicolumn --cell,
                     colon separated (e.g. 0:10:<20)
+    table_wrap_mark string put at the start of continuation lines
+                    of wrapped cells (default: › U+203A; empty = none)
     rule            box-drawing characters (default: 1)
     osc8            OSC 8 hyperlinks (default: 1)
     heading_markup  inline markup in headings (default: 0)
@@ -362,6 +364,7 @@ my $config = Getopt::EX::Config->new(
     table_trim => 1,   # trim cell content whitespace
     table_width => 0,  # table width; wrap over-wide cells (0 = off)
     table_cell => '',  # per-column widths for ansicolumn --cell (colon separated)
+    table_wrap_mark => "\x{203A}",  # mark for continuation lines of wrapped cells
     rule       => 1,   # box-drawing characters for tables
     nofork     => 1,   # use nofork+raw for code ref calls
     heading_markup => 0,  # inline formatting in headings
@@ -446,7 +449,7 @@ sub finalize {
     $config->deal_with($argv,
                        "mode|m=s", "base_color|B=s",
                        "colorize!", "nofork!", "foldlist!", "foldwidth=i", "table!", "table_trim!",
-                       "table_width=i", "table_cell=s", "rule!",
+                       "table_width=i", "table_cell=s", "table_wrap_mark=s", "rule!",
                        "heading_markup|hm:s", "tick_open=s", "tick_close=s",
                        "hashed=s%",
                        "colormap|cm=s" => \@opt_cm,
@@ -826,6 +829,9 @@ sub format_table {
             $cell = "0,$cell" unless $config->{table_trim};
             push @fit, '--cell', $cell;
         }
+        if ((my $mark = $config->{table_wrap_mark}) ne '') {
+            push @fit, '--table-wrap-mark', $mark;
+        }
         my $formatted = call_ansicolumn($block, @sep_opt, '-o', $sep, '-t', '--cu=1', @align, @fit);
         fix_separator($formatted, $sep);
     }mge;
@@ -890,7 +896,7 @@ option default \
 
 define {CODE_BLOCK}  ^ {0,3}(?<bt>`{3,}+|~{3,}+)(.*)\n((?s:.*?))^ {0,3}(\g{bt})
 define {COMMENT}     ^<!--(?![->])(?s:.+?)-->
-define {TABLE}       ^(?=(?:[\x{2502}|\x{251C}\x{2500}\h-][^\n]*[\x{2502}|\x{253C}][^\n]*\n)*?(?=[^\n]*[\x{253C}|])[\x{2500}\x{251C}\x{2524}\x{253C}|-]+\n)(?:[\x{2502}|\x{251C}\x{2500}\h-][^\n]*[\x{2502}|\x{253C}][^\n]*\n){3,}
+define {TABLE}       ^(?=(?:[\x{2502}|\x{251C}\x{2500}\x{203A}\h-][^\n]*[\x{2502}|\x{253C}][^\n]*\n)*?(?=[^\n]*[\x{253C}|])[\x{2500}\x{251C}\x{2524}\x{253C}|-]+\n)(?:[\x{2502}|\x{251C}\x{2500}\x{203A}\h-][^\n]*[\x{2502}|\x{253C}][^\n]*\n){3,}
 define {LIST_ITEM}   ^\h*(?:[*-]|(?:\d+|#)[.)])\h+.*\n
 define {DEFINITION}  (?:\A|\G\n|\n\n).+\n\n?(:\h+.*\n)
 

@@ -230,7 +230,11 @@ Use [tecolicom/tap](https://github.com/tecolicom/homebrew-tap):
     widths can be given with `--config table_cell=SPEC`, where SPEC
     is a colon-separated list passed to ansicolumn's `--cell` option
     (for example `0:10` fixes the second column at 10 columns, and
-    `'<30'` caps every column at 30).
+    `'<30'` caps every column at 30).  The second and later lines
+    of a wrapped cell start with `›` (U+203A) in place of the cell's leading
+    space, so that they are not read as new rows; change it with
+    `--config table_wrap_mark=STRING`, or give an empty value to
+    remove it.
 
 - **--\[no-\]trim**
 

@@ -480,7 +480,7 @@ sub parse_separator {
    - Detects `:---:` (center) and `---:` (right) patterns; `:---` and `---` are left-aligned (default, no option needed)
    - Returns raw 1-based column numbers as `(\@right, \@center)` — caller applies offset and builds option strings
    - Minimizes dashes and strips colons (`s/:?-+:?/-/gr`) to prevent separator width from inflating column widths
-   - Requires App::ansicolumn >= 1.58 (1.55 for `--table-right`, `--table-center`, `--table-remove`, `--item-format`, `--padding`; 1.58 for `-w` table fitting and `--cell` in table mode)
+   - Requires App::ansicolumn >= 1.5801 (1.55 for `--table-right`, `--table-center`, `--table-remove`, `--item-format`, `--padding`; 1.58 for `-w` table fitting and `--cell` in table mode; 1.5801 gives width that wrapped columns leave unused back to the other wrapped columns)
 
 **Cell wrapping** (`table_width`, `table_cell`): when `table_width > 0`, `-w $table_width` is appended and ansicolumn fits the table into that width. Columns that fit are untouched; over-wide columns share the remaining width equally (water level, floor 4) and their cells are wrapped by `Text::ANSI::Fold` (word boundary, kinsoku, run-in margin). In trim mode each column costs `content + 2` (item format) plus 1 per separator, so the budget is `table_width - (n-1)`. `table_cell` is converted from `0:10:<20` to `0,10,<20` and passed as `--cell`; in non-trim mode `0,` is prepended for the phantom first column.
 

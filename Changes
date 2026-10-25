@@ -2,6 +2,13 @@ Revision history for Perl extension App-mdee
 
 {{$NEXT}}
 
+1.10 2026-10-25T23:52:27Z
+
+    - Add -V/--parallel to show two or more files side by side, one
+      pane per file (-V was --cat-v)
+    - -w/--width now sets the output width, as in ansicolumn; the
+      former fold width option is --fold-width (default: pane width - 5)
+
 1.09 2026-10-25T05:02:50Z
 
     - Wrap over-wide table cells to the fold width (table_width,

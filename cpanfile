@@ -1,4 +1,4 @@
-requires 'perl', '5.024';
+requires 'perl', '5.026';
 
 requires 'File::Share';
 requires 'Text::ANSI::Fold', '2.3304';

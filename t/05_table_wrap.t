@@ -36,17 +36,30 @@ my $notrim = run("'-Mmd::config(colorize=0,table=1,rule=1,table_trim=0,table_cel
 ok(!(grep { /^\S*$V[^$V]*$V(.*?)$V/ && ansi_width($1) > 12 } table_lines($notrim)),
    'non-trim mode shifts the cell list');
 
-# table_wrap_mark marks continuation lines of wrapped cells
-my $M = "\x{203A}";   # ›
-ok((grep { /$V$M\S/ } @w), 'continuation lines start with the wrap mark by default');
-ok(!(grep { /^\s*$M/ } @w), 'the mark replaces the pad, so no line starts with it when column 1 fits');
-my $nomark = run("'-Mmd::config(colorize=0,table=1,rule=1,table_width=40,table_wrap_mark=)' $md")->stdout;
-unlike($nomark, qr/$M/, 'table_wrap_mark= removes the mark');
-is($wrapped =~ s/$M/ /gr, $nomark, 'the mark takes the place of one pad space');
-like(run("'-Mmd::config(colorize=0,table=1,rule=1,table_width=40,table_wrap_mark=+)' $md")->stdout,
-     qr/$V\+\S/, 'table_wrap_mark=+ uses the given string');
-my $marked_fold = run("'-Mmd::config(colorize=0,table=1,rule=1,foldlist=1,foldwidth=40,table_width=40)' $md")->stdout;
-is(join("\n", table_lines($marked_fold)), join("\n", @w), 'marked table rows are not re-folded by ansifold');
+# table_wrap_mark marks continuation lines of wrapped cells (default: none)
+unlike($wrapped, qr/\x{203A}|\+/, 'no wrap mark by default');
+my $wm = run("'-Mmd::config(colorize=0,table=1,rule=1,table_width=40,table_wrap_mark=+)' $md")->stdout;
+my @m = table_lines($wm);
+ok((grep { /$V\+\S/ } @m), 'continuation lines start with the wrap mark');
+ok(!(grep { /^\s*\+/ } @m), 'the mark replaces the pad, so no line starts with it when column 1 fits');
+is($wm =~ s/\+/ /gr, $wrapped, 'the mark takes the place of one pad space');
+my $marked_fold = run("'-Mmd::config(colorize=0,table=1,rule=1,foldlist=1,foldwidth=40,table_width=40,table_wrap_mark=+)' $md")->stdout;
+is(join("\n", table_lines($marked_fold)), join("\n", @m), 'marked table rows are not re-folded by ansifold');
+
+# table_cell_mark marks the first line of every cell (default: none)
+unlike($wrapped, qr/^\+/m, 'no cell mark by default');
+my $item = run("'-Mmd::config(colorize=0,table=1,rule=1,table_width=40,table_cell_mark=+)' $md")->stdout;
+my @i = table_lines($item);
+is(scalar(grep { /^\+/ } @i), scalar(grep { /^ \S/ } @w), 'every row start is marked');
+ok((grep { /^\+\S*\s*$V\+/ } @i), 'cells in the second column are marked too');
+ok(!(grep { /^\s/ && /\+/ } @i), 'continuation lines carry no cell mark');
+is($item =~ s/\+/ /gr, $wrapped, 'the cell mark takes the place of one pad space');
+my $item_fold = run("'-Mmd::config(colorize=0,table=1,rule=1,foldlist=1,foldwidth=40,table_width=40,table_cell_mark=+)' $md")->stdout;
+is(join("\n", table_lines($item_fold)), join("\n", @i), 'cell-marked table rows are not re-folded by ansifold');
+my $item_notrim = run("'-Mmd::config(colorize=0,table=1,rule=1,table_trim=0,table_width=40,table_cell_mark=+)' $md")->stdout;
+like($item_notrim, qr/^$V\+key/m, 'non-trim: the mark follows the left border');
+like($item_notrim, qr/^\x{251C}\x{2500}+\x{253C}\x{2500}+\x{2524}$/m, 'non-trim: the separator row is still converted to rules');
+is(scalar(grep { /\+\s*$/ } table_lines($item_notrim)), 0, 'non-trim: the empty border column is not marked');
 
 # ansifold must not re-fold formatted table rows (TABLE exclude pattern)
 my $folded = run("'-Mmd::config(colorize=0,table=1,rule=1,foldlist=1,foldwidth=40,table_width=200)' $md")->stdout;

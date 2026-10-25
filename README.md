@@ -22,7 +22,7 @@ mdee - em·dee, Markdown Easy on the Eyes
          --[no-]rule        use Unicode rules for tables (default: on)
      -V  --cat-v            visualize whitespace via cat-v
      -w  --width=#          fold width (default: 80)
-     -t  --theme=#[,#,...]  color theme(s) (default: hashed,nomark)
+     -t  --theme=#[,#,...]  color theme(s) (default: hashed,nomark,markcell)
      -m  --mode=#           light or dark (default: light)
      -B  --base-color=#     override base color of theme
                             (e.g., Ivory, #780043, (120,0,67))
@@ -230,11 +230,15 @@ Use [tecolicom/tap](https://github.com/tecolicom/homebrew-tap):
     widths can be given with `--config table_cell=SPEC`, where SPEC
     is a colon-separated list passed to ansicolumn's `--cell` option
     (for example `0:10` fixes the second column at 10 columns, and
-    `'<30'` caps every column at 30).  The second and later lines
-    of a wrapped cell start with `›` (U+203A) in place of the cell's leading
-    space, so that they are not read as new rows; change it with
-    `--config table_wrap_mark=STRING`, or give an empty value to
-    remove it.
+    `'<30'` caps every column at 30).  Marks can be put at the
+    start of cell lines, in place of the cell's leading space so that
+    column widths do not change.  `--config table_cell_mark=STRING`
+    marks the first line of every cell in a table that has a wrapped
+    cell; the default theme `markcell` sets it to `·` (U+00B7).
+    `--config table_wrap_mark=STRING` marks the second and later
+    lines of a wrapped cell, so that they are not read as new rows;
+    the theme `markwrap` sets it to `›` (U+203A).  Without these
+    themes no mark is used.
 
 - **--\[no-\]trim**
 
@@ -281,16 +285,17 @@ bold text, etc.).
 
 - **-t** _NAME_, **--theme**=_NAME_\[,_NAME_,...\]
 
-    Select color themes.  The default is `hashed,nomark`, which
-    appends closing hashes to h3-h6 headers and hides markup
-    characters for a clean reading experience.
+    Select color themes.  The default is `hashed,nomark,markcell`,
+    which appends closing hashes to h3-h6 headers, hides markup
+    characters for a clean reading experience, and marks the rows of
+    tables whose cells are wrapped.
 
     Themes specified with `--theme` are added to the default, not
     replacing it.  Multiple themes can be specified as comma-separated
     names or by repeating the option.  Each theme is applied in order
     as a transformation:
 
-        mdee --theme=warm file.md         # hashed,nomark (default) + warm
+        mdee --theme=warm file.md         # hashed,nomark,markcell (default) + warm
         mdee --no-theme --theme=warm      # warm only (clear default first)
         mdee --no-theme file.md           # no theme (show all markup)
 
@@ -329,7 +334,8 @@ bold text, etc.).
         inline code backticks, and link brackets (`[`, `]`).
         Content text keeps its formatting (bold, italic,
         strikethrough, code, clickable links) but the surrounding
-        markers are not displayed.
+        markers are not displayed.  Table marks (`markcell`,
+        `markwrap`) are independent of this theme.
 
     - `warm`
 
@@ -340,6 +346,19 @@ bold text, etc.).
         Add decorative border lines (`#`) above and below h1 headings,
         using `=+` to append a text transformation while preserving the
         original heading color.
+
+    - `markcell` (default)
+
+        In a table that has wrapped cells, mark the first line of every
+        cell with `·` (U+00B7), so that the rows read like a bulleted
+        list and the continuation lines stand apart.  Tables that fit are
+        not marked.  Sets `table_cell_mark`; `nomark` does not affect it.
+
+    - `markwrap`
+
+        Mark the second and later lines of a wrapped table cell with `›`
+        (U+203A).  Sets `table_wrap_mark`.  It can be combined with
+        `markcell`.
 
     Use `-d` to dump current theme values in sourceable format.
 

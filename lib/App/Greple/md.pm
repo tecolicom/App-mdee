@@ -2,8 +2,9 @@
 # vim: set fileencoding=utf-8 filetype=perl :
 package App::Greple::md;
 
-use 5.024;
+use 5.026;
 use warnings;
+use utf8;
 
 our $VERSION = "1.08";
 
@@ -209,7 +210,10 @@ Available parameters:
     table_cell      per-column widths passed to ansicolumn --cell,
                     colon separated (e.g. 0:10:<20)
     table_wrap_mark string put at the start of continuation lines
-                    of wrapped cells (default: › U+203A; empty = none)
+                    of wrapped cells (default: none)
+    table_cell_mark string put at the start of the first line of
+                    every cell when the table has a wrapped cell
+                    (default: none)
     rule            box-drawing characters (default: 1)
     osc8            OSC 8 hyperlinks (default: 1)
     heading_markup  inline markup in headings (default: 0)
@@ -343,6 +347,8 @@ it under the same terms as Perl itself.
 use URI::Escape;
 use Getopt::EX::Config;
 use Getopt::EX::Colormap;
+use App::Greple::Common qw(FILELABEL);
+use App::Greple::Regions qw(match_regions);
 
 my @color_labels = qw(
     code_mark code_tick code_info code_block code_inline
@@ -364,7 +370,8 @@ my $config = Getopt::EX::Config->new(
     table_trim => 1,   # trim cell content whitespace
     table_width => 0,  # table width; wrap over-wide cells (0 = off)
     table_cell => '',  # per-column widths for ansicolumn --cell (colon separated)
-    table_wrap_mark => "\x{203A}",  # mark for continuation lines of wrapped cells
+    table_wrap_mark => '',  # mark for continuation lines of wrapped cells
+    table_cell_mark => '',  # mark for the first line of every cell
     rule       => 1,   # box-drawing characters for tables
     nofork     => 1,   # use nofork+raw for code ref calls
     heading_markup => 0,  # inline formatting in headings
@@ -449,7 +456,7 @@ sub finalize {
     $config->deal_with($argv,
                        "mode|m=s", "base_color|B=s",
                        "colorize!", "nofork!", "foldlist!", "foldwidth=i", "table!", "table_trim!",
-                       "table_width=i", "table_cell=s", "table_wrap_mark=s", "rule!",
+                       "table_width=i", "table_cell=s", "table_wrap_mark=s", "table_cell_mark=s", "rule!",
                        "heading_markup|hm:s", "tick_open=s", "tick_close=s",
                        "hashed=s%",
                        "colormap|cm=s" => \@opt_cm,
@@ -795,6 +802,29 @@ sub colorize {
 # Table formatting
 #
 
+# Regions of formatted tables, used by --fold-by as --exclude so that
+# ansifold does not fold them again: three or more lines that contain a
+# column separator, in a block that has a separator row.  A line may
+# start with a border or rule character, a dash, whitespace, or one of
+# the configured marks (a wrapped first column's continuation line starts
+# with the wrap mark; with table_cell_mark every row does), so the
+# pattern is built from the config at run time rather than in __DATA__.
+sub table_regions {
+    my %arg = @_;
+    delete $arg{&FILELABEL};
+    my $marks = join '', map { quotemeta substr $_, 0, 1 }
+        grep { length } @{$config}{qw(table_wrap_mark table_cell_mark)};
+    my $bar   = "\x{2502}|";                  # column separator  │ |
+    my $cross = "\x{253C}";                   # rule crossing     ┼
+    my $rule  = "\x{2500}\x{251C}\x{2524}";   # rule line         ─ ├ ┤
+    my $row = qr{
+        ^ [ $bar \x{251C} \x{2500} $marks \h - ]   # border, rule, mark, pad, or dash
+          [^\n]* [ $bar $cross ] [^\n]* \n         # ... with a separator somewhere
+    }xxm;
+    my $sep = qr{ (?= [^\n]* [ $cross | ] ) [ $rule $cross | - ]+ \n }xx;
+    match_regions(pattern => qr/ (?= (?:$row)*? $sep ) (?:$row){3,} /x);
+}
+
 sub begin {
     colorize()     if $config->{colorize};
     format_table() if $config->{table};
@@ -832,7 +862,17 @@ sub format_table {
         if ((my $mark = $config->{table_wrap_mark}) ne '') {
             push @fit, '--table-wrap-mark', $mark;
         }
+        if ((my $mark = $config->{table_cell_mark}) ne '') {
+            push @fit, '--table-cell-mark', $mark;
+        }
         my $formatted = call_ansicolumn($block, @sep_opt, '-o', $sep, '-t', '--cu=1', @align, @fit);
+        if ((my $mark = $config->{table_cell_mark}) ne '') {
+            # To ansicolumn the separator row is a row of "-" cells and
+            # gets the mark too; put the pad back so fix_separator sees it.
+            my($m, $s) = map { quotemeta } $mark, $sep;
+            my $pad = ' ' x length($mark);
+            $formatted =~ s{^(?:[\h-]|$s|$m)+$}{ ${^MATCH} =~ s/$m/$pad/gr }mpe;
+        }
         fix_separator($formatted, $sep);
     }mge;
 }
@@ -896,7 +936,6 @@ option default \
 
 define {CODE_BLOCK}  ^ {0,3}(?<bt>`{3,}+|~{3,}+)(.*)\n((?s:.*?))^ {0,3}(\g{bt})
 define {COMMENT}     ^<!--(?![->])(?s:.+?)-->
-define {TABLE}       ^(?=(?:[\x{2502}|\x{251C}\x{2500}\x{203A}\h-][^\n]*[\x{2502}|\x{253C}][^\n]*\n)*?(?=[^\n]*[\x{253C}|])[\x{2500}\x{251C}\x{2524}\x{253C}|-]+\n)(?:[\x{2502}|\x{251C}\x{2500}\x{203A}\h-][^\n]*[\x{2502}|\x{253C}][^\n]*\n){3,}
 define {LIST_ITEM}   ^\h*(?:[*-]|(?:\d+|#)[.)])\h+.*\n
 define {DEFINITION}  (?:\A|\G\n|\n\n).+\n\n?(:\h+.*\n)
 
@@ -907,7 +946,7 @@ option --fold-by \
     -- \
     --exclude {CODE_BLOCK} \
     --exclude {COMMENT} \
-    --exclude {TABLE} \
+    --exclude &__PACKAGE__::table_regions \
     --cm N -E {LIST_ITEM} \
     --cm N -E {DEFINITION} \
     --crmode

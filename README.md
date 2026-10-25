@@ -19,8 +19,9 @@ mdee - em·dee, Markdown Easy on the Eyes
          --[no-]table       table formatting (default: on)
          --[no-]trim        trim cell spaces (default: on)
          --[no-]nup         nup paged output (default: on)
+     -V  --parallel         show files side by side
          --[no-]rule        use Unicode rules for tables (default: on)
-     -V  --cat-v            visualize whitespace via cat-v
+         --cat-v            visualize whitespace via cat-v
      -w  --width=#          fold width (default: 80)
      -t  --theme=#[,#,...]  color theme(s) (default: hashed,nomark,markcell)
      -m  --mode=#           light or dark (default: light)
@@ -113,6 +114,12 @@ To force page-by-page pagination even in single-column layout,
 specify `--nup` explicitly.  The `--pane-width` (`-S`) option
 adjusts the column width used for this calculation, and
 `--pane` (`-C`) sets the number of columns directly.
+
+With two or more files, `--parallel` shows the files side by side,
+one pane per file, instead of one after another.  Each file is
+folded to its pane width, and the panes scroll together in the
+pager.  `--pane` (`-C`) still sets the number of panes when given;
+files that do not fit in one row continue on the next.
 
 Use `-p` (`--style=pager`) for a simpler view without nup
 formatting — highlighted output is piped directly through a
@@ -263,7 +270,7 @@ Use [tecolicom/tap](https://github.com/tecolicom/homebrew-tap):
     dashes (`-`) in separator lines are replaced with horizontal
     rules (`─`).  Default is enabled.
 
-- **-V**, **--cat-v**
+- **--cat-v**
 
     Pass the output through [cat-v(1)](https://metacpan.org/pod/App%3A%3Acat%3A%3Av) to visualize
     whitespace and special characters.  Spaces are shown as `·`
@@ -533,6 +540,12 @@ bold text, etc.).
     All controllable fields are enabled by default.
 
 ## Layout Options (passed to nup)
+
+- **-V**, **--parallel**
+
+    Show two or more files side by side, one pane per file, instead of
+    one after another.  The number of panes is the number of files
+    unless `--pane` is given.  Ignored with a single file.
 
 - **-C** _N_, **--pane**=_N_
 

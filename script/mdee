@@ -38,8 +38,9 @@ mdee - em·dee, Markdown Easy on the Eyes
          --[no-]table       table formatting (default: on)
          --[no-]trim        trim cell spaces (default: on)
          --[no-]nup         nup paged output (default: on)
+     -V  --parallel         show files side by side
          --[no-]rule        use Unicode rules for tables (default: on)
-     -V  --cat-v            visualize whitespace via cat-v
+         --cat-v            visualize whitespace via cat-v
      -w  --width=#          fold width (default: 80)
      -t  --theme=#[,#,...]  color theme(s) (default: hashed,nomark,markcell)
      -m  --mode=#           light or dark (default: light)
@@ -167,6 +168,7 @@ declare -A OPTS=(
     [        table |               # table formatting      ]=_
     [         trim |               # trim table cell spaces]=1
     [          nup |               # use nup               ]=_
+    [     parallel | V             # files side by side    ]=
     [         rule |               # table rule lines      ]=_
     [        width | w  :=i        # fold width            ]=0
     [        theme | t  @          # color theme           ]=
@@ -185,7 +187,7 @@ declare -A OPTS=(
     [         page | P  :>pass_nup # page height           ]=
     [ border-style | bs :>pass_nup # border style          ]=
     [ page-number  |     >pass_nup # page number            ]=
-    [        cat-v | V             # visualize whitespace  ]=
+    [        cat-v |               # visualize whitespace  ]=
 )
 
 ##############################################################################
@@ -315,8 +317,12 @@ fi
 # Calculate columns from terminal width and pane width
 : ${COLUMNS:=$(tput cols)}
 (( debug > 0 )) && echo "debug: COLUMNS=${COLUMNS:-unset} pane=$pane pane_width=$pane_width" >&2
+# --parallel with two or more files: one pane per file unless --pane is given
+[[ ${parallel:-} ]] && (( $# < 2 )) && parallel=
 if (( pane > 0 )); then
     _cols=$pane
+elif [[ ${parallel:-} ]]; then
+    _cols=$#
 elif [[ ${COLUMNS:-} ]]; then
     _cols=$(( COLUMNS / pane_width ))
     (( _cols < 1 )) && _cols=1
@@ -499,7 +505,14 @@ run_greple() {
         "$@"
 }
 
-run_nup()    { invoke nup "${pass_nup[@]}"; }
+run_nup() {
+    if [[ ${parallel:-} ]]; then
+        # one \f separated page per file; ansicolumn -V shows pages side by side
+        invoke nup "${pass_nup[@]}" -V --pane=$_cols - --pages
+    else
+        invoke nup "${pass_nup[@]}"
+    fi
+}
 run_column() { invoke nup "${pass_nup[@]}" --no-pager --no-paginate --pane=1 - --pages; }
 run_cat_v()  { invoke cat-v --nl=0; }
 run_pager()  { invoke ${PAGER:-less}; }
@@ -516,7 +529,7 @@ export LESSANSIENDCHARS="${LESSANSIENDCHARS:-mK}"
 declare -a stages=(run_greple)
 [[ ${cat_v:-} ]] && stages+=(run_cat_v)
 if [[ $nup ]]; then
-    if (( _cols == 1 )) && [[ ! ${_nup_explicit:-} ]]; then
+    if (( _cols == 1 )) && [[ ! ${_nup_explicit:-} ]] && [[ ! ${parallel:-} ]]; then
         stages+=(run_column run_pager)
     else
         stages+=(run_nup)
@@ -617,6 +630,12 @@ To force page-by-page pagination even in single-column layout,
 specify C<--nup> explicitly.  The C<--pane-width> (C<-S>) option
 adjusts the column width used for this calculation, and
 C<--pane> (C<-C>) sets the number of columns directly.
+
+With two or more files, C<--parallel> shows the files side by side,
+one pane per file, instead of one after another.  Each file is
+folded to its pane width, and the panes scroll together in the
+pager.  C<--pane> (C<-C>) still sets the number of panes when given;
+files that do not fit in one row continue on the next.
 
 Use C<-p> (C<--style=pager>) for a simpler view without nup
 formatting — highlighted output is piped directly through a
@@ -787,7 +806,7 @@ Unicode box-drawing characters (C<│>, C<├>, C<┤>, C<┼>) and
 dashes (C<->) in separator lines are replaced with horizontal
 rules (C<─>).  Default is enabled.
 
-=item B<-V>, B<--cat-v>
+=item B<--cat-v>
 
 Pass the output through L<cat-v(1)|App::cat::v> to visualize
 whitespace and special characters.  Spaces are shown as C<·>
@@ -1089,6 +1108,12 @@ All controllable fields are enabled by default.
 =head2 Layout Options (passed to nup)
 
 =over 4
+
+=item B<-V>, B<--parallel>
+
+Show two or more files side by side, one pane per file, instead of
+one after another.  The number of panes is the number of files
+unless C<--pane> is given.  Ignored with a single file.
 
 =item B<-C> I<N>, B<--pane>=I<N>
 

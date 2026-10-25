@@ -493,4 +493,32 @@ subtest 'table wrap' => sub {
     like($dry, qr/table_width=40/, 'table_width is passed to the md module');
 };
 
+# Test: parallel option (files side by side)
+subtest q(parallel option) => sub {
+    my $help = `$mdee --help 2>&1`;
+    like($help, qr/--parallel/, q(--help shows --parallel option));
+
+    my $short = `COLUMNS=200 $mdee -ddn -V $test_md $test_md 2>&1`;
+    like($short, qr/debug: nup .*-V .*--pane=2/, q(-V is the short form of --parallel));
+    my $catv = `COLUMNS=200 $mdee -ddn --cat-v $test_md 2>&1`;
+    like($catv, qr/run_cat_v/, q(--cat-v still works without a short option));
+
+    my $two = `COLUMNS=200 $mdee -ddn --parallel $test_md $test_md 2>&1`;
+    like($two, qr/debug: nup .*-V .*--pane=2 .*- --pages/, q(--parallel runs nup -V with one pane per file));
+    like($two, qr/foldwidth=95\b/, q(--parallel folds to the pane width));
+
+    my $three = `COLUMNS=200 $mdee -ddn --parallel $test_md $test_md $test_md 2>&1`;
+    like($three, qr/--pane=3/, q(three files give three panes));
+    like($three, qr/foldwidth=61\b/, q(fold width follows the pane count));
+
+    my $pane = `COLUMNS=200 $mdee -ddn --parallel -C1 $test_md $test_md 2>&1`;
+    like($pane, qr/-V .*--pane=1 .*- --pages/, q(-C overrides the pane count));
+
+    my $one = `COLUMNS=200 $mdee -ddn --parallel $test_md 2>&1`;
+    unlike($one, qr/debug: nup .*-V/, q(--parallel with a single file is ignored));
+
+    my $plain = `COLUMNS=200 $mdee -ddn $test_md $test_md 2>&1`;
+    unlike($plain, qr/debug: nup .*-V/, q(without --parallel nup runs as before));
+};
+
 done_testing;

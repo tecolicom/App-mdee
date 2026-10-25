@@ -192,6 +192,8 @@ flowchart LR
 
 Each stage is controlled by `--style` and individual `--[no-]fold`, `--[no-]table`, `--[no-]trim`, `--[no-]rule`, `--[no-]nup` options. Fold and table processing are handled within the greple `-Mmd` module (not as separate pipeline stages).
 
+`--parallel` (`-V`) shows two or more files side by side: greple already separates files with `\f`, so `run_nup` invokes `nup -V --pane=$_cols - --pages` and ansicolumn lays the pages out as panes (one per file unless `--pane` is given; `_cols` is set to the file count so the fold width follows). With a single file the option is ignored.
+
 ### Style System
 
 The `--style` (`-s`) option controls which pipeline stages are active:

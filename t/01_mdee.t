@@ -312,6 +312,19 @@ subtest 'config file defaults' => sub {
         unlike($out, qr/run_nup/, 'default[style]=pager removes nup');
     }
 
+    # Settings in config.sh take precedence over the default themes
+    {
+        open my $fh, '>', "$config_dir/config.sh" or die;
+        print $fh "md_config+=(table_cell_mark=+)\n";
+        print $fh "pass_md+=(--cm 'emphasis_mark=sub{\"@@\"}')\n";
+        close $fh;
+        my $md = File::Spec->rel2abs('t/table_wrap.md');
+        my $out = `XDG_CONFIG_HOME=$tmpdir $mdee -s cat -w 40 $md 2>&1`;
+        like($out, qr/^\+k1 /m, 'md_config in config.sh overrides the default markcell theme');
+        my $bold = `XDG_CONFIG_HOME=$tmpdir $mdee -s cat $test_md 2>&1`;
+        like($bold, qr/@@/, 'pass_md in config.sh overrides the default nomark theme');
+    }
+
     # Test default[width]
     {
         open my $fh, '>', "$config_dir/config.sh" or die;

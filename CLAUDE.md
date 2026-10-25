@@ -132,6 +132,8 @@ The `default` associative array supports:
 
 Priority: command-line option > config default > built-in default.
 
+`md_config`/`pass_md` entries added by config.sh are set aside while it is sourced and appended again after the theme files, so a user setting such as `md_config+=(table_cell_mark=∙)` overrides the default themes (`markcell`, `nomark`). Order of application: themes → config.sh entries → `--config`.
+
 Config defaults for `default[theme]` are applied only when `--theme`/`--no-theme` is not specified on the command line. A `theme()` callback sets `_theme_specified` flag to track this.
 
 The `--base-color` option default is empty (no override). Base color is determined by:

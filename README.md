@@ -291,9 +291,11 @@ bold text, etc.).
     tables whose cells are wrapped.
 
     Themes specified with `--theme` are added to the default, not
-    replacing it.  Multiple themes can be specified as comma-separated
-    names or by repeating the option.  Each theme is applied in order
-    as a transformation:
+    replacing it (`default[theme]` in the configuration file replaces
+    it).  Multiple themes can be specified as comma-separated names or
+    by repeating the option.  Each theme is applied in order as a
+    transformation, and when two themes set the same value the later
+    one wins:
 
         mdee --theme=warm file.md         # hashed,nomark,markcell (default) + warm
         mdee --no-theme --theme=warm      # warm only (clear default first)
@@ -353,6 +355,10 @@ bold text, etc.).
         cell with `·` (U+00B7), so that the rows read like a bulleted
         list and the continuation lines stand apart.  Tables that fit are
         not marked.  Sets `table_cell_mark`; `nomark` does not affect it.
+        To use another character, set it in the configuration file or in a
+        theme of your own:
+
+            md_config+=(table_cell_mark=∙)    # U+2219
 
     - `markwrap`
 
@@ -606,6 +612,11 @@ mechanism as theme files:
 
     # Enable md module features
     md_config+=(hashed.h3=1 hashed.h4=1 hashed.h5=1 hashed.h6=1)
+
+    # Use another character for the table cell mark
+    md_config+=(table_cell_mark=∙)
+
+These settings take precedence over the default themes.
 
 Changing the base color automatically affects all derived colors
 (h1, h2, bold, etc.) because the md module expands `${base}`

@@ -330,8 +330,19 @@ subtest 'config file defaults' => sub {
         open my $fh, '>', "$config_dir/config.sh" or die;
         print $fh "default[width]=40\n";
         close $fh;
-        my $out = `XDG_CONFIG_HOME=$tmpdir $mdee -ddn --mode=light $test_md 2>&1`;
-        like($out, qr/foldwidth=40\b/, 'default[width]=40 sets fold width');
+        my $out = `COLUMNS=200 XDG_CONFIG_HOME=$tmpdir $mdee -ddn --mode=light $test_md 2>&1`;
+        like($out, qr/debug: nup .*-w 40/, 'default[width]=40 sets the output width');
+        like($out, qr/foldwidth=35\b/, 'default[width]=40 gives a fold width of 35');
+    }
+
+    # Test default[fold_width]
+    {
+        open my $fh, '>', "$config_dir/config.sh" or die;
+        print $fh "default[fold_width]=40\n";
+        close $fh;
+        my $out = `COLUMNS=200 XDG_CONFIG_HOME=$tmpdir $mdee -ddn --mode=light $test_md 2>&1`;
+        like($out, qr/foldwidth=40\b/, 'default[fold_width]=40 sets fold width');
+        unlike($out, qr/debug: nup .*-w /, 'default[fold_width] does not set the output width');
     }
 
     # Test default[base_color]
@@ -348,7 +359,7 @@ subtest 'config file defaults' => sub {
         open my $fh, '>', "$config_dir/config.sh" or die;
         print $fh "default[style]='pager'\ndefault[width]=40\n";
         close $fh;
-        my $out = `COLUMNS=200 XDG_CONFIG_HOME=$tmpdir $mdee --dryrun --mode=light -s nup -w 120 $test_md 2>&1`;
+        my $out = `COLUMNS=200 XDG_CONFIG_HOME=$tmpdir $mdee --dryrun --mode=light -s nup -w 200 $test_md 2>&1`;
         like($out, qr/run_nup/, '-s nup overrides default[style]=pager');
     }
 
@@ -519,6 +530,37 @@ subtest q(parallel option) => sub {
 
     my $plain = `COLUMNS=200 $mdee -ddn $test_md $test_md 2>&1`;
     unlike($plain, qr/debug: nup .*-V/, q(without --parallel nup runs as before));
+};
+
+# Test: output width option (-w) and --fold-width
+subtest q(output width option) => sub {
+    my $help = `$mdee --help 2>&1`;
+    like($help, qr/--fold-width/, q(--help shows --fold-width option));
+
+    my $two = `COLUMNS=300 $mdee -ddn -w 180 $test_md 2>&1`;
+    like($two, qr/debug: nup .*--pane=2 .*- -w 180/, q(-w gives nup the pane count and ansicolumn -w));
+    like($two, qr/foldwidth=85\b/, q(fold width is derived from -w and the pane count));
+    like($two, qr/table_width=85\b/, q(table width follows the fold width));
+
+    my $one = `COLUMNS=300 $mdee -ddn -w 100 $test_md 2>&1`;
+    like($one, qr/debug: nup .*--pane=1 - --pages -w 100/, q(single column passes -w after --pages));
+    like($one, qr/foldwidth=95\b/, q(single column fold width is -w minus 5));
+
+    my $par = `COLUMNS=300 $mdee -ddn -V -w 140 $test_md $test_md 2>&1`;
+    like($par, qr/debug: nup .*-V --pane=2 - --pages -w 140/, q(--parallel passes -w to ansicolumn));
+    like($par, qr/foldwidth=65\b/, q(--parallel fold width follows -w));
+
+    my $cat = `COLUMNS=300 $mdee -ddn -s cat -w 40 $test_md 2>&1`;
+    like($cat, qr/foldwidth=40\b/, q(without nup -w is the fold width));
+
+    my $fold = `COLUMNS=300 $mdee -ddn -w 180 --fold-width=60 $test_md 2>&1`;
+    like($fold, qr/foldwidth=60\b/, q(--fold-width overrides the derived fold width));
+    like($fold, qr/table_width=60\b/, q(--fold-width also sets the table width));
+    like($fold, qr/debug: nup .*- -w 180/, q(--fold-width keeps the output width));
+
+    my $plain = `COLUMNS=300 $mdee -ddn $test_md 2>&1`;
+    unlike($plain, qr/debug: nup .*-w /, q(without -w nup gets no width));
+    like($plain, qr/foldwidth=95\b/, q(without -w the fold width comes from the terminal));
 };
 
 done_testing;

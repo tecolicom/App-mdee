@@ -127,7 +127,8 @@ The `default` associative array supports:
 | `default[mode]` | `--mode` | `dark` |
 | `default[theme]` | `--theme` | `custom` |
 | `default[style]` | `--style` | `pager` |
-| `default[width]` | `--width` | `100` |
+| `default[width]` | `--width` | `170` |
+| `default[fold_width]` | `--fold-width` | `80` |
 | `default[base_color]` | `--base-color` | `DarkCyan` |
 
 Priority: command-line option > config default > built-in default.
@@ -193,6 +194,8 @@ flowchart LR
 Each stage is controlled by `--style` and individual `--[no-]fold`, `--[no-]table`, `--[no-]trim`, `--[no-]rule`, `--[no-]nup` options. Fold and table processing are handled within the greple `-Mmd` module (not as separate pipeline stages).
 
 `--parallel` (`-V`) shows two or more files side by side: greple already separates files with `\f`, so `run_nup` invokes `nup -V --pane=$_cols - --pages` and ansicolumn lays the pages out as panes (one per file unless `--pane` is given; `_cols` is set to the file count so the fold width follows). With a single file the option is ignored.
+
+`--width` (`-w`) is the output width, as in ansicolumn: when given, it replaces `COLUMNS` in the pane-count and fold-width calculation (`_total`), and `run_nup`/`run_column` pass `--pane=$_cols` plus `-w N` after the file name `-` so nup agrees with mdee on the pane count. `--fold-width` sets the fold/table width directly (`fold_width`); its default is `_total / _cols - 5` with nup, or the output width without nup. Both have `default[...]` config keys.
 
 ### Style System
 

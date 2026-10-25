@@ -41,7 +41,8 @@ mdee - em·dee, Markdown Easy on the Eyes
      -V  --parallel         show files side by side
          --[no-]rule        use Unicode rules for tables (default: on)
          --cat-v            visualize whitespace via cat-v
-     -w  --width=#          fold width (default: 80)
+     -w  --width=#          output width (default: terminal width)
+         --fold-width=#     fold width (default: pane width - 5)
      -t  --theme=#[,#,...]  color theme(s) (default: hashed,nomark,markcell)
      -m  --mode=#           light or dark (default: light)
      -B  --base-color=#     override base color of theme
@@ -170,7 +171,8 @@ declare -A OPTS=(
     [          nup |               # use nup               ]=_
     [     parallel | V             # files side by side    ]=
     [         rule |               # table rule lines      ]=_
-    [        width | w  :=i        # fold width            ]=0
+    [        width | w  :=i        # output width          ]=0
+    [   fold-width |    :=i        # fold width            ]=0
     [        theme | t  @          # color theme           ]=
     [         mode | m  :          # light or dark         ]=
     [   base-color | B  :          # base color            ]=
@@ -314,17 +316,21 @@ fi
 (( pane_width == 85 )) && pane_width=${default[pane_width]:-85}
 (( pane == 0 ))        && pane=${default[pane]:-0}
 
-# Calculate columns from terminal width and pane width
+# Output width: explicit option (non-zero) > config default > terminal width
+(( width == 0 )) && width=${default[width]:-0}
+(( fold_width == 0 )) && fold_width=${default[fold_width]:-0}
 : ${COLUMNS:=$(tput cols)}
-(( debug > 0 )) && echo "debug: COLUMNS=${COLUMNS:-unset} pane=$pane pane_width=$pane_width" >&2
+(( width > 0 )) && _total=$width || _total=${COLUMNS:-}
+(( debug > 0 )) && echo "debug: COLUMNS=${COLUMNS:-unset} width=$width pane=$pane pane_width=$pane_width" >&2
+# Calculate columns from output width and pane width
 # --parallel with two or more files: one pane per file unless --pane is given
 [[ ${parallel:-} ]] && (( $# < 2 )) && parallel=
 if (( pane > 0 )); then
     _cols=$pane
 elif [[ ${parallel:-} ]]; then
     _cols=$#
-elif [[ ${COLUMNS:-} ]]; then
-    _cols=$(( COLUMNS / pane_width ))
+elif [[ ${_total:-} ]]; then
+    _cols=$(( _total / pane_width ))
     (( _cols < 1 )) && _cols=1
 else
     _cols=0  # unknown
@@ -332,18 +338,6 @@ fi
 
 # Apply style default: explicit option > config default > "nup"
 : ${style:=${default[style]:-nup}}
-
-# Apply width default: explicit option (non-zero) > config default > (actual pane width - 5)
-# Actual pane width = COLUMNS / _cols (varies with column count)
-if (( width == 0 )); then
-    if [[ ${default[width]:-} ]]; then
-        width=${default[width]}
-    elif (( _cols > 0 )); then
-        width=$(( ${COLUMNS:-80} / _cols - 5 ))
-    else
-        width=$(( pane_width - 5 ))
-    fi
-fi
 
 # Style determines default values for fold, table, nup.
 # Sentinel "_" means not explicitly set by user.
@@ -362,6 +356,19 @@ esac
 [[ $nup   == _ ]] && nup=${style_defaults[nup]}
 [[ $rule  == _ ]] && rule=${style_defaults[rule]}
 [[ ${rule:-} ]] && rule='│'
+
+# Fold width default: --fold-width > config default > derived from the output width.
+# Without nup the text is the whole output; with nup each pane is
+# (output width / _cols) wide, minus 5 for borders and padding.
+if (( fold_width == 0 )); then
+    if [[ ! $nup ]] && (( width > 0 )); then
+        fold_width=$width
+    elif (( _cols > 0 )); then
+        fold_width=$(( ${_total:-80} / _cols - 5 ))
+    else
+        fold_width=$(( pane_width - 5 ))
+    fi
+fi
 
 # Load theme files: each modifies theme_light/theme_dark/theme_cm arrays
 while IFS= read -r _t; do
@@ -474,7 +481,7 @@ run_greple() {
     fi
 
     # Add fold/table/rule/heading_markup params
-    [[ $fold  ]] && config_params+=("foldlist=1,foldwidth=$width" "table_width=$width")
+    [[ $fold  ]] && config_params+=("foldlist=1,foldwidth=$fold_width" "table_width=$fold_width")
     [[ $table ]] && config_params+=("table=1") || config_params+=("table=0")
     [[ $trim  ]] && config_params+=("table_trim=1") || config_params+=("table_trim=0")
     [[ $rule  ]] && config_params+=("rule=1")  || config_params+=("rule=0")
@@ -505,15 +512,21 @@ run_greple() {
         "$@"
 }
 
+# Options for ansicolumn, given after the file name "-" (see nup(1))
+declare -a column_opts=()
+(( width > 0 )) && column_opts+=(-w "$width")
 run_nup() {
     if [[ ${parallel:-} ]]; then
         # one \f separated page per file; ansicolumn -V shows pages side by side
-        invoke nup "${pass_nup[@]}" -V --pane=$_cols - --pages
+        invoke nup "${pass_nup[@]}" -V --pane=$_cols - --pages ${column_opts[@]+"${column_opts[@]}"}
+    elif (( ${#column_opts[@]} > 0 )); then
+        # fix the pane count so that nup agrees with the fold width
+        invoke nup "${pass_nup[@]}" --pane=$_cols - "${column_opts[@]}"
     else
         invoke nup "${pass_nup[@]}"
     fi
 }
-run_column() { invoke nup "${pass_nup[@]}" --no-pager --no-paginate --pane=1 - --pages; }
+run_column() { invoke nup "${pass_nup[@]}" --no-pager --no-paginate --pane=1 - --pages ${column_opts[@]+"${column_opts[@]}"}; }
 run_cat_v()  { invoke cat-v --nl=0; }
 run_pager()  { invoke ${PAGER:-less}; }
 
@@ -612,8 +625,8 @@ C<--fold> options, not by C<--show>.
 =head2 Multi-column Layout and Pagination
 
 By default, B<mdee> calculates the number of display columns by
-dividing the terminal width by the pane width (default 85
-characters).  This determines how the output is laid out and
+dividing the output width (the terminal width unless C<--width>
+is given) by the pane width (default 85 characters).  This determines how the output is laid out and
 paginated.
 
 When two or more columns fit, L<nup(1)|App::nup> arranges output
@@ -629,7 +642,9 @@ maintaining the same visual appearance.
 To force page-by-page pagination even in single-column layout,
 specify C<--nup> explicitly.  The C<--pane-width> (C<-S>) option
 adjusts the column width used for this calculation, and
-C<--pane> (C<-C>) sets the number of columns directly.
+C<--pane> (C<-C>) sets the number of columns directly.  The
+C<--width> (C<-w>) option replaces the terminal width in this
+calculation and limits the output to that width.
 
 With two or more files, C<--parallel> shows the files side by side,
 one pane per file, instead of one after another.  Each file is
@@ -765,7 +780,7 @@ Column alignment specified in the separator line (C<:---> for left,
 C<:---:> for center, C<---:> for right) is respected.
 Default is enabled.
 
-When folding is enabled, a table wider than C<--width> is fit into
+When folding is enabled, a table wider than the fold width is fit into
 that width: columns that fit keep their width, and the cells of
 over-wide columns are wrapped.  A table that already fits is not
 changed.  Use C<--config table_width=0> to disable wrapping, or
@@ -815,10 +830,24 @@ visualization is disabled by default.
 
 =item B<-w> I<N>, B<--width>=I<N>
 
-Set the fold width for text wrapping.  Default is calculated from
-C<--pane-width> minus 5 (margin for borders and padding), which
-gives 80 when pane-width is 85.  Only effective when C<--fold> is
-enabled.  The same width is used to fit tables (see C<--table>).
+Set the output width in characters.  Default is the terminal
+width.  With nup, this width is used in place of the terminal
+width to calculate the number of columns, and it is passed to
+L<ansicolumn(1)|App::ansicolumn> so that the panes fit into it:
+
+    mdee -w 170 file.md          # two 85-column panes on a wide terminal
+    mdee -V -w 170 a.md b.md     # two files in 85 columns each
+
+Without nup (C<--style=cat>, C<pager>, C<filter>, or C<--no-nup>),
+the text itself is the output, so this is the fold width.
+
+=item B<--fold-width>=I<N>
+
+Set the fold width for text wrapping directly.  Default is the
+pane width (output width divided by the number of columns) minus
+5 for borders and padding, which gives 80 when pane-width is 85.
+Only effective when C<--fold> is enabled.  The same width is used
+to fit tables (see C<--table>).
 
 =back
 
@@ -1118,8 +1147,8 @@ unless C<--pane> is given.  Ignored with a single file.
 =item B<-C> I<N>, B<--pane>=I<N>
 
 Set the number of columns (panes).  When not specified (or 0),
-the number of columns is calculated from the terminal width and
-C<--pane-width>.  If only 1 column fits, nup formatting (borders
+the number of columns is calculated from the output width
+(C<--width>, default terminal width) and C<--pane-width>.  If only 1 column fits, nup formatting (borders
 etc.) is preserved but pagination is handled by the pager instead.
 Use C<--nup> to force nup's native pagination even in single column.
 
@@ -1138,8 +1167,9 @@ Set the page height in lines.
 =item B<-S> I<N>, B<--pane-width>=I<N>
 
 Set the pane width in characters.  Default is 85.  This value is
-used to calculate the number of columns and the default fold
-width.
+used to calculate the number of columns from the output width,
+and the default fold width.  It has no effect when the number of
+columns is given by C<--pane> or C<--parallel>.
 
 =item B<--bs>=I<STYLE>, B<--border-style>=I<STYLE>
 
@@ -1175,7 +1205,8 @@ This is a shell script that can set defaults and override colors:
     default[mode]='dark'             # set default mode
     default[theme]='warm'            # set default theme(s)
     default[style]='pager'           # set default style
-    default[width]=100               # set default fold width
+    default[width]=170               # set default output width
+    default[fold_width]=80           # set default fold width
     default[base_color]='DarkCyan'   # set default base color
 
 The C<default> associative array supports the following keys:
@@ -1188,7 +1219,9 @@ The C<default> associative array supports the following keys:
 
 =item C<default[style]> - Corresponds to C<--style> (e.g., C<pager>, C<cat>)
 
-=item C<default[width]> - Corresponds to C<--width> (e.g., C<100>)
+=item C<default[width]> - Corresponds to C<--width> (e.g., C<170>)
+
+=item C<default[fold_width]> - Corresponds to C<--fold-width> (e.g., C<80>)
 
 =item C<default[pane_width]> - Corresponds to C<--pane-width> (e.g., C<100>)
 
@@ -1233,7 +1266,9 @@ The C<${base}> string is expanded to the base color value after loading.
     mdee README.md              # view markdown file
     mdee -C2 document.md        # 2-column view
     mdee -G2x2 manual.md        # 2x2 grid (4-up)
-    mdee -w60 narrow.md         # narrower text width
+    mdee -w170 file.md          # two 85-column panes on a wide terminal
+    mdee -V -w170 a.md b.md     # two files in 85 columns each
+    mdee --fold-width=60 a.md   # narrower text within the pane
     mdee --no-pager file.md     # without pager
     mdee --no-nup file.md       # output to stdout without nup
     mdee --no-fold file.md      # disable line folding
@@ -1369,7 +1404,7 @@ HTML comments, and tables are excluded from folding.
 Recognized list markers include C<*>, C<->, C<1.>, C<1)>, C<#.>,
 and C<#)>.  The C<#> marker is Pandoc's auto-numbered list syntax.
 
-The folding width is controlled by C<--width> option (default: 80).
+The folding width is controlled by C<--fold-width> option (default: 80).
 
 =head4 Table Formatting
 

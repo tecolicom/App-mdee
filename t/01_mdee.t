@@ -533,6 +533,21 @@ subtest q(parallel option) => sub {
 };
 
 # Test: filename option (file name label from greple)
+# Test: table style option
+subtest q(table style option) => sub {
+    my $help = `$mdee --help 2>&1`;
+    like($help, qr/--table-style=/, q(--help shows --table-style option));
+
+    my $default = `COLUMNS=200 $mdee -ddn $test_md 2>&1`;
+    unlike($default, qr/table_style=/, q(no table_style parameter by default));
+
+    my $simple = `COLUMNS=200 $mdee -ddn --table-style=simple $test_md 2>&1`;
+    like($simple, qr/debug: greple .*table_style=simple/, q(--table-style=simple is passed to the md module));
+
+    my $bad = `$mdee -n --table-style=grid $test_md 2>&1`;
+    like($bad, qr/--table-style: pipe or simple expected/, q(an unknown table style is rejected));
+};
+
 subtest q(filename option) => sub {
     my $help = `$mdee --help 2>&1`;
     like($help, qr/--\[no-\]filename/, q(--help shows --filename option));

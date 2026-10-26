@@ -214,6 +214,9 @@ Available parameters:
     table_cell_mark string put at the start of the first line of
                     every cell when the table has a wrapped cell
                     (default: none)
+    table_style     pipe: column separators (default); simple: columns
+                    separated by spaces, header rule per column, and a
+                    rule above and below the table
     rule            box-drawing characters (default: 1)
     osc8            OSC 8 hyperlinks (default: 1)
     heading_markup  inline markup in headings (default: 0)
@@ -345,6 +348,7 @@ it under the same terms as Perl itself.
 =cut
 
 use URI::Escape;
+use Text::ANSI::Fold::Util qw(ansi_width);
 use Getopt::EX::Config;
 use Getopt::EX::Colormap;
 use App::Greple::Common qw(FILELABEL);
@@ -373,6 +377,7 @@ my $config = Getopt::EX::Config->new(
     table_wrap_mark => '',  # mark for continuation lines of wrapped cells
     table_cell_mark => '',  # mark for the first line of every cell
     rule       => 1,   # box-drawing characters for tables
+    table_style => 'pipe',  # pipe: column separators; simple: spaces and rules only
     nofork     => 1,   # use nofork+raw for code ref calls
     heading_markup => 0,  # inline formatting in headings
     tick_open  => '`',       # inline code open marker
@@ -456,7 +461,7 @@ sub finalize {
     $config->deal_with($argv,
                        "mode|m=s", "base_color|B=s",
                        "colorize!", "nofork!", "foldlist!", "foldwidth=i", "table!", "table_trim!",
-                       "table_width=i", "table_cell=s", "table_wrap_mark=s", "table_cell_mark=s", "rule!",
+                       "table_width=i", "table_cell=s", "table_wrap_mark=s", "table_cell_mark=s", "rule!", "table_style=s",
                        "heading_markup|hm:s", "tick_open=s", "tick_close=s",
                        "hashed=s%",
                        "colormap|cm=s" => \@opt_cm,
@@ -831,7 +836,11 @@ sub begin {
 }
 
 sub format_table {
-    my $sep = $config->{rule} ? "\x{2502}" : '|';  # │ or |
+    # simple style (Pandoc's simple table): no column separators, the
+    # header rule per column, a full-width rule above and below.  The
+    # table is formatted as in rule mode and the separators are blanked.
+    my $simple = $config->{table_style} eq 'simple';
+    my $sep = ($config->{rule} || $simple) ? "\x{2502}" : '|';  # │ or |
 
     s{(^ {0,3}\|.+\|\n){3,}}{
         my $block = $&;
@@ -875,7 +884,16 @@ sub format_table {
             my $pad = ' ' x length($mark);
             $formatted =~ s{^(?:[\h-]|$s|$m)+$}{ ${^MATCH} =~ s/$m/$pad/gr }mpe;
         }
-        fix_separator($formatted, $sep);
+        my $table = fix_separator($formatted, $sep);
+        if ($simple) {
+            # blank the column separators; add full-width rules above
+            # and below the table (pandoc simple table with a top line)
+            $table =~ tr/\x{2502}\x{253C}\x{251C}\x{2524}/    /;
+            my($first) = $table =~ /^(.*)$/m;
+            my $rule = "\x{2500}" x ansi_width($first);
+            $table = "$rule\n$table$rule\n";
+        }
+        $table;
     }mge;
 }
 

@@ -40,6 +40,7 @@ mdee - em·dee, Markdown Easy on the Eyes
          --[no-]nup         nup paged output (default: on)
      -V  --parallel         show files side by side
          --[no-]rule        use Unicode rules for tables (default: on)
+         --table-style=#    table style: pipe or simple (default: pipe)
          --cat-v            visualize whitespace via cat-v
      -w  --width=#          output width (default: terminal width)
          --fold-width=#     fold width (default: pane width - 5)
@@ -172,6 +173,7 @@ declare -A OPTS=(
     [          nup |               # use nup               ]=_
     [     parallel | V             # files side by side    ]=
     [         rule |               # table rule lines      ]=_
+    [  table-style |    :          # table style           ]=pipe
     [        width | w  :=i        # output width          ]=0
     [   fold-width |    :=i        # fold width            ]=0
     [        theme | t  @          # color theme           ]=
@@ -358,6 +360,10 @@ esac
 [[ $nup   == _ ]] && nup=${style_defaults[nup]}
 [[ $rule  == _ ]] && rule=${style_defaults[rule]}
 [[ ${rule:-} ]] && rule='│'
+case $table_style in
+    pipe|simple) ;;
+    *) die "--table-style: pipe or simple expected, not '$table_style'" ;;
+esac
 
 # Fold width default: --fold-width > config default > derived from the output width.
 # Without nup the text is the whole output; with nup each pane is
@@ -487,6 +493,7 @@ run_greple() {
     [[ $table ]] && config_params+=("table=1") || config_params+=("table=0")
     [[ $trim  ]] && config_params+=("table_trim=1") || config_params+=("table_trim=0")
     [[ $rule  ]] && config_params+=("rule=1")  || config_params+=("rule=0")
+    [[ $table_style != pipe ]] && config_params+=("table_style=$table_style")
     [[ $heading_markup ]] && config_params+=("heading_markup=$heading_markup")
 
     # Add md_config entries from themes
@@ -837,6 +844,25 @@ When enabled, ASCII pipe characters (C<|>) are replaced with
 Unicode box-drawing characters (C<│>, C<├>, C<┤>, C<┼>) and
 dashes (C<->) in separator lines are replaced with horizontal
 rules (C<─>).  Default is enabled.
+
+=item B<--table-style>=I<STYLE>
+
+Select how tables are drawn.  C<pipe> (default) keeps a separator
+between the columns, C<│> or C<|> depending on C<--rule>:
+
+     Left │ Center │ Right │ Default
+    ──────┼────────┼───────┼─────────
+     a    │   b    │     c │ d
+
+C<simple> draws tables like Pandoc's simple tables: the columns are
+separated by spaces only, the header is underlined per column, and a
+rule the width of the table is drawn above and below it.
+
+    ─────────────────────────────────
+     Left   Center   Right   Default
+    ────── ──────── ─────── ─────────
+     a        b          c   d
+    ─────────────────────────────────
 
 =item B<--cat-v>
 

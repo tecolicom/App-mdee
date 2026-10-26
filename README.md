@@ -21,6 +21,7 @@ mdee - em·dee, Markdown Easy on the Eyes
          --[no-]nup         nup paged output (default: on)
      -V  --parallel         show files side by side
          --[no-]rule        use Unicode rules for tables (default: on)
+         --table-style=#    table style: pipe or simple (default: pipe)
          --cat-v            visualize whitespace via cat-v
      -w  --width=#          output width (default: terminal width)
          --fold-width=#     fold width (default: pane width - 5)
@@ -285,6 +286,25 @@ Use [tecolicom/tap](https://github.com/tecolicom/homebrew-tap):
     Unicode box-drawing characters (`│`, `├`, `┤`, `┼`) and
     dashes (`-`) in separator lines are replaced with horizontal
     rules (`─`).  Default is enabled.
+
+- **--table-style**=_STYLE_
+
+    Select how tables are drawn.  `pipe` (default) keeps a separator
+    between the columns, `│` or `|` depending on `--rule`:
+
+         Left │ Center │ Right │ Default
+        ──────┼────────┼───────┼─────────
+         a    │   b    │     c │ d
+
+    `simple` draws tables like Pandoc's simple tables: the columns are
+    separated by spaces only, the header is underlined per column, and a
+    rule the width of the table is drawn above and below it.
+
+        ─────────────────────────────────
+         Left   Center   Right   Default
+        ────── ──────── ─────── ─────────
+         a        b          c   d
+        ─────────────────────────────────
 
 - **--cat-v**
 

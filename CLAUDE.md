@@ -539,6 +539,7 @@ Config parameters from mdee:
 - `table=1`: Enable table formatting (default enabled in md module)
 - `table_trim=1`: Enable cell whitespace trimming (default enabled in md module)
 - `rule=1`: Enable box-drawing characters (default enabled in md module)
+- `table_style=simple` (from `--table-style=simple`; `pipe` is the default and is not passed): Pandoc simple-table look. `format_table` formats the block as in rule mode, then blanks `│ ┼ ├ ┤` to spaces and adds a `─` rule of the table's visible width (`ansi_width` of the first line) above and below. The header rule stays per column because `fix_separator` had put `┼` at the column boundaries.
 - `table_width=$width`: Fit tables into the fold width (passed whenever fold is enabled); over-wide columns are wrapped by ansicolumn (`-w`). `0` disables.
 - `table_cell=SPEC`: Per-column widths for ansicolumn `--cell`, colon-separated (`0:10:<20`) because commas separate config parameters; md module converts to commas and prepends `0,` in non-trim mode for the phantom first column. Not passed by mdee; set via `--config`.
 - `table_wrap_mark=STRING`: Mark for continuation lines of wrapped cells (default none; the `markwrap` theme sets `›` U+203A).

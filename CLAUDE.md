@@ -195,6 +195,8 @@ Each stage is controlled by `--style` and individual `--[no-]fold`, `--[no-]tabl
 
 `--parallel` (`-V`) shows two or more files side by side: greple already separates files with `\f`, so `run_nup` invokes `nup -V --pane=$_cols - --pages` and ansicolumn lays the pages out as panes (one per file unless `--pane` is given; `_cols` is set to the file count so the fold width follows). With a single file the option is ignored.
 
+`--[no-]filename` controls the file name label that greple prints at the top of each file (`--filestyle=once`, format and color from the `FILE_FORMAT`/`FILE` theme keys): `--no-filename` passes `-h` to greple so that panes start with the text. The label is only printed for more than one file anyway.
+
 `--width` (`-w`) is the output width, as in ansicolumn: when given, it replaces `COLUMNS` in the pane-count and fold-width calculation (`_total`), and `run_nup`/`run_column` pass `--pane=$_cols` plus `-w N` after the file name `-` so nup agrees with mdee on the pane count. `--fold-width` sets the fold/table width directly (`fold_width`); its default is `_total / _cols - 5` with nup, or the output width without nup. Both have `default[...]` config keys.
 
 ### Style System

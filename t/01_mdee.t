@@ -532,6 +532,18 @@ subtest q(parallel option) => sub {
     unlike($plain, qr/debug: nup .*-V/, q(without --parallel nup runs as before));
 };
 
+# Test: filename option (file name label from greple)
+subtest q(filename option) => sub {
+    my $help = `$mdee --help 2>&1`;
+    like($help, qr/--\[no-\]filename/, q(--help shows --filename option));
+
+    my $default = `COLUMNS=200 $mdee -ddn -V $test_md $test_md 2>&1`;
+    unlike($default, qr/debug: greple .* -h /, q(file names are shown by default));
+
+    my $none = `COLUMNS=200 $mdee -ddn -V --no-filename $test_md $test_md 2>&1`;
+    like($none, qr/debug: greple .* -h /, q(--no-filename passes -h to greple));
+};
+
 # Test: output width option (-w) and --fold-width
 subtest q(output width option) => sub {
     my $help = `$mdee --help 2>&1`;

@@ -39,6 +39,7 @@ mdee - em·dee, Markdown Easy on the Eyes
      -S  --pane-width=#     pane width (default: 85)
     --bs --border-style=#   border style
          --[no-]page-number page number on border (default: on)
+         --[no-]filename    file name label (default: on)
          --[no-]pager[=#]   pager command
 
 # VERSION
@@ -599,6 +600,14 @@ bold text, etc.).
 
     Show page number on the bottom border of each column.  Enabled by
     default.  Use `--no-page-number` to disable.
+
+- **--**\[**no-**\]**filename**
+
+    Show the file name label at the top of each file.  Enabled by
+    default.  Use `--no-filename` to hide it, for example when files are
+    shown side by side with `--parallel` and the panes should start with
+    the text.  The label format and color are set by the `FILE_FORMAT`
+    and `FILE` theme keys (see `--config`).
 
 ## Pager Options
 

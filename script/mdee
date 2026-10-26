@@ -58,6 +58,7 @@ mdee - em·dee, Markdown Easy on the Eyes
      -S  --pane-width=#     pane width (default: 85)
     --bs --border-style=#   border style
          --[no-]page-number page number on border (default: on)
+         --[no-]filename    file name label (default: on)
          --[no-]pager[=#]   pager command
 
 =head1 VERSION
@@ -189,6 +190,7 @@ declare -A OPTS=(
     [         page | P  :>pass_nup # page height           ]=
     [ border-style | bs :>pass_nup # border style          ]=
     [ page-number  |     >pass_nup # page number            ]=
+    [     filename |               # file name label       ]=1
     [        cat-v |               # visualize whitespace  ]=
 )
 
@@ -505,8 +507,11 @@ run_greple() {
     local -n _tr="theme_${mode}"
     local _file_cm="${_tr[FILE]//'${base}'/${_tr[base]}}"
 
+    # -h: no file name label (--no-filename)
+    local -a _file_opt=()
+    [[ ${filename:-} ]] || _file_opt=(-h)
     invoke greple "${md_opts[@]}" "${pass_md[@]}" -- \
-        --filter --filestyle=once --color=always \
+        --filter --filestyle=once --color=always ${_file_opt[@]+"${_file_opt[@]}"} \
         --format "FILE=${_tr[FILE_FORMAT]}" --cm "FILE=${_file_cm}" \
         --begin 'sub{STDOUT->printflush("\f") if state $once++}' \
         "$@"
@@ -1179,6 +1184,14 @@ Set the border style.
 
 Show page number on the bottom border of each column.  Enabled by
 default.  Use C<--no-page-number> to disable.
+
+=item B<-->[B<no->]B<filename>
+
+Show the file name label at the top of each file.  Enabled by
+default.  Use C<--no-filename> to hide it, for example when files are
+shown side by side with C<--parallel> and the panes should start with
+the text.  The label format and color are set by the C<FILE_FORMAT>
+and C<FILE> theme keys (see C<--config>).
 
 =back
 

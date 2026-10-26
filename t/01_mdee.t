@@ -476,17 +476,17 @@ subtest 'share themes markcell and markwrap' => sub {
     my $md = File::Spec->rel2abs('t/table_wrap.md');
     my $item = decode_utf8(scalar `$mdee -s cat -w 40 --no-theme --theme=markcell $md`);
     is($?, 0, 'markcell theme loads successfully');
-    like($item, qr/^\x{b7}k1\s+\x{2502}\x{b7}the quick/m, 'markcell marks the first line of every cell');
+    like($item, qr/^\x{2023}k1\s+\x{2502}\x{2023}the quick/m, 'markcell marks the first line of every cell');
     unlike($item, qr/\x{203A}/, 'markcell alone has no continuation mark');
     my $wrap = decode_utf8(scalar `$mdee -s cat -w 40 --no-theme --theme=markwrap $md`);
     is($?, 0, 'markwrap theme loads successfully');
     like($wrap, qr/\x{2502}\x{203A}\S/, 'markwrap marks continuation lines');
-    unlike($wrap, qr/\x{b7}/, 'markwrap alone has no first-line mark');
+    unlike($wrap, qr/\x{2023}/, 'markwrap alone has no first-line mark');
     my $both = decode_utf8(scalar `$mdee -s cat -w 40 --theme=markwrap $md`);
-    like($both, qr/^\x{b7}k1/m, 'default plus markwrap keeps the first-line mark');
+    like($both, qr/^\x{2023}k1/m, 'default plus markwrap keeps the first-line mark');
     like($both, qr/\x{2502}\x{203A}\S/, 'default plus markwrap adds the continuation mark');
     my $none = decode_utf8(scalar `$mdee -s cat -w 40 --no-theme $md`);
-    unlike($none, qr/\x{b7}|\x{203A}/, '--no-theme uses no mark');
+    unlike($none, qr/\x{2023}|\x{203A}/, '--no-theme uses no mark');
 };
 
 subtest 'table wrap' => sub {

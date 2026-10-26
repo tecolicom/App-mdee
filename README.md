@@ -258,7 +258,7 @@ Use [tecolicom/tap](https://github.com/tecolicom/homebrew-tap):
     start of cell lines, in place of the cell's leading space so that
     column widths do not change.  `--config table_cell_mark=STRING`
     marks the first line of every cell in a table that has a wrapped
-    cell; the default theme `markcell` sets it to `·` (U+00B7).
+    cell; the default theme `markcell` sets it to `‣` (U+2023).
     `--config table_wrap_mark=STRING` marks the second and later
     lines of a wrapped cell, so that they are not read as new rows;
     the theme `markwrap` sets it to `›` (U+203A).  Without these
@@ -409,7 +409,7 @@ bold text, etc.).
     - `markcell` (default)
 
         In a table that has wrapped cells, mark the first line of every
-        cell with `·` (U+00B7), so that the rows read like a bulleted
+        cell with `‣` (U+2023), so that the rows read like a bulleted
         list and the continuation lines stand apart.  Tables that fit are
         not marked.  Sets `table_cell_mark`; `nomark` does not affect it.
         To use another character, set it in the configuration file or in a

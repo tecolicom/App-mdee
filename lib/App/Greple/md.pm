@@ -6,7 +6,7 @@ use 5.026;
 use warnings;
 use utf8;
 
-our $VERSION = "1.11";
+our $VERSION = "1.12";
 
 =encoding utf-8
 

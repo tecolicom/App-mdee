@@ -257,8 +257,9 @@ Use [tecolicom/tap](https://github.com/tecolicom/homebrew-tap):
     `'<30'` caps every column at 30).  Marks can be put at the
     start of cell lines, in place of the cell's leading space so that
     column widths do not change.  `--config table_cell_mark=STRING`
-    marks the first line of every cell in a table that has a wrapped
-    cell; the default theme `markcell` sets it to `‣` (U+2023).
+    marks the first line of every body cell in a column that has a
+    wrapped cell; the header row and columns that fit are left alone.
+    The default theme `markcell` sets it to `‣` (U+2023).
     `--config table_wrap_mark=STRING` marks the second and later
     lines of a wrapped cell, so that they are not read as new rows;
     the theme `markwrap` sets it to `›` (U+203A).  Without these
@@ -409,8 +410,9 @@ bold text, etc.).
     - `markcell` (default)
 
         In a table that has wrapped cells, mark the first line of every
-        cell with `‣` (U+2023), so that the rows read like a bulleted
-        list and the continuation lines stand apart.  Tables that fit are
+        body cell in the wrapped columns with `‣` (U+2023), so that the
+        rows read like a bulleted list and the continuation lines stand
+        apart.  The header row, columns that fit, and tables that fit are
         not marked.  Sets `table_cell_mark`; `nomark` does not affect it.
         To use another character, set it in the configuration file or in a
         theme of your own:

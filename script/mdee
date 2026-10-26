@@ -815,8 +815,9 @@ is a colon-separated list passed to ansicolumn's C<--cell> option
 C<< '<30' >> caps every column at 30).  Marks can be put at the
 start of cell lines, in place of the cell's leading space so that
 column widths do not change.  C<--config table_cell_mark=STRING>
-marks the first line of every cell in a table that has a wrapped
-cell; the default theme C<markcell> sets it to C<‣> (U+2023).
+marks the first line of every body cell in a column that has a
+wrapped cell; the header row and columns that fit are left alone.
+The default theme C<markcell> sets it to C<‣> (U+2023).
 C<--config table_wrap_mark=STRING> marks the second and later
 lines of a wrapped cell, so that they are not read as new rows;
 the theme C<markwrap> sets it to C<›> (U+203A).  Without these
@@ -978,8 +979,9 @@ original heading color.
 =item C<markcell> (default)
 
 In a table that has wrapped cells, mark the first line of every
-cell with C<‣> (U+2023), so that the rows read like a bulleted
-list and the continuation lines stand apart.  Tables that fit are
+body cell in the wrapped columns with C<‣> (U+2023), so that the
+rows read like a bulleted list and the continuation lines stand
+apart.  The header row, columns that fit, and tables that fit are
 not marked.  Sets C<table_cell_mark>; C<nomark> does not affect it.
 To use another character, set it in the configuration file or in a
 theme of your own:

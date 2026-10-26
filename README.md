@@ -78,9 +78,9 @@ else is still the source text.  This is why paragraphs are not
 reflowed, why backslash escapes such as `\*` are shown as written,
 and why `--no-theme` gives back the original file, in color.
 
-For full Markdown rendering, many other viewers are available.
-Combine them with [nup(1)](https://metacpan.org/pod/App%3A%3Anup) for similar paged output
-(e.g., `nup glow README.md`).
+For full Markdown rendering, many other viewers are available, such
+as `glow` and `mdcat`.  Combine them with [nup(1)](https://metacpan.org/pod/App%3A%3Anup) for
+similar paged output (e.g., `nup glow README.md`, `nup mdcat README.md`).
 
 The pipeline combines [greple(1)](https://metacpan.org/pod/App%3A%3AGreple) for colorization and
 [nup(1)](https://metacpan.org/pod/App%3A%3Anup) for multi-column paged output.

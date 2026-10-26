@@ -610,9 +610,9 @@ else is still the source text.  This is why paragraphs are not
 reflowed, why backslash escapes such as C<\*> are shown as written,
 and why C<--no-theme> gives back the original file, in color.
 
-For full Markdown rendering, many other viewers are available.
-Combine them with L<nup(1)|App::nup> for similar paged output
-(e.g., C<nup glow README.md>).
+For full Markdown rendering, many other viewers are available, such
+as C<glow> and C<mdcat>.  Combine them with L<nup(1)|App::nup> for
+similar paged output (e.g., C<nup glow README.md>, C<nup mdcat README.md>).
 
 The pipeline combines L<greple(1)|App::Greple> for colorization and
 L<nup(1)|App::nup> for multi-column paged output.

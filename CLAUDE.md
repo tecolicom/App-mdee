@@ -461,6 +461,8 @@ s{(^ {0,3}\|.+\|\n){3,}}{
 }mge;
 ```
 
+**Escaped pipes**: the split regex excludes a `|` preceded by a backslash (`(?<!\\)\|`, also in non-trim mode, which therefore uses `-rs` too), so `\|` stays inside its cell. It is displayed as written; backslash escapes in general (`\*`, `` \` ``, `\|` → `|`) are not processed by the md module yet.
+
 **Trim mode** (`table_trim=1`, default): Strips cell whitespace with `-rs '\s*\|\s*'`, adds padding with `--item-format=' %s '`, removes the leading/trailing empty columns created by `|` delimiters with `--table-remove=1,-0`, and uses `--padding` to pad the last column to full width.
 
 **Non-trim mode** (`table_trim=0`): Uses `-s '|'` as simple separator. Column numbers from `parse_separator` need `+1` offset because the leading `|` creates an empty column 1 in ansicolumn's split.

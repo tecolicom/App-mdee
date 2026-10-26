@@ -837,11 +837,13 @@ sub format_table {
         my $block = $&;
         my($right, $center) = parse_separator(\$block);
         my @sep_opt;
+        # An escaped pipe (\|) is not a column separator (GFM).  It is
+        # left as written: backslash escapes are not processed yet.
         if ($config->{table_trim}) {
-            @sep_opt = ('-rs', '\s*\|\s*', '--item-format= %s ', '--table-remove=1,-0', '--padding');
+            @sep_opt = ('-rs', '\s*(?<!\\\\)\|\s*', '--item-format= %s ', '--table-remove=1,-0', '--padding');
         } else {
             $_++ for @$right, @$center;
-            @sep_opt = ('-s', '|');
+            @sep_opt = ('-rs', '(?<!\\\\)\|');
         }
         my @align = (
             @$right  ? ('--table-right='  . join(',', @$right))  : (),

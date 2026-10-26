@@ -2,6 +2,11 @@ Revision history for Perl extension App-mdee
 
 {{$NEXT}}
 
+1.11 2026-10-26T03:32:25Z
+
+    - Add --[no-]filename to hide the file name label (greple -h)
+    - Do not split a table cell at an escaped pipe (\|)
+
 1.10 2026-10-25T23:52:27Z
 
     - Add -V/--parallel to show two or more files side by side, one

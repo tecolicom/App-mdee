@@ -4,7 +4,7 @@ package App::mdee;
 # POD documentation is appended from script/mdee at release time.
 # See minil.toml for details.
 
-our $VERSION = "1.10";
+our $VERSION = "1.11";
 
 1;
 =encoding utf-8
@@ -49,11 +49,12 @@ mdee - em·dee, Markdown Easy on the Eyes
      -S  --pane-width=#     pane width (default: 85)
     --bs --border-style=#   border style
          --[no-]page-number page number on border (default: on)
+         --[no-]filename    file name label (default: on)
          --[no-]pager[=#]   pager command
 
 =head1 VERSION
 
-Version 1.10
+Version 1.11
 
 =cut
 =head1 DESCRIPTION
@@ -75,9 +76,21 @@ remain clickable.
 Use C<--no-theme> to display the original Markdown source with
 markup characters intact.
 
-B<em·dee> does not reflow paragraphs or convert Markdown into a
-different format.  For full Markdown rendering, many other viewers
-are available.  Combine them with L<nup(1)|App::nup> for similar paged output
+=head2 Concept
+
+B<em·dee> began as a viewer for Markdown I<text>, not as a Markdown
+renderer.  The idea was to show a C<.md> file as it is written, line
+for line, only made easier on the eyes with color: the Markdown is
+not interpreted or reformatted.  Some formatting has been added since
+because it made the text more readable: tables are aligned, long
+list items are folded, the default themes hide markup characters,
+and closing hashes are appended to lower-level headings.  Everything
+else is still the source text.  This is why paragraphs are not
+reflowed, why backslash escapes such as C<\*> are shown as written,
+and why C<--no-theme> gives back the original file, in color.
+
+For full Markdown rendering, many other viewers are available.
+Combine them with L<nup(1)|App::nup> for similar paged output
 (e.g., C<nup glow README.md>).
 
 The pipeline combines L<greple(1)|App::Greple> for colorization and
@@ -662,6 +675,14 @@ Set the border style.
 
 Show page number on the bottom border of each column.  Enabled by
 default.  Use C<--no-page-number> to disable.
+
+=item B<-->[B<no->]B<filename>
+
+Show the file name label at the top of each file.  Enabled by
+default.  Use C<--no-filename> to hide it, for example when files are
+shown side by side with C<--parallel> and the panes should start with
+the text.  The label format and color are set by the C<FILE_FORMAT>
+and C<FILE> theme keys (see C<--config>).
 
 =back
 

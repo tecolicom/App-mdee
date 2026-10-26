@@ -2,7 +2,9 @@
 
 ## Overview
 
-em·dee (mdee: Markdown, Easy on the Eyes) is a Markdown viewer command implemented as a Bash script. It combines greple for syntax highlighting with nup for multi-column paged output.
+em·dee (mdee: Markdown, Easy on the Eyes) is a Markdown *text* viewer command implemented as a Bash script. It combines greple for syntax highlighting with nup for multi-column paged output.
+
+**Concept:** mdee shows a `.md` file as it is written, made easier on the eyes with color; it is not a Markdown renderer and does not interpret or reformat the text. Table alignment, list-item folding, hiding markup characters (default themes) and closing hashes on h3-h6 were added later for readability and are the only transformations. Keep new features within this idea: paragraphs are not reflowed, backslash escapes are shown as written, and `--no-theme` gives back the original text in color.
 
 ## Dependencies
 

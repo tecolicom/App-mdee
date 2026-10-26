@@ -65,9 +65,21 @@ remain clickable.
 Use `--no-theme` to display the original Markdown source with
 markup characters intact.
 
-**em·dee** does not reflow paragraphs or convert Markdown into a
-different format.  For full Markdown rendering, many other viewers
-are available.  Combine them with [nup(1)](https://metacpan.org/pod/App%3A%3Anup) for similar paged output
+## Concept
+
+**em·dee** began as a viewer for Markdown _text_, not as a Markdown
+renderer.  The idea was to show a `.md` file as it is written, line
+for line, only made easier on the eyes with color: the Markdown is
+not interpreted or reformatted.  Some formatting has been added since
+because it made the text more readable: tables are aligned, long
+list items are folded, the default themes hide markup characters,
+and closing hashes are appended to lower-level headings.  Everything
+else is still the source text.  This is why paragraphs are not
+reflowed, why backslash escapes such as `\*` are shown as written,
+and why `--no-theme` gives back the original file, in color.
+
+For full Markdown rendering, many other viewers are available.
+Combine them with [nup(1)](https://metacpan.org/pod/App%3A%3Anup) for similar paged output
 (e.g., `nup glow README.md`).
 
 The pipeline combines [greple(1)](https://metacpan.org/pod/App%3A%3AGreple) for colorization and

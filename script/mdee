@@ -323,8 +323,10 @@ fi
 # Output width: explicit option (non-zero) > config default > terminal width
 (( width == 0 )) && width=${default[width]:-0}
 (( fold_width == 0 )) && fold_width=${default[fold_width]:-0}
-# tput fails without TERM (e.g. docker run without a tty); fall back to 80 below
-(( width > 0 )) || : ${COLUMNS:=$(tput cols 2>/dev/null)}
+# tput reads the size from stderr when stdout is captured, so do not
+# redirect it; without TERM (docker run without a tty) tput only
+# complains, so skip it and fall back to 80 below
+(( width > 0 )) || [[ ! ${TERM:-} ]] || : ${COLUMNS:=$(tput cols)}
 (( width > 0 )) && _total=$width || _total=${COLUMNS:-}
 (( debug > 0 )) && echo "debug: COLUMNS=${COLUMNS:-unset} width=$width pane=$pane pane_width=$pane_width" >&2
 # Calculate columns from output width and pane width

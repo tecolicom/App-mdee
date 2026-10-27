@@ -399,8 +399,10 @@ Regex patterns used by the md module:
 
 Fenced code blocks ([CommonMark](https://spec.commonmark.org/0.31.2/#fenced-code-blocks)):
 ```
-^ {0,3}(?<bt>`{3,}+|~{3,}+)(.*)\n((?s:.*?))^ {0,3}(\g{bt})
+^ {0,3}(?<bt>(?<fc>[`~])\g{fc}{2,}+)(.*)\n((?s:.*?))^ {0,3}\g{bt}\g{fc}*+\h*$
 ```
+
+The closing fence is the same character as the opening one and at least as long, followed only by spaces or tabs; it is shown as written.  The `code_blocks` step uses the same rule with numbered captures.  A fence that is never closed is not treated as code (CommonMark would run it to the end of the document).
 
 Inline code ([CommonMark Code Spans](https://spec.commonmark.org/0.31.2/#code-spans)) uses the `$CODE` pattern, which matches both single and multi-backtick spans. For multi-backtick (2+), optional leading/trailing spaces are stripped per CommonMark spec.
 

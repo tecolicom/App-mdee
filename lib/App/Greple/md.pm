@@ -647,8 +647,9 @@ sub Step {
 my %colorize = (
 
     code_blocks => Step(sub {
-        s{^( {0,3})(`{3,}|~{3,})(.*)\n((?s:.*?))^( {0,3})\2(\h*)$}{
-            my($oi, $fence, $lang, $body, $ci, $trail) = ($1, $2, $3, $4, $5, $6);
+        # closing fence: the same character, at least as long (CommonMark)
+        s{^( {0,3})((`|~)\3{2,})(.*)\n((?s:.*?))^( {0,3})(\2\3*)(\h*)$}{
+            my($oi, $fence, $lang, $body, $ci, $close, $trail) = ($1, $2, $4, $5, $6, $7, $8);
             my $result = md_color('code_mark', "$oi$fence");
             $result .= md_color('code_info', $lang) if length($lang);
             $result .= "\n";
@@ -656,7 +657,7 @@ my %colorize = (
                 $result .= join '', map { md_color('code_block', $_) }
                     split /(?<=\n)/, $body;
             }
-            $result .= md_color('code_mark', "$ci$fence") . $trail;
+            $result .= md_color('code_mark', "$ci$close") . $trail;
             protect($result)
         }mge;
     }),
@@ -949,7 +950,7 @@ option default \
     -G --filter --filestyle=once --color=always \
     --begin &__PACKAGE__::begin
 
-define {CODE_BLOCK}  ^ {0,3}(?<bt>`{3,}+|~{3,}+)(.*)\n((?s:.*?))^ {0,3}(\g{bt})
+define {CODE_BLOCK}  ^ {0,3}(?<bt>(?<fc>[`~])\g{fc}{2,}+)(.*)\n((?s:.*?))^ {0,3}\g{bt}\g{fc}*+\h*$
 define {COMMENT}     ^<!--(?![->])(?s:.+?)-->
 define {LIST_ITEM}   ^\h*(?:[*-]|(?:\d+|#)[.)])\h+.*\n
 define {DEFINITION}  (?:\A|\G\n|\n\n).+\n\n?(:\h+.*\n)

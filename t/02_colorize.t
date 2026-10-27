@@ -63,4 +63,18 @@ SKIP: {
     like($wb_line, qr/x___y___z/, "___ not applied inside word x___y___z");
 }
 
+# Closing code fence: the same character, at least as long (CommonMark)
+{
+    use File::Temp qw(tempfile);
+    my ($fh, $file) = tempfile(SUFFIX => '.md', UNLINK => 1);
+    print $fh "```\ncode A\n````\n\nText with **bold** here.\n\n"
+            . "```\n```sh\ncode B\n```\n";
+    close $fh;
+    my @lines = split /\n/, run("-Mmd $file")->stdout;
+    my ($text) = grep { /Text with/ } @lines;
+    like($text, qr/\e\[[0-9;]*1[;m]/, "a longer closing fence closes the block");
+    my ($inner) = grep { /```sh/ } @lines;
+    like($inner, qr/\e\[[0-9;]*48;/, "```sh inside a ``` block is code, not a fence");
+}
+
 done_testing;

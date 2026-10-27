@@ -404,6 +404,8 @@ Fenced code blocks ([CommonMark](https://spec.commonmark.org/0.31.2/#fenced-code
 
 The closing fence is the same character as the opening one and at least as long, followed only by spaces or tabs; it is shown as written.  The `code_blocks` step uses the same rule with numbered captures.  A fence that is never closed is not treated as code (CommonMark would run it to the end of the document).
 
+ATX headings ([CommonMark](https://spec.commonmark.org/0.31.2/#atx-headings)), for each level `$hdr` from `######` down to `#`: `^( {0,3}$hdr(?:\h+.*)?)$`.  Up to 3 spaces of indentation are allowed, and a line of `#`s alone is an empty heading; `#foo` (no space) and seven `#`s are not headings.
+
 Inline code ([CommonMark Code Spans](https://spec.commonmark.org/0.31.2/#code-spans)) uses the `$CODE` pattern, which matches both single and multi-backtick spans. For multi-backtick (2+), optional leading/trailing spaces are stripped per CommonMark spec.
 
 ### Text Folding (md module)

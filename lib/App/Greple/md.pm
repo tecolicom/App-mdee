@@ -703,7 +703,8 @@ my %colorize = (
         for my $n (reverse 1..6) {
             next unless active("h$n");
             my $hdr = '#' x $n;
-            s{^($hdr\h+.*)$}{
+            # up to 3 spaces of indentation; empty headings ("#") too (CommonMark)
+            s{^( {0,3}$hdr(?:\h+.*)?)$}{
                 my $line = $1;
                 $line .= " $hdr"
                     if $hashed->{"h$n"} && $line !~ /\#$/;

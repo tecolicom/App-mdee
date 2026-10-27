@@ -304,6 +304,8 @@ Dryrun combinations:
 
 `-n` does not show the environment mdee sets (`LESS`, `LESSANSIENDCHARS`, and `PERL5LIB` when `./script/mdee` runs from the repository).
 
+In dryrun mode the stage functions really run, in a `$(...)` subshell each, up to their `invoke`, so what `-n` prints is the command the function builds, with all its branches.  A stage function must therefore not set variables that a later stage relies on: in dryrun mode the assignment stays in the subshell, and `-n` would show a pipeline different from the real one.  Prepare such values before the stages run, as `column_opts` is.
+
 ### App::Greple::md Module
 
 Syntax highlighting, table formatting, and text folding are handled by the `App::Greple::md` Perl module. mdee invokes `greple -Mmd::config(mode,foldlist,foldwidth,table,table_trim,rule,heading_markup,...) -- --filter --filestyle=once --color=always`.

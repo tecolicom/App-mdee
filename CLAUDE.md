@@ -283,12 +283,12 @@ export LESSANSIENDCHARS="${LESSANSIENDCHARS:-mK}"
 
 #### Command Invocation Wrapper
 
-All `run_XXX` functions use `invoke` to execute commands. When `debug > 1` (`-dd`), it prints the full command with quoted arguments to stderr. In dryrun mode, `invoke` skips execution:
+All `run_XXX` functions use `invoke` to execute commands. When `debug > 1` (`-dd`), it prints the full command to stderr. In dryrun mode, `invoke` prints the command line to stdout instead of running it, and the dryrun block captures each stage's line and joins them with ` \` + newline + `    | `, so that `mdee -n` shows a pipeline that can be pasted into a shell. `quote_args` leaves an argument as it is when it consists of safe characters (`[-A-Za-z0-9_./:=,+%@]`) and wraps it in `'...'` otherwise (more readable than `printf %q`):
 
 ```bash
 invoke() {
-    (( debug > 1 )) && echo "debug: $(printf '%q ' "$@")" >&2
-    [[ ${dryrun:-} ]] && return
+    (( debug > 1 )) && echo "debug: $(quote_args "$@")" >&2
+    [[ ${dryrun:-} ]] && { quote_args "$@"; return; }
     "$@"
 }
 ```
@@ -298,8 +298,11 @@ Debug levels:
 - `-dd` (`debug > 1`): above + full command lines for each pipeline stage
 
 Dryrun combinations:
-- `-dn`: show pipeline as function names (e.g., `run_greple "$@" | run_nup`)
-- `-ddn`: show expanded command lines for each stage without executing
+- `-n`: print the command lines of the pipeline (stdout), without executing
+- `-dn`: also the stage names (`debug: stages: run_greple run_nup`, stderr)
+- `-ddn`: also each command line as `debug: ...` on stderr (the tests match these lines)
+
+`-n` does not show the environment mdee sets (`LESS`, `LESSANSIENDCHARS`, and `PERL5LIB` when `./script/mdee` runs from the repository).
 
 ### App::Greple::md Module
 

@@ -63,6 +63,9 @@ subtest 'dryrun option' => sub {
     my $out = `COLUMNS=200 $mdee --dryrun $test_md 2>&1`;
     like($out, qr/greple/, '--dryrun shows greple command');
     like($out, qr/nup/, '--dryrun shows nup command');
+    like($out, qr/^greple '-Mmd::config\(mode=/m, '--dryrun shows the greple command line');
+    like($out, qr/ \\\n    \| nup /, '--dryrun joins the stages with |');
+    unlike($out, qr/run_greple/, '--dryrun shows commands, not function names');
 };
 
 # Test: mode option
@@ -74,7 +77,7 @@ subtest 'mode option' => sub {
 
 # Test: no-nup option
 subtest 'no-nup option' => sub {
-    my $out = `$mdee --dryrun --no-nup $test_md 2>&1`;
+    my $out = `$mdee -d --dryrun --no-nup $test_md 2>&1`;
     unlike($out, qr/run_nup/, '--no-nup excludes nup from pipeline');
 };
 
@@ -107,7 +110,7 @@ subtest 'filter option' => sub {
 
 # Test: style option
 subtest 'style option' => sub {
-    my $nup = `COLUMNS=200 $mdee --dryrun --style=nup $test_md 2>&1`;
+    my $nup = `COLUMNS=200 $mdee -d --dryrun --style=nup $test_md 2>&1`;
     like($nup, qr/run_nup/, '--style=nup includes nup');
 
     my $nup_ddn2 = `COLUMNS=200 $mdee -ddn --style=nup $test_md 2>&1`;
@@ -116,7 +119,7 @@ subtest 'style option' => sub {
     my $nup_ddn = `COLUMNS=200 $mdee -ddn --style=nup $test_md 2>&1`;
     like($nup_ddn, qr/table=1/, '--style=nup includes table');
 
-    my $pager = `$mdee --dryrun --style=pager $test_md 2>&1`;
+    my $pager = `$mdee -d --dryrun --style=pager $test_md 2>&1`;
     unlike($pager, qr/run_nup/, '--style=pager excludes nup');
     like($pager, qr/run_pager/, '--style=pager includes pager');
 
@@ -126,7 +129,7 @@ subtest 'style option' => sub {
     my $pager_ddn = `$mdee -ddn --style=pager $test_md 2>&1`;
     like($pager_ddn, qr/table=1/, '--style=pager includes table');
 
-    my $cat = `$mdee --dryrun --style=cat $test_md 2>&1`;
+    my $cat = `$mdee -d --dryrun --style=cat $test_md 2>&1`;
     unlike($cat, qr/run_nup/, '--style=cat excludes nup');
 
     my $cat_ddn = `$mdee -ddn --style=cat $test_md 2>&1`;
@@ -150,7 +153,7 @@ subtest 'style option' => sub {
 
 # Test: plain option
 subtest 'plain option' => sub {
-    my $out = `$mdee --dryrun -p $test_md 2>&1`;
+    my $out = `$mdee -d --dryrun -p $test_md 2>&1`;
     unlike($out, qr/run_nup/, '-p excludes nup');
     like($out, qr/run_pager/, '-p includes pager');
 
@@ -165,7 +168,7 @@ subtest 'style override' => sub {
     like($ddn, qr/foldlist=1\b/, '-f --fold enables fold');
     unlike($ddn, qr/run_nup/, '-f --fold keeps nup disabled');
 
-    my $out2 = `$mdee --dryrun -p --no-fold $test_md 2>&1`;
+    my $out2 = `$mdee -d --dryrun -p --no-fold $test_md 2>&1`;
     like($out2, qr/run_pager/, '-p --no-fold keeps pager');
     my $ddn2 = `$mdee -ddn -p --no-fold $test_md 2>&1`;
     unlike($ddn2, qr/foldlist=1\b/, '-p --no-fold disables fold');
@@ -307,7 +310,7 @@ subtest 'config file defaults' => sub {
         open my $fh, '>', "$config_dir/config.sh" or die;
         print $fh "default[style]='pager'\n";
         close $fh;
-        my $out = `XDG_CONFIG_HOME=$tmpdir $mdee --dryrun --mode=light $test_md 2>&1`;
+        my $out = `XDG_CONFIG_HOME=$tmpdir $mdee -d --dryrun --mode=light $test_md 2>&1`;
         like($out, qr/run_pager/, 'default[style]=pager adds pager');
         unlike($out, qr/run_nup/, 'default[style]=pager removes nup');
     }
@@ -359,7 +362,7 @@ subtest 'config file defaults' => sub {
         open my $fh, '>', "$config_dir/config.sh" or die;
         print $fh "default[style]='pager'\ndefault[width]=40\n";
         close $fh;
-        my $out = `COLUMNS=200 XDG_CONFIG_HOME=$tmpdir $mdee --dryrun --mode=light -s nup -w 200 $test_md 2>&1`;
+        my $out = `COLUMNS=200 XDG_CONFIG_HOME=$tmpdir $mdee -d --dryrun --mode=light -s nup -w 200 $test_md 2>&1`;
         like($out, qr/run_nup/, '-s nup overrides default[style]=pager');
     }
 

@@ -194,9 +194,11 @@ Use [tecolicom/tap](https://github.com/tecolicom/homebrew-tap):
 
 - **-n**, **--dryrun**
 
-    Dry-run mode. Show the pipeline without executing.
-    With `-dd`, shows expanded command lines for each stage instead
-    of function names.
+    Dry-run mode.  Print the commands that would be run, one pipeline
+    stage per line joined with `|`, without running them.  Arguments
+    are quoted so that the output can be pasted into a shell.  The
+    environment that **mdee** sets (`LESS`, `LESSANSIENDCHARS`) is not
+    shown.  With `-d`, the stage names are printed to stderr as well.
 
 ## Processing Options
 
@@ -782,8 +784,8 @@ The overall data flow is:
 
 **em·dee** dynamically constructs a pipeline based on enabled options.
 Each stage is defined as a Bash function (e.g., `run_greple`,
-`run_nup`).  The `--dryrun` option displays the function-based
-pipeline without execution.
+`run_nup`).  The `--dryrun` option prints the command line of
+each stage without running them, and `-d` prints the stage names.
 
 ### Processing Stages
 

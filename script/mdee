@@ -460,10 +460,24 @@ for file in "$@"; do
     [[ -e "$file" ]] || die "$file: No such file or directory"
 done
 
+# Quote arguments for display: as they are when safe, in '...' otherwise
+quote_args() {
+    local _a _out=()
+    for _a in "$@"; do
+        if [[ $_a =~ ^[-A-Za-z0-9_./:=,+%@]+$ ]]; then
+            _out+=("$_a")
+        else
+            _out+=("'${_a//\'/\'\\\'\'}'")
+        fi
+    done
+    echo "${_out[*]}"
+}
+
 # Define pipeline stage functions
+# In dryrun mode a stage prints its command line instead of running it
 invoke() {
-    (( debug > 1 )) && echo "debug: $(printf '%q ' "$@")" >&2
-    [[ ${dryrun:-} ]] && return
+    (( debug > 1 )) && echo "debug: $(quote_args "$@")" >&2
+    [[ ${dryrun:-} ]] && { quote_args "$@"; return; }
     "$@"
 }
 
@@ -541,7 +555,12 @@ run_nup() {
         invoke nup "${pass_nup[@]}"
     fi
 }
-run_column() { invoke nup "${pass_nup[@]}" --no-pager --no-paginate --pane=1 - --pages ${column_opts[@]+"${column_opts[@]}"}; }
+# --pane=1 unless -C1 has put it in pass_nup already
+run_column() {
+    local -a _pane=()
+    (( pane == 0 )) && _pane=(--pane=1)
+    invoke nup "${pass_nup[@]}" --no-pager --no-paginate ${_pane[@]+"${_pane[@]}"} - --pages ${column_opts[@]+"${column_opts[@]}"}
+}
 run_cat_v()  { invoke cat-v --nl=0; }
 run_pager()  { invoke ${PAGER:-less}; }
 
@@ -575,13 +594,12 @@ done
 (( debug > 0 )) && echo "debug: stages: ${stages[*]}" >&2
 
 if [[ ${dryrun:-} ]]; then
-    if (( debug > 1 )); then
-        for stage in "${stages[@]}"; do
-            $stage "$@"
-        done
-    else
-        echo "$pipeline"
-    fi
+    # the command lines of the stages, joined into one pipeline
+    _cmd=$(run_greple "$@")
+    for stage in "${stages[@]:1}"; do
+        _cmd+=$' \\\n    | '"$($stage)"
+    done
+    echo "$_cmd"
 else
     eval "$pipeline"
 fi
@@ -743,9 +761,11 @@ then disables tracing.
 
 =item B<-n>, B<--dryrun>
 
-Dry-run mode. Show the pipeline without executing.
-With C<-dd>, shows expanded command lines for each stage instead
-of function names.
+Dry-run mode.  Print the commands that would be run, one pipeline
+stage per line joined with C<|>, without running them.  Arguments
+are quoted so that the output can be pasted into a shell.  The
+environment that B<mdee> sets (C<LESS>, C<LESSANSIENDCHARS>) is not
+shown.  With C<-d>, the stage names are printed to stderr as well.
 
 =back
 
@@ -1403,8 +1423,8 @@ The overall data flow is:
 
 B<em·dee> dynamically constructs a pipeline based on enabled options.
 Each stage is defined as a Bash function (e.g., C<run_greple>,
-C<run_nup>).  The C<--dryrun> option displays the function-based
-pipeline without execution.
+C<run_nup>).  The C<--dryrun> option prints the command line of
+each stage without running them, and C<-d> prints the stage names.
 
 =head3 Processing Stages
 

@@ -304,6 +304,8 @@ Dryrun combinations:
 
 `-n` does not show the environment mdee sets (`LESS`, `LESSANSIENDCHARS`, and `PERL5LIB` when `./script/mdee` runs from the repository).
 
+A stage in `stages[]` is either a `run_*` function, which calls `invoke` itself, or a command line written as shell words (`"sed -e 's/a/b/'"`).  Each stage is turned into a call in `calls[]`: a function is called as it is, and a command line becomes `invoke COMMAND LINE`, so it also stops in dryrun mode and shows up in `-dd`.  The real run `eval`s the calls joined with `|`; dryrun `eval`s them one by one in `$(...)` and joins their output, so both use the same calls.
+
 In dryrun mode the stage functions really run, in a `$(...)` subshell each, up to their `invoke`, so what `-n` prints is the command the function builds, with all its branches.  A stage function must therefore not set variables that a later stage relies on: in dryrun mode the assignment stays in the subshell, and `-n` would show a pipeline different from the real one.  Prepare such values before the stages run, as `column_opts` is.
 
 ### App::Greple::md Module

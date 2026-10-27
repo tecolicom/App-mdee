@@ -585,22 +585,30 @@ fi
 [[ $style == pager ]] && stages+=(run_pager)
 
 # Build and execute pipeline
-# run_greple needs "$@" for file arguments; other stages read from stdin
-pipeline='run_greple "$@"'
+# A stage is a run_* function, which calls invoke, or a command line
+# written as shell words ("sed -e 's/a/b/'"), which is given to invoke.
+# run_greple needs "$@" for file arguments; other stages read from stdin.
+declare -a calls=('run_greple "$@"')
 for stage in "${stages[@]:1}"; do
-    pipeline+=" | $stage"
+    if [[ $(type -t "${stage%% *}") == function ]]; then
+        calls+=("$stage")
+    else
+        calls+=("invoke $stage")
+    fi
 done
 
 (( debug > 0 )) && echo "debug: stages: ${stages[*]}" >&2
 
 if [[ ${dryrun:-} ]]; then
-    # the command lines of the stages, joined into one pipeline
-    _cmd=$(run_greple "$@")
-    for stage in "${stages[@]:1}"; do
-        _cmd+=$' \\\n    | '"$($stage)"
+    # each call prints its command line instead of running it (see
+    # invoke); run them one by one and join the lines into a pipeline
+    _cmd=$(eval "${calls[0]}")
+    for _call in "${calls[@]:1}"; do
+        _cmd+=$' \\\n    | '"$(eval "$_call")"
     done
     echo "$_cmd"
 else
+    pipeline=$(IFS='|'; echo "${calls[*]}")
     eval "$pipeline"
 fi
 

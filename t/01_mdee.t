@@ -563,6 +563,26 @@ subtest q(filename option) => sub {
     like($none, qr/debug: greple .* -h /, q(--no-filename passes -h to greple));
 };
 
+# Test: run-in and run-out
+subtest q(runin and runout options) => sub {
+    my $help = `$mdee --help 2>&1`;
+    like($help, qr/--runlen/, q(--help shows --runlen option));
+
+    my $default = `COLUMNS=200 $mdee -ddn $test_md 2>&1`;
+    like($default, qr/debug: nup .*--runin=2 --runout=2/, q(nup gets run-in 2 by default));
+    like($default, qr/foldwidth=95\b/, q(default fold width leaves run-in 2));
+
+    my $four = `COLUMNS=200 $mdee -ddn --runlen=4 $test_md 2>&1`;
+    like($four, qr/debug: nup .*--runin=4 --runout=4/, q(--runlen sets run-in and run-out));
+    like($four, qr/foldwidth=93\b/, q(fold width follows the run-in));
+
+    my $mix = `COLUMNS=200 $mdee -ddn --runlen=4 --runout=1 $test_md 2>&1`;
+    like($mix, qr/debug: nup .*--runin=4 --runout=1/, q(a later --runout overrides --runlen));
+
+    my $later = `COLUMNS=200 $mdee -ddn --runout=1 --runlen=4 $test_md 2>&1`;
+    like($later, qr/debug: nup .*--runin=4 --runout=4/, q(--runlen overrides earlier --runout));
+};
+
 # Test: output width option (-w) and --fold-width
 subtest q(output width option) => sub {
     my $help = `$mdee --help 2>&1`;

@@ -43,7 +43,10 @@ mdee - em·dee, Markdown Easy on the Eyes
          --table-style=#    table style: pipe or simple (default: pipe)
          --cat-v            visualize whitespace via cat-v
      -w  --width=#          output width (default: terminal width)
-         --fold-width=#     fold width (default: pane width - 5)
+         --fold-width=#     fold width (default: pane width - 3 - run-in)
+         --runin=#          run-in width for line breaking (default: 2)
+         --runout=#         run-out width for line breaking (default: 2)
+         --runlen=#         set both run-in and run-out
      -t  --theme=#[,#,...]  color theme(s) (default: hashed,nomark,markcell)
      -m  --mode=#           light or dark (default: light)
      -B  --base-color=#     override base color of theme
@@ -174,8 +177,11 @@ declare -A OPTS=(
     [     parallel | V             # files side by side    ]=
     [         rule |               # table rule lines      ]=_
     [  table-style |    :          # table style           ]=pipe
-    [        width | w  :=i        # output width          ]=0
-    [   fold-width |    :=i        # fold width            ]=0
+    [        width | w  : =i       # output width          ]=0
+    [   fold-width |    : =i       # fold width            ]=0
+    [        runin |    : =i       # run-in width          ]=2
+    [       runout |    : =i       # run-out width         ]=2
+    [       runlen |    :!=i       # run-in and run-out    ]=
     [        theme | t  @          # color theme           ]=
     [         mode | m  :          # light or dark         ]=
     [   base-color | B  :          # base color            ]=
@@ -185,8 +191,8 @@ declare -A OPTS=(
     [heading-markup|hm  :          # markup in headings    ]=
     [         show |    %!         # field visibility      ]=
     [        pager |    ?!         # pager command         ]=
-    [         pane | C  :=i        # number of columns     ]=0
-    [   pane-width | S  :=i        # pane width            ]=85
+    [         pane | C  : =i       # number of columns     ]=0
+    [   pane-width | S  : =i       # pane width            ]=85
     [         grid | G  :>pass_nup # grid layout           ]=
     [          row | R  :>pass_nup # number of rows        ]=
     [         page | P  :>pass_nup # page height           ]=
@@ -256,6 +262,8 @@ version() {
 pager() {
     [[ $pager ]] && pass_nup+=("--pager=$pager") || pass_nup+=("--no-pager")
 }
+
+runlen() { runin=$2 runout=$2; }
 
 filter() {
     style=filter
@@ -370,14 +378,15 @@ esac
 
 # Fold width default: --fold-width > config default > derived from the output width.
 # Without nup the text is the whole output; with nup each pane is
-# (output width / _cols) wide, minus 5 for borders and padding.
+# (output width / _cols) wide, minus 3 for borders and padding and
+# the run-in width that ansicolumn keeps free when it folds.
 if (( fold_width == 0 )); then
     if [[ ! $nup ]] && (( width > 0 )); then
         fold_width=$width
     elif (( _cols > 0 )); then
-        fold_width=$(( ${_total:-80} / _cols - 5 ))
+        fold_width=$(( ${_total:-80} / _cols - 3 - runin ))
     else
-        fold_width=$(( pane_width - 5 ))
+        fold_width=$(( pane_width - 3 - runin ))
     fi
 fi
 
@@ -567,6 +576,10 @@ run_pager()  { invoke ${PAGER:-less}; }
 # Set defaults for less environment
 export LESS="${LESS:--R}"
 export LESSANSIENDCHARS="${LESSANSIENDCHARS:-mK}"
+
+# The fold width leaves room for the run-in width, so give nup the
+# same run-in and run-out rather than those in ~/.ansicolumnrc
+pass_nup+=("--runin=$runin" "--runout=$runout")
 
 # Add pane/pane-width to pass_nup
 (( pane_width != 85 )) && pass_nup+=("--pane-width=$pane_width")
@@ -920,9 +933,24 @@ the text itself is the output, so this is the fold width.
 
 Set the fold width for text wrapping directly.  Default is the
 pane width (output width divided by the number of columns) minus
-5 for borders and padding, which gives 80 when pane-width is 85.
+3 for borders and padding and the run-in width (see C<--runin>),
+which gives 80 when pane-width is 85.
 Only effective when C<--fold> is enabled.  The same width is used
 to fit tables (see C<--table>).
+
+=item B<--runin>=I<N>, B<--runout>=I<N>, B<--runlen>=I<N>
+
+Set the run-in and run-out widths that L<ansicolumn(1)|App::ansicolumn>
+uses for line breaking (kinsoku) when nup folds the panes.
+C<--runlen> sets both; options given later override earlier ones.
+Default is 2.  A run-in character may go past the fold width, so
+ansicolumn keeps the run-in width free at the end of the pane, and
+the default fold width is made narrower by the same amount.  These
+values are given to nup, and they take precedence over the values
+in F<~/.ansicolumnrc>.
+
+A larger value such as 4 suits Japanese text, where a run of
+characters that must not start a line, such as C<ーッ>, can be long.
 
 =back
 

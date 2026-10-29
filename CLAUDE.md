@@ -555,6 +555,7 @@ Config parameters from mdee:
 - `table_cell=SPEC`: Per-column widths for ansicolumn `--cell`, colon-separated (`0:10:<20`) because commas separate config parameters; md module converts to commas and prepends `0,` in non-trim mode for the phantom first column. Not passed by mdee; set via `--config`.
 - `table_wrap_mark=STRING`: Mark for continuation lines of wrapped cells (default none; the `markwrap` theme sets `›` U+203A).
 - `table_cell_mark=STRING`: Mark for the first line of every body cell in a column that has a wrapped cell (default none; the default theme `markcell` sets `‣` U+2023). Passed with `--table-head 2` so the header and separator rows are not marked.
+- `table_runin=2`, `table_runout=2`, `table_boundary=word`, `table_linebreak=all`: How wrapped cells are folded. Always passed to ansicolumn as `--runin`/`--runout`/`--boundary`/`--linebreak`, so the user's `~/.ansicolumnrc` (read by ansicolumn also when called from greple) does not change the table. In table mode these options are used only for the cells. Kept apart from mdee's `--runin`/`--runout`, which are for nup's pane folding. `t/05_table_wrap.t` sets `HOME` to an empty directory so that the user's rc does not affect the tests.
 - Color labels (e.g., `h1=RD`): Override default colors (pre-declared in `Config->new()` with `undef`, applied in `setup_colors()` before `${base}` expansion)
 
 ### Field Visibility with --show Option

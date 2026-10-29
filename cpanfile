@@ -2,6 +2,7 @@ requires 'perl', '5.026';
 
 requires 'File::Share';
 requires 'Text::ANSI::Fold', '2.3304';
+requires 'Text::ANSI::Fold::Util';
 requires 'URI::Escape';
 
 requires 'App::ansiecho';

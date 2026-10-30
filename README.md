@@ -28,6 +28,7 @@ mdee - em·dee, Markdown Easy on the Eyes
          --runin=#          run-in width for line breaking (default: 4)
          --runout=#         run-out width for line breaking (default: 4)
          --runlen=#         set both run-in and run-out
+         --boundary=#       fold boundary: word, space or none (default: word)
      -t  --theme=#[,#,...]  color theme(s) (default: hashed,nomark,markcell)
      -m  --mode=#           light or dark (default: light)
      -B  --base-color=#     override base color of theme
@@ -354,8 +355,17 @@ Use [tecolicom/tap](https://github.com/tecolicom/homebrew-tap):
     as `fold_runin` and `fold_runout`, so that the lines it folds run
     in by the width kept free, not more.
 
-    A larger value such as 4 suits Japanese text, where a run of
-    characters that must not start a line, such as `ーッ`, can be long.
+- **--boundary**=`word`|`space`|`none`
+
+    Set where [ansicolumn(1)](https://metacpan.org/pod/App%3A%3Aansicolumn) may break a line when nup
+    folds the panes, as its `--boundary` option: `word` (default) does
+    not break inside an alphanumeric word, `space` not inside a sequence
+    of non-space characters, and `none` breaks anywhere.  Lists and
+    tables are folded by the md module at word boundaries, and this
+    option keeps the paragraphs, which are folded by nup, in step with
+    them.  The value is given to nup (App::nup 1.10 or later), which
+    gives it to ansicolumn after `~/.ansicolumnrc`, so it takes
+    precedence over the value there.
 
 ## Theme Options
 

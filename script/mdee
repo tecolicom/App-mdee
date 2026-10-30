@@ -47,6 +47,7 @@ mdee - em·dee, Markdown Easy on the Eyes
          --runin=#          run-in width for line breaking (default: 4)
          --runout=#         run-out width for line breaking (default: 4)
          --runlen=#         set both run-in and run-out
+         --boundary=#       fold boundary: word, space or none (default: word)
      -t  --theme=#[,#,...]  color theme(s) (default: hashed,nomark,markcell)
      -m  --mode=#           light or dark (default: light)
      -B  --base-color=#     override base color of theme
@@ -182,6 +183,7 @@ declare -A OPTS=(
     [        runin |    : =i       # run-in width          ]=4
     [       runout |    : =i       # run-out width         ]=4
     [       runlen |    :!=i       # run-in and run-out    ]=
+    [     boundary |    :          # fold boundary         ]=word
     [        theme | t  @          # color theme           ]=
     [         mode | m  :          # light or dark         ]=
     [   base-color | B  :          # base color            ]=
@@ -374,6 +376,10 @@ esac
 case $table_style in
     pipe|simple) ;;
     *) die "--table-style: pipe or simple expected, not '$table_style'" ;;
+esac
+case $boundary in
+    word|space|none) ;;
+    *) die "--boundary: word, space or none expected, not '$boundary'" ;;
 esac
 
 # Fold width default: --fold-width > config default > derived from the output width.
@@ -578,8 +584,9 @@ export LESS="${LESS:--R}"
 export LESSANSIENDCHARS="${LESSANSIENDCHARS:-mK}"
 
 # The fold width leaves room for the run-in width, so give nup the
-# same run-in and run-out rather than those in ~/.ansicolumnrc
-pass_nup+=("--runin=$runin" "--runout=$runout")
+# same run-in and run-out rather than those in ~/.ansicolumnrc, and
+# the boundary, so that paragraphs fold like the lists (App::nup >= 1.10)
+pass_nup+=("--runin=$runin" "--runout=$runout" "--boundary=$boundary")
 
 # Add pane/pane-width to pass_nup
 (( pane_width != 85 )) && pass_nup+=("--pane-width=$pane_width")
@@ -951,8 +958,17 @@ in F<~/.ansicolumnrc>.  The same values are given to the md module
 as C<fold_runin> and C<fold_runout>, so that the lines it folds run
 in by the width kept free, not more.
 
-A larger value such as 4 suits Japanese text, where a run of
-characters that must not start a line, such as C<ーッ>, can be long.
+=item B<--boundary>=C<word>|C<space>|C<none>
+
+Set where L<ansicolumn(1)|App::ansicolumn> may break a line when nup
+folds the panes, as its C<--boundary> option: C<word> (default) does
+not break inside an alphanumeric word, C<space> not inside a sequence
+of non-space characters, and C<none> breaks anywhere.  Lists and
+tables are folded by the md module at word boundaries, and this
+option keeps the paragraphs, which are folded by nup, in step with
+them.  The value is given to nup (App::nup 1.10 or later), which
+gives it to ansicolumn after F<~/.ansicolumnrc>, so it takes
+precedence over the value there.
 
 =back
 

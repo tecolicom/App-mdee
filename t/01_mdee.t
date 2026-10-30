@@ -581,6 +581,12 @@ subtest q(runin and runout options) => sub {
     my $mix = `COLUMNS=200 $mdee -ddn --runlen=4 --runout=1 $test_md 2>&1`;
     like($mix, qr/debug: nup .*--runin=4 --runout=1/, q(a later --runout overrides --runlen));
 
+    like($default, qr/debug: nup .*--boundary=word/, q(nup gets --boundary=word by default));
+    my $none = `COLUMNS=200 $mdee -ddn --boundary=none $test_md 2>&1`;
+    like($none, qr/debug: nup .*--boundary=none/, q(--boundary=none is passed to nup));
+    my $bad = `$mdee -n --boundary=foo $test_md 2>&1`;
+    like($bad, qr/--boundary: word, space or none expected/, q(--boundary rejects other values));
+
     my $later = `COLUMNS=200 $mdee -ddn --runout=1 --runlen=4 $test_md 2>&1`;
     like($later, qr/debug: nup .*--runin=4 --runout=4/, q(--runlen overrides earlier --runout));
 };

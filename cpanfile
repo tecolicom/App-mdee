@@ -15,6 +15,7 @@ requires 'Getopt::Long::Bash', '0.7.2';
 
 requires 'App::Greple', '10.04';
 requires 'App::Greple::tee', '1.04';
+requires 'Getopt::EX', '3.05';
 requires 'Getopt::EX::Config', '1.0202';
 requires 'Command::Run', '1.04';
 

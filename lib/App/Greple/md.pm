@@ -243,6 +243,17 @@ Disable with:
 
 The following labels identify colorizable elements.  Use them
 with C<--colormap> (C<--cm>) to customize colors or C<--show> to control
+=head2 Settings of the User
+
+The module runs B<ansifold> and B<ansicolumn> for folding and tables.
+They are run as functions in the greple process, or as separate
+processes with C<nofork=0>, and either way they do not read the rc
+files of the user, F<~/.ansifoldrc> and F<~/.ansicolumnrc>: the
+module puts their names in the environment variable
+C<GETOPTEX_NO_USER_SETTINGS> (see L<Getopt::EX::Long>), so that the
+output does not change by the settings made for them on the command
+line.
+
 visibility.  Default values are shown as C<light / dark>.
 Colors follow L<Term::ANSIColor::Concise> format.
 
@@ -473,6 +484,7 @@ sub finalize {
                        "table_width=i", "table_cell=s", "table_wrap_mark=s", "table_cell_mark=s", "rule!", "table_style=s",
                        "table_runin=i", "table_runout=i", "table_boundary=s", "table_linebreak=s",
                        "heading_markup|hm:s", "tick_open=s", "tick_close=s",
+    no_user_settings(qw(ansicolumn ansifold));
                        "hashed=s%",
                        "colormap|cm=s" => \@opt_cm,
                        "show=s%" => \%show);
@@ -498,6 +510,21 @@ sub setup_colors {
     }
     # Determine base color
     my $base = $config->{base_color};
+# ansicolumn and ansifold are called as functions in this process
+# (Command::Run), or as separate processes by the tee module in fork
+# mode.  Either way they must not read the rc files of the user, so
+# their names go into GETOPTEX_NO_USER_SETTINGS (Getopt::EX >= 3.05),
+# which Getopt::EX::Long reads when the program first runs.  Names
+# already there are kept, and 1 or * (all programs) is left as it is.
+sub no_user_settings {
+    my @names = @_;
+    my $env = $ENV{GETOPTEX_NO_USER_SETTINGS} // '';
+    return if $env eq '1' or $env eq '*';
+    my %have = map { $_ => 1 } split /[\s,]+/, $env;
+    $ENV{GETOPTEX_NO_USER_SETTINGS} =
+	join ' ', grep { length } $env, grep { !$have{$_}++ } @names;
+}
+
     if ($base) {
         # Color names get automatic luminance adjustment
         $base = "<$base>" . ($mode eq 'dark' ? '=y80' : '=y25')

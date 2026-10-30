@@ -51,7 +51,7 @@
             "App::nup" : "1.09",
             "Command::Run" : "1.04",
             "File::Share" : "0",
-        "Getopt::EX": "3.05",
+            "Getopt::EX" : "3.05",
             "Getopt::EX::Config" : "1.0202",
             "Getopt::EX::termcolor" : "1.10",
             "Getopt::Long::Bash" : "v0.7.2",

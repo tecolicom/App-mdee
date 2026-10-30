@@ -44,8 +44,8 @@ mdee - em·dee, Markdown Easy on the Eyes
          --cat-v            visualize whitespace via cat-v
      -w  --width=#          output width (default: terminal width)
          --fold-width=#     fold width (default: pane width - 3 - run-in)
-         --runin=#          run-in width for line breaking (default: 2)
-         --runout=#         run-out width for line breaking (default: 2)
+         --runin=#          run-in width for line breaking (default: 4)
+         --runout=#         run-out width for line breaking (default: 4)
          --runlen=#         set both run-in and run-out
      -t  --theme=#[,#,...]  color theme(s) (default: hashed,nomark,markcell)
      -m  --mode=#           light or dark (default: light)
@@ -179,8 +179,8 @@ declare -A OPTS=(
     [  table-style |    :          # table style           ]=pipe
     [        width | w  : =i       # output width          ]=0
     [   fold-width |    : =i       # fold width            ]=0
-    [        runin |    : =i       # run-in width          ]=2
-    [       runout |    : =i       # run-out width         ]=2
+    [        runin |    : =i       # run-in width          ]=4
+    [       runout |    : =i       # run-out width         ]=4
     [       runlen |    :!=i       # run-in and run-out    ]=
     [        theme | t  @          # color theme           ]=
     [         mode | m  :          # light or dark         ]=
@@ -515,7 +515,7 @@ run_greple() {
     fi
 
     # Add fold/table/rule/heading_markup params
-    [[ $fold  ]] && config_params+=("foldlist=1,foldwidth=$fold_width" "table_width=$fold_width")
+    [[ $fold  ]] && config_params+=("foldlist=1,foldwidth=$fold_width,fold_runin=$runin,fold_runout=$runout" "table_width=$fold_width")
     [[ $table ]] && config_params+=("table=1") || config_params+=("table=0")
     [[ $trim  ]] && config_params+=("table_trim=1") || config_params+=("table_trim=0")
     [[ $rule  ]] && config_params+=("rule=1")  || config_params+=("rule=0")
@@ -934,7 +934,7 @@ the text itself is the output, so this is the fold width.
 Set the fold width for text wrapping directly.  Default is the
 pane width (output width divided by the number of columns) minus
 3 for borders and padding and the run-in width (see C<--runin>),
-which gives 80 when pane-width is 85.
+which gives 78 when pane-width is 85.
 Only effective when C<--fold> is enabled.  The same width is used
 to fit tables (see C<--table>).
 
@@ -943,11 +943,13 @@ to fit tables (see C<--table>).
 Set the run-in and run-out widths that L<ansicolumn(1)|App::ansicolumn>
 uses for line breaking (kinsoku) when nup folds the panes.
 C<--runlen> sets both; options given later override earlier ones.
-Default is 2.  A run-in character may go past the fold width, so
+Default is 4.  A run-in character may go past the fold width, so
 ansicolumn keeps the run-in width free at the end of the pane, and
 the default fold width is made narrower by the same amount.  These
 values are given to nup, and they take precedence over the values
-in F<~/.ansicolumnrc>.
+in F<~/.ansicolumnrc>.  The same values are given to the md module
+as C<fold_runin> and C<fold_runout>, so that the lines it folds run
+in by the width kept free, not more.
 
 A larger value such as 4 suits Japanese text, where a run of
 characters that must not start a line, such as C<ーッ>, can be long.
@@ -1516,7 +1518,8 @@ HTML comments, and tables are excluded from folding.
 Recognized list markers include C<*>, C<->, C<1.>, C<1)>, C<#.>,
 and C<#)>.  The C<#> marker is Pandoc's auto-numbered list syntax.
 
-The folding width is controlled by C<--fold-width> option (default: 80).
+The folding width is controlled by C<--fold-width> option (default: the
+pane width minus 3 and the run-in width, 78 for a pane of 85).
 
 =head4 Table Formatting
 

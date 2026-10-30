@@ -127,6 +127,25 @@ SKIP: {
     like((split /\n/, $notrim)[2], qr/^${V} x \\\| y\s*${V} z\s*${V}$/, "escaped pipe stays in the cell without trimming");
 }
 
+# Spaces after the last pipe of a row do not end the table (GFM ignores
+# them).  Such a row stayed unformatted between two tables.
+{
+    use File::Temp qw(tempfile);
+    my($fh, $file) = tempfile(SUFFIX => '.md', UNLINK => 1);
+    binmode $fh, ':utf8';
+    print $fh "| A | B |\n|---|---|\n| 1 | a |\n| 2 | b | \n| 3 | c |\n";
+    close $fh;
+    my $strip = sub { local $_ = shift; s/\e\[[0-9;]*[mK]//g; $_ };
+    my $V = "\x{2502}";
+    for my $trim (1, 0) {
+	my $out = $strip->(run("'-Mmd::config(colorize=0,table=1,rule=1,table_trim=$trim)' $file")->stdout);
+	my @lines = split /\n/, $out;
+	is(scalar @lines, 5, "table_trim=$trim: one table of five lines");
+	unlike($out, qr/^\|/m, "table_trim=$trim: no row is left as written");
+	is(length($lines[3]), length($lines[2]), "table_trim=$trim: the row with trailing space has the same width");
+    }
+}
+
 # Simple table style: no column separators, per-column header rule,
 # full-width rules above and below
 {

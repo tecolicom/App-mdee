@@ -455,7 +455,7 @@ sub begin {
 
 Stage execution is controlled by config flags: `colorize` (default: 1), `table` (default: 1). Fold is not controlled in `begin()` because it operates via greple's pattern matching pipeline (`-Mtee`), not text transformation in the `begin` hook.
 
-`format_table()` detects table blocks via `(^ {0,3}\|.+\|\n){3,}` and processes each block:
+`format_table()` detects table blocks via `(^ {0,3}\|.+\|\h*\n){3,}` (spaces after the last pipe are allowed, as in GFM, and removed from the block before formatting; a row with a trailing space used to split the table in two and stay as written) and processes each block:
 
 ```perl
 s{(^ {0,3}\|.+\|\n){3,}}{

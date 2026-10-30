@@ -889,8 +889,11 @@ sub format_table {
     my $simple = $config->{table_style} eq 'simple';
     my $sep = ($config->{rule} || $simple) ? "\x{2502}" : '|';  # │ or |
 
-    s{(^ {0,3}\|.+\|\n){3,}}{
-        my $block = $&;
+    # A row may have spaces after the last pipe (GFM ignores them); they
+    # are allowed in the block and removed, so that every row ends in
+    # the same column for ansicolumn.
+    s{(^ {0,3}\|.+\|\h*\n){3,}}{
+        my $block = $& =~ s/\h+$//mgr;
         my($right, $center) = parse_separator(\$block);
         my @sep_opt;
         # An escaped pipe (\|) is not a column separator (GFM).  It is

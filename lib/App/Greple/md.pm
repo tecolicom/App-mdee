@@ -911,11 +911,12 @@ sub table_regions {
 # the start of a new line, when the line before it ends in a hard
 # break (two or more spaces, or a backslash), or when it starts with
 # a list marker, is a horizontal rule, which pandoc may report as
-# part of the paragraph (a "#." list, "Text\n***"), or looks like a
-# table row: GFM does not let a table interrupt a paragraph, but
-# format_table takes three such lines as a table.  From the second
-# line on, up to $depth quote markers and the indentation are removed
-# before joining.
+# part of the paragraph (a "#." list, "Text\n***"), or when either
+# line looks like a table row: GFM does not let a table interrupt a
+# paragraph, but format_table takes three such lines as a table.
+# From the second line on, up to $depth quote markers and the
+# indentation are removed before joining.  A CR before the line
+# break (CRLF file) goes with the line break.
 #
 # The character properties are defined as subroutines in App::ansifold
 # and looked up when the pattern is compiled, so the patterns are
@@ -933,17 +934,18 @@ sub reflow_block {
     };
     my $prefix = qr/^\h*(?:>\h?){0,$depth}\h*/;
     my $marker = qr/^\h*(?:[*+-]|(?:\d+|#)[.)])\h+/;
-    my $hr     = qr/^ {0,3}(?:[-*_][ ]*){3,}$/;
-    my $row    = qr/^ {0,3}\|.+\|\h*$/;
-    my $hard   = qr/(?:\\| {2,})$/;
+    my $hr     = qr/^ {0,3}(?:[-*_][ ]*){3,}\r?$/;
+    my $row    = qr/^ {0,3}\|.+\|\h*\r?$/;
+    my $hard   = qr/(?:\\| {2,})\r?$/;
     my @out;
     for my $line (@$lines) {
-        if (!@out or $out[-1] =~ $hard
+        if (!@out or $out[-1] =~ $hard or $out[-1] =~ $row
             or $line =~ $marker or $line =~ $hr or $line =~ $row) {
             push @out, $line;
             next;
         }
         my $text = $line =~ s/$prefix//r;
+        $out[-1] =~ s/\r\z//;
         if ($out[-1] =~ /$punct$/) {
             $out[-1] .= $text;
         } elsif ($out[-1] =~ /$concat$/ and $text =~ /^$concat/) {
@@ -1038,11 +1040,13 @@ sub reflow {
     my @lines = split /\n/, $_, -1;
     my @done;
     my $limit = @lines + 1;
+    # TOML front matter (+++ ... +++) is a paragraph to pandoc
+    my $front = /\A\+\+\+\r?\n(?:[^\n]*\n)*?\+\+\+\r?(?:\n|\z)/p ? (${^MATCH} =~ tr/\n//) : 0;
     for my $b (sort { $b->{first} <=> $a->{first} }
                grep { $_->{type} eq 'Para' or $_->{type} eq 'Plain' }
                pandoc_blocks($_)) {
         my($first, $last) = @{$b}{qw(first last)};
-        next if $last < $first or $last >= $limit;
+        next if $last < $first or $last >= $limit or $first <= $front;
         $limit = $first;
         my @joined = reflow_block([ @lines[$first-1 .. $last-1] ], $b->{depth});
         splice @lines, $first-1, $last-$first+1, @joined;
@@ -1073,14 +1077,14 @@ sub reflow_regions {
     my $end = length $_;
     my @regions;
     for my $range (@reflow_lines) {
-        my($first, $last) = @$range;
-        my $shift = 0;
-        for my $t (@table_shift) {
-            $shift += $t->[1] if $t->[0] < $first;
-        }
-        for my $line ($first + $shift .. $last + $shift) {
-            last if $line > @start;
-            push @regions, [ $start[$line-1], $start[$line] // $end ];
+        for my $line ($range->[0] .. $range->[1]) {
+            my $shift = 0;
+            for my $t (@table_shift) {
+                $shift += $t->[1] if $t->[0] < $line;
+            }
+            my $n = $line + $shift;
+            last if $n > @start;
+            push @regions, [ $start[$n-1], $start[$n] // $end ];
         }
     }
     @regions;
@@ -1224,7 +1228,7 @@ define {DEFINITION}  (?:\A|\G\n|\n\n).+\n\n?(:\h+.*\n)
 
 option --fold-by \
     -Mtee "&ansifold" --crmode \
-        --autoindent='^\h*(?:[*-]|(?:\d+|#)[.)]|:)\h+|^\h+|^(?:>\h?)+' \
+        --autoindent='^\h*(?:[*-]|(?:\d+|#)[.)]|:)\h+|^\h+|^(?:(?:\e\[[\d;]*[mK])*>\h?)+(?:\e\[[\d;]*[mK])*|^' \
         --smart --width=$<shift> --runin=$<shift> --runout=$<shift> \
     -- \
     --exclude {CODE_BLOCK} \

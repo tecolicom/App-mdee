@@ -621,6 +621,11 @@ subtest q(reflow option) => sub {
     like($out, qr/^greple .*reflow=1/m, q(default[reflow]=1 turns reflow on));
     $out = `XDG_CONFIG_HOME=$tmpdir COLUMNS=200 $mdee -n --no-reflow $test_md 2>&1`;
     unlike($out, qr/reflow=/, q(--no-reflow overrides default[reflow]));
+    open $fh, q(>), "$tmpdir/mdee/config.sh" or die;
+    print $fh "default[reflow]=0\n";
+    close $fh;
+    $out = `XDG_CONFIG_HOME=$tmpdir COLUMNS=200 $mdee -n $test_md 2>&1`;
+    unlike($out, qr/reflow=/, q(default[reflow]=0 leaves reflow off));
 };
 
 subtest q(output width option) => sub {

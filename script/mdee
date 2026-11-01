@@ -343,6 +343,7 @@ fi
 (( width == 0 )) && width=${default[width]:-0}
 (( fold_width == 0 )) && fold_width=${default[fold_width]:-0}
 [[ $reflow == _ ]] && reflow=${default[reflow]:-}
+[[ $reflow == 0 ]] && reflow=
 # tput reads the size from stderr when stdout is captured, so do not
 # redirect it; without TERM (docker run without a tty) tput only
 # complains, so skip it and fall back to 80 below

@@ -87,6 +87,7 @@ before table
 | C | D |
 |---|---|
 | 3 | 4 |
+after table
 EOF
 
 my $joined = <<'EOF';
@@ -126,30 +127,40 @@ before table
 | C | D |
 |---|---|
 | 3 | 4 |
+after table
 EOF
 
 my $md = md_file($input);
+
+my $toml = md_file(qq(+++\ntitle = "x"\n+++\n\npara a\npara b\n));
 
 subtest 'join paragraphs' => sub {
     my $out = run("'-Mmd::config(colorize=0,table=0,reflow=1)' $md")->stdout;
     is(plain($out), $joined, 'paragraph, list item, quote, definition are joined; the rest is as written');
     $out = run("'-Mmd::config(colorize=0,table=0)' $md")->stdout;
     is(plain($out), $input, 'reflow=0 leaves the text as it is');
+    $out = run("'-Mmd::config(colorize=0,table=0,reflow=1)' $toml")->stdout;
+    is(plain($out), qq(+++\ntitle = "x"\n+++\n\npara a para b\n), 'TOML front matter is left as it is');
 };
 
 my $sentence = 'the quick brown fox jumps over the lazy dog and runs away';  # 58 chars
 my $item = "- $sentence $sentence";
-my $fold_md = md_file(join "\n", "# Fold", '', ($sentence) x 3, '', $item, '', "> $sentence", "> $sentence", '');
+my $fold_md = md_file(join "\n", "# Fold", '', ($sentence) x 3, '', $item, '', "> $sentence", "> $sentence", '', ($sentence) x 2, '');
 
 subtest 'fold joined lines' => sub {
     my $out = run("'-Mmd::config(colorize=0,reflow=1,foldlist=1,foldwidth=40)' $fold_md")->stdout;
     cmp_ok(max_width($out), '<=', 40, 'joined paragraph is folded to the fold width');
     my @quick = plain($out) =~ /\bquick\b/g;
-    is(scalar @quick, 7, 'every line appears once in the output');
+    is(scalar @quick, 9, 'every line appears once in the output');
+    my @indented = plain($out) =~ /^  \S/mg;
+    is(scalar @indented, 6, 'only the continuation lines of the list item and the quote are indented');
     like(plain($out), qr/^- the quick.*\n  lazy dog/m, 'continuation lines of a list item are indented');
     like(plain($out), qr/^> the quick.*\n  lazy dog/m, 'continuation lines of a quote are indented under the text');
     $out = run("'-Mmd::config(colorize=0,reflow=1,foldlist=0)' $fold_md")->stdout;
     like(plain($out), qr/^(?:$sentence ){2}$sentence$/m, 'without fold the joined paragraph is one line');
+    $out = run("'-Mmd::config(reflow=1,foldlist=1,foldwidth=40)' $fold_md")->stdout;
+    like(plain($out), qr/^> the quick.*\n  lazy dog/m, 'quote continuation lines are indented with colorize on');
+    like(plain($out), qr/^- the quick.*\n  lazy dog/m, 'list continuation lines are indented with colorize on');
 };
 
 subtest 'two files' => sub {
@@ -170,6 +181,16 @@ $sentence
 $sentence
 EOF
 
+my $tight_md = md_file(<<"EOF");
+before table
+| Name | Description |
+|------|-------------|
+| one  | $cell |
+| two  | short |
+$sentence
+$sentence
+EOF
+
 for my $style ('', ',table_style=simple') {
     subtest "paragraph below a wrapped table$style" => sub {
         my $out = plain(run("'-Mmd::config(colorize=0,reflow=1,foldlist=1,foldwidth=40,table_width=40$style)' $table_md")->stdout);
@@ -178,6 +199,13 @@ for my $style ('', ',table_style=simple') {
         is(scalar @one, 1, 'table rows appear once');
         my @quick = $out =~ /\bquick\b/g;
         is(scalar @quick, 2, 'paragraph lines appear once');
+    };
+    subtest "paragraph right below a wrapped table$style" => sub {
+        my $out = plain(run("'-Mmd::config(colorize=0,reflow=1,foldlist=1,foldwidth=40,table_width=40$style)' $tight_md")->stdout);
+        cmp_ok(max_width($out), '<=', 40, 'paragraph right below the table is folded');
+        my @one = $out =~ /\bone\b/g;
+        is(scalar @one, 1, 'table rows appear once');
+        like($out, qr/^before table$/m, 'the line before the table stays');
     };
 }
 

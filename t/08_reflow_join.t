@@ -36,6 +36,12 @@ my @cases = (
                               [ 'Text', '***' ] ],
     [ 'table rows',           [ 'before table', '| C | D |', '|---|---|', '| 3 | 4 |' ], 0,
                               [ 'before table', '| C | D |', '|---|---|', '| 3 | 4 |' ] ],
+    [ 'line after table rows', [ '| C | D |', '|---|---|', '| 3 | 4 |', 'after table' ], 0,
+                              [ '| C | D |', '|---|---|', '| 3 | 4 |', 'after table' ] ],
+    [ 'crlf lines',           [ "crlf a\r", "crlf b\r" ], 0,
+                              [ "crlf a crlf b\r" ] ],
+    [ 'crlf hard break',      [ "hard  \r", "kept\r" ], 0,
+                              [ "hard  \r", "kept\r" ] ],
 );
 
 for my $case (@cases) {

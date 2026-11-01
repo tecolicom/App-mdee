@@ -889,8 +889,10 @@ sub table_regions {
 # removed, any other becomes one space.  A line is left as it is, as
 # the start of a new line, when the line before it ends in a hard
 # break (two or more spaces, or a backslash), or when it starts with
-# a list marker or is a horizontal rule, which pandoc may report as
-# part of the paragraph (a "#." list, "Text\n***").  From the second
+# a list marker, is a horizontal rule, which pandoc may report as
+# part of the paragraph (a "#." list, "Text\n***"), or looks like a
+# table row: GFM does not let a table interrupt a paragraph, but
+# format_table takes three such lines as a table.  From the second
 # line on, up to $depth quote markers and the indentation are removed
 # before joining.
 #
@@ -911,10 +913,12 @@ sub reflow_block {
     my $prefix = qr/^\h*(?:>\h?){0,$depth}\h*/;
     my $marker = qr/^\h*(?:[*+-]|(?:\d+|#)[.)])\h+/;
     my $hr     = qr/^ {0,3}(?:[-*_][ ]*){3,}$/;
+    my $row    = qr/^ {0,3}\|.+\|\h*$/;
     my $hard   = qr/(?:\\| {2,})$/;
     my @out;
     for my $line (@$lines) {
-        if (!@out or $out[-1] =~ $hard or $line =~ $marker or $line =~ $hr) {
+        if (!@out or $out[-1] =~ $hard
+            or $line =~ $marker or $line =~ $hr or $line =~ $row) {
             push @out, $line;
             next;
         }
@@ -932,7 +936,139 @@ sub reflow_block {
     @out;
 }
 
+# The line ranges that reflow() joined, as [first, last] in the text
+# after joining, and the formatted tables, as [first line, lines added],
+# both for the current file.  reflow_regions() turns them into the
+# regions that --fold-by folds.
+our @reflow_lines;
+our @table_shift;
+
+# Run pandoc on the text and return the blocks it reports with a source
+# position, as { type, depth, first, last } (lines, 1-based, inclusive).
+# With the sourcepos extension pandoc wraps a block in a Div whose
+# data-pos is "L:C-L:C", or several such segments separated by ";" when
+# the block is interrupted by markers it consumed (a list item's
+# continuation lines).  An end column of 1 means the block ended with
+# the line before.  A paragraph followed by a horizontal rule without a
+# blank line is reported up to the rule, so the end is also cut at the
+# line before the next block that starts below the first line.  depth
+# is the number of block quotes the block is in.
+#
+# A block that has attributes of its own (a heading, a code block, a
+# table) is not wrapped: its position is in its attributes, at the
+# index below in its content.  A table's segments are not in order.
+my %attr_index = (Div => 0, Header => 1, CodeBlock => 0, Table => 0, Figure => 0);
+sub pandoc_blocks {
+    my $text = shift;
+    require Command::Run;
+    require JSON::PP;
+    my $result = Command::Run->new
+        ->command(qw(pandoc -f gfm+sourcepos+definition_lists -t json))
+        ->with(stdin => $text)
+        ->run;
+    die "reflow: pandoc failed\n" if $result->{result} != 0;
+    my $doc = JSON::PP->new->decode($result->{data});
+    my @blocks;
+    my $walk; $walk = sub {
+        my($node, $depth) = @_;
+        if (ref $node eq 'HASH') {
+            my $t = $node->{t} // '';
+            if (defined(my $i = $attr_index{$t})) {
+                my $attr = $node->{c}[$i];
+                my %kv = map { @$_ } @{$attr->[2]};
+                if (defined(my $pos = $kv{'data-pos'})) {
+                    my($first, $last);
+                    while ($pos =~ /(\d+):\d+-(\d+):(\d+)/g) {
+                        my($from, $to) = ($1, $3 == 1 ? $2 - 1 : $2);
+                        $first = $from if !defined $first or $from < $first;
+                        $last  = $to   if !defined $last  or $to > $last;
+                    }
+                    my $inner = $node->{c}[1];
+                    push @blocks, {
+                        type  => $t ne 'Div' ? $t
+                               : @$inner == 1 ? $inner->[0]{t} : 'Blocks',
+                        depth => $depth,
+                        first => $first,
+                        last  => $last,
+                    } if defined $first;
+                }
+            }
+            $depth++ if $t eq 'BlockQuote';
+            $walk->($node->{c}, $depth) if ref $node->{c};
+        } elsif (ref $node eq 'ARRAY') {
+            $walk->($_, $depth) for @$node;
+        }
+    };
+    $walk->($doc->{blocks}, 0);
+    my @starts = sort { $a <=> $b } keys %{{ map { $_->{first} => 1 } @blocks }};
+    for my $b (@blocks) {
+        my($next) = grep { $_ > $b->{first} } @starts;
+        $b->{last} = $next - 1 if defined $next and $next - 1 < $b->{last};
+    }
+    @blocks;
+}
+
+# Join the lines of every paragraph (Para) and tight list item or
+# definition (Plain) in $_, from the bottom up so that the line numbers
+# of the blocks above stay valid, and remember where the joined lines
+# are in the result.
+sub reflow {
+    @reflow_lines = ();
+    my @lines = split /\n/, $_, -1;
+    my @done;
+    my $limit = @lines + 1;
+    for my $b (sort { $b->{first} <=> $a->{first} }
+               grep { $_->{type} eq 'Para' or $_->{type} eq 'Plain' }
+               pandoc_blocks($_)) {
+        my($first, $last) = @{$b}{qw(first last)};
+        next if $last < $first or $last >= $limit;
+        $limit = $first;
+        my @joined = reflow_block([ @lines[$first-1 .. $last-1] ], $b->{depth});
+        splice @lines, $first-1, $last-$first+1, @joined;
+        unshift @done, [ $first, scalar @joined, $last - $first + 1 - @joined ];
+    }
+    my $shift = 0;
+    for my $d (@done) {
+        my($first, $count, $removed) = @$d;
+        push @reflow_lines, [ $first - $shift, $first - $shift + $count - 1 ];
+        $shift += $removed;
+    }
+    $_ = join "\n", @lines;
+}
+
+# The lines that reflow() joined, one region per line including its
+# newline, for --fold-by.  The text has been through colorize(), which
+# keeps the number of lines, and format_table(), which does not: the
+# tables above a range have added the lines in @table_shift.
+sub reflow_regions {
+    my %arg = @_;
+    delete $arg{&FILELABEL};
+    return () unless @reflow_lines;
+    my @start = (0);
+    my $pos = 0;
+    while (($pos = index($_, "\n", $pos)) >= 0) {
+        push @start, ++$pos;
+    }
+    my $end = length $_;
+    my @regions;
+    for my $range (@reflow_lines) {
+        my($first, $last) = @$range;
+        my $shift = 0;
+        for my $t (@table_shift) {
+            $shift += $t->[1] if $t->[0] < $first;
+        }
+        for my $line ($first + $shift .. $last + $shift) {
+            last if $line > @start;
+            push @regions, [ $start[$line-1], $start[$line] // $end ];
+        }
+    }
+    @regions;
+}
+
+
 sub begin {
+    @reflow_lines = @table_shift = ();
+    reflow()       if $config->{reflow};
     colorize()     if $config->{colorize};
     format_table() if $config->{table};
 }
@@ -949,6 +1085,8 @@ sub format_table {
     # the same column for ansicolumn.
     s{(^ {0,3}\|.+\|\h*\n){3,}}{
         my $block = $& =~ s/\h+$//mgr;
+        my $line  = 1 + (substr($_, 0, $-[0]) =~ tr/\n//);
+        my $lines = $& =~ tr/\n//;
         my($right, $center) = parse_separator(\$block);
         my @sep_opt;
         # An escaped pipe (\|) is not a column separator (GFM).  It is
@@ -996,6 +1134,7 @@ sub format_table {
             my $rule = "\x{2500}" x ansi_width($first);
             $table = "$rule\n$table$rule\n";
         }
+        push @table_shift, [ $line, ($table =~ tr/\n//) - $lines ];
         $table;
     }mge;
 }
@@ -1064,7 +1203,7 @@ define {DEFINITION}  (?:\A|\G\n|\n\n).+\n\n?(:\h+.*\n)
 
 option --fold-by \
     -Mtee "&ansifold" --crmode \
-        --autoindent='^\h*(?:[*-]|(?:\d+|#)[.)]|:)\h+|^\h+' \
+        --autoindent='^\h*(?:[*-]|(?:\d+|#)[.)]|:)\h+|^\h+|^(?:>\h?)+' \
         --smart --width=$<shift> --runin=$<shift> --runout=$<shift> \
     -- \
     --exclude {CODE_BLOCK} \
@@ -1072,5 +1211,6 @@ option --fold-by \
     --exclude &__PACKAGE__::table_regions \
     --cm N -E {LIST_ITEM} \
     --cm N -E {DEFINITION} \
+    --cm N --le &__PACKAGE__::reflow_regions \
     --crmode
 

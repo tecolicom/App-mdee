@@ -34,6 +34,8 @@ my @cases = (
                               [ '#. auto one cont', '#. auto two' ] ],
     [ 'horizontal rule',      [ 'Text', '***' ], 0,
                               [ 'Text', '***' ] ],
+    [ 'table rows',           [ 'before table', '| C | D |', '|---|---|', '| 3 | 4 |' ], 0,
+                              [ 'before table', '| C | D |', '|---|---|', '| 3 | 4 |' ] ],
 );
 
 for my $case (@cases) {

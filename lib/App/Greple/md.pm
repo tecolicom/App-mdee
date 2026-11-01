@@ -121,7 +121,8 @@ folds the same lines once without setting the config.
 =head2 B<--[no-]refill>
 
 Join the lines of paragraphs into one line each (see L</Paragraph
-Refill>).  Disabled by default.  Requires pandoc.
+Refill>).  Disabled by default.  Requires the L<CommonMark> module or
+pandoc.
 
 =head2 B<--[no-]table>
 
@@ -217,8 +218,10 @@ Available parameters:
     fold_width      fold width in columns (default: 80)
     fold_runin      run-in width in folded lines (default: 4)
     fold_runout     run-out width in folded lines (default: 4)
-    refill          join the lines of paragraphs; needs pandoc
-                    (default: 0)
+    refill          join the lines of paragraphs (default: 0); needs
+                    the CommonMark module or pandoc
+    refill_parser   cmark (the CommonMark module) or pandoc (default:
+                    whichever is there, cmark first)
     table           table formatting (default: 1)
     table_trim      trim cell whitespace (default: 1)
     table_width     table width in columns; cells of over-wide
@@ -251,15 +254,18 @@ Available parameters:
 
 With C<refill=1>, the lines of every paragraph, block quote, list
 item and definition are joined into one line before the text is
-colorized.  Which lines belong together is decided by
-L<pandoc|https://pandoc.org> (2.11.3 or later), run with the
-C<sourcepos> extension on the text; the module joins the lines of
-the original text and changes nothing else.  Hard line breaks are
-kept, and so is the break before a list marker, a horizontal rule or
-a table row.  When folding is enabled, the joined lines are folded
-too.
+colorized.  Which lines belong together is decided by a Markdown
+parser (L<App::Greple::md::Blocks>): the L<CommonMark> module, an
+interface to libcmark, when it is installed, or
+L<pandoc|https://pandoc.org> (2.11.3 or later) run with the
+C<sourcepos> extension; C<refill_parser> chooses one.  The module
+joins the lines of the original text and changes nothing else.  Hard
+line breaks are kept, and so is the break before a list marker, a
+horizontal rule, a table row or a definition (C<: >).  When folding
+is enabled, the joined lines are folded too.
 
     greple -Mmd::config(refill=1) file.md
+    greple -Mmd::config(refill=1,refill_parser=pandoc) file.md
 
 =head2 OSC 8 Hyperlinks
 
@@ -378,9 +384,10 @@ ANSI-aware column formatting used for table alignment.
 
 ANSI-aware text folding used for line wrapping in list items.
 
-=item L<pandoc|https://pandoc.org>
+=item L<App::Greple::md::Blocks>
 
-Finds the paragraphs for C<refill=1>.
+Finds the paragraphs for C<refill=1> with L<CommonMark> or
+L<pandoc|https://pandoc.org>.
 
 =back
 
@@ -403,6 +410,7 @@ use Getopt::EX::Config;
 use Getopt::EX::Colormap;
 use App::Greple::Common qw(FILELABEL);
 use App::Greple::Regions qw(match_regions);
+use App::Greple::md::Blocks qw(blocks);
 
 my @color_labels = qw(
     code_mark code_tick code_info code_block code_inline
@@ -419,7 +427,8 @@ my $config = Getopt::EX::Config->new(
     base_color => '',  # override base color
     colorize   => 1,   # syntax highlighting
     fold       => 0,   # text folding
-    refill     => 0,   # join the lines of paragraphs (needs pandoc)
+    refill     => 0,   # join the lines of paragraphs
+    refill_parser => '', # cmark (CommonMark module) or pandoc; '' = whichever is there
     fold_width => 80,  # fold width
     fold_runin => 4,   # run-in width in folded lines (ansifold default)
     fold_runout => 4,  # run-out width in folded lines (ansifold default)
@@ -518,7 +527,7 @@ sub finalize {
     no_user_settings(qw(ansicolumn ansifold));
     $config->deal_with($argv,
                        "mode|m=s", "base_color|B=s",
-                       "colorize!", "nofork!", "fold!", "refill!", "fold_width=i", "fold_runin=i", "fold_runout=i",
+                       "colorize!", "nofork!", "fold!", "refill!", "refill_parser=s", "fold_width=i", "fold_runin=i", "fold_runout=i",
                        "table!", "table_trim!",
                        "table_width=i", "table_cell=s", "table_wrap_mark=s", "table_cell_mark=s", "rule!", "table_style=s",
                        "table_runin=i", "table_runout=i", "table_boundary=s", "table_linebreak=s",
@@ -945,11 +954,13 @@ sub refill_block {
     my $marker = qr/^\h*(?:[*+-]|(?:\d+|#)[.)])\h+/;
     my $hr     = qr/^ {0,3}(?:[-*_][ ]*){3,}\r?$/;
     my $row    = qr/^ {0,3}\|.+\|\h*\r?$/;
+    my $def    = qr/^\h*:\h/;
     my $hard   = qr/(?:\\| {2,})\r?$/;
     my @out;
     for my $line (@$lines) {
         if (!@out or $out[-1] =~ $hard or $out[-1] =~ $row
-            or $line =~ $marker or $line =~ $hr or $line =~ $row) {
+            or $line =~ $marker or $line =~ $hr or $line =~ $row
+            or $line =~ $def) {
             push @out, $line;
             next;
         }
@@ -975,71 +986,6 @@ sub refill_block {
 our @refill_lines;
 our @table_shift;
 
-# Run pandoc on the text and return the blocks it reports with a source
-# position, as { type, depth, first, last } (lines, 1-based, inclusive).
-# With the sourcepos extension pandoc wraps a block in a Div whose
-# data-pos is "L:C-L:C", or several such segments separated by ";" when
-# the block is interrupted by markers it consumed (a list item's
-# continuation lines).  An end column of 1 means the block ended with
-# the line before.  A paragraph followed by a horizontal rule without a
-# blank line is reported up to the rule, so the end is also cut at the
-# line before the next block that starts below the first line.  depth
-# is the number of block quotes the block is in.
-#
-# A block that has attributes of its own (a heading, a code block, a
-# table) is not wrapped: its position is in its attributes, at the
-# index below in its content.  A table's segments are not in order.
-my %attr_index = (Div => 0, Header => 1, CodeBlock => 0, Table => 0, Figure => 0);
-sub pandoc_blocks {
-    my $text = shift;
-    require Command::Run;
-    require JSON::PP;
-    my $result = Command::Run->new
-        ->command(qw(pandoc -f gfm+sourcepos+definition_lists -t json))
-        ->with(stdin => $text)
-        ->run;
-    die "refill: pandoc failed\n" if $result->{result} != 0;
-    my $doc = JSON::PP->new->decode($result->{data});
-    my @blocks;
-    my $walk; $walk = sub {
-        my($node, $depth) = @_;
-        if (ref $node eq 'HASH') {
-            my $t = $node->{t} // '';
-            if (defined(my $i = $attr_index{$t})) {
-                my $attr = $node->{c}[$i];
-                my %kv = map { @$_ } @{$attr->[2]};
-                if (defined(my $pos = $kv{'data-pos'})) {
-                    my($first, $last);
-                    while ($pos =~ /(\d+):\d+-(\d+):(\d+)/g) {
-                        my($from, $to) = ($1, $3 == 1 ? $2 - 1 : $2);
-                        $first = $from if !defined $first or $from < $first;
-                        $last  = $to   if !defined $last  or $to > $last;
-                    }
-                    my $inner = $node->{c}[1];
-                    push @blocks, {
-                        type  => $t ne 'Div' ? $t
-                               : @$inner == 1 ? $inner->[0]{t} : 'Blocks',
-                        depth => $depth,
-                        first => $first,
-                        last  => $last,
-                    } if defined $first;
-                }
-            }
-            $depth++ if $t eq 'BlockQuote';
-            $walk->($node->{c}, $depth) if ref $node->{c};
-        } elsif (ref $node eq 'ARRAY') {
-            $walk->($_, $depth) for @$node;
-        }
-    };
-    $walk->($doc->{blocks}, 0);
-    my @starts = sort { $a <=> $b } keys %{{ map { $_->{first} => 1 } @blocks }};
-    for my $b (@blocks) {
-        my($next) = grep { $_ > $b->{first} } @starts;
-        $b->{last} = $next - 1 if defined $next and $next - 1 < $b->{last};
-    }
-    @blocks;
-}
-
 # Join the lines of every paragraph (Para) and tight list item or
 # definition (Plain) in $_, from the bottom up so that the line numbers
 # of the blocks above stay valid, and remember where the joined lines
@@ -1053,7 +999,7 @@ sub refill {
     my $front = /\A\+\+\+\r?\n(?:[^\n]*\n)*?\+\+\+\r?(?:\n|\z)/p ? (${^MATCH} =~ tr/\n//) : 0;
     for my $b (sort { $b->{first} <=> $a->{first} }
                grep { $_->{type} eq 'Para' or $_->{type} eq 'Plain' }
-               pandoc_blocks($_)) {
+               blocks($_, parser => $config->{refill_parser})) {
         my($first, $last) = @{$b}{qw(first last)};
         next if $last < $first or $last >= $limit or $first <= $front;
         $limit = $first;

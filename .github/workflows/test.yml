@@ -25,8 +25,8 @@ jobs:
         uses: shogo82148/actions-setup-perl@v1
         with:
           perl-version: ${{ matrix.perl }}
-      - name: Install pandoc
-        run: sudo apt-get update && sudo apt-get install -y pandoc
+      - name: Install pandoc and libcmark (for --refill)
+        run: sudo apt-get update && sudo apt-get install -y pandoc libcmark-dev
       - name: Install dependencies
         run: cpanm -nq --metacpan --installdeps --with-develop --with-recommends .
       - name: Run test

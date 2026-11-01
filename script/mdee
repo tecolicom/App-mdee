@@ -84,11 +84,12 @@ die() {
     exit 1
 }
 
-# --refill needs pandoc with the sourcepos extension (2.11.3 or later):
-# run the reader the md module uses, so that the check and the use agree
-check_pandoc() {
-    printf "x\n" | pandoc -f gfm+sourcepos+definition_lists -t json >/dev/null 2>&1 ||
-        die "--refill requires pandoc with the sourcepos extension (2.11.3 or later)"
+# --refill needs the CommonMark module (libcmark) or pandoc with the
+# sourcepos extension (2.11.3 or later): ask the module that the md
+# module uses, so that the check and the use agree
+check_refill() {
+    perl -MApp::Greple::md::Blocks=available -e 'exit !available()' 2>/dev/null ||
+        die "--refill requires the CommonMark module or pandoc with the sourcepos extension (2.11.3 or later)"
 }
 
 # Check bash version (4.3+ required for getoptlong.sh)
@@ -609,7 +610,7 @@ pass_nup+=("--runin=$runin" "--runout=$runout" "--boundary=$boundary")
 (( pane != 0 ))        && pass_nup+=("--pane=$pane")
 
 # Make sure pandoc works before anything runs (also in dryrun mode)
-[[ $refill ]] && check_pandoc
+[[ $refill ]] && check_refill
 
 # Collect pipeline stages
 declare -a stages=(run_greple)
@@ -882,9 +883,11 @@ joined with one space, or with nothing after a fullwidth punctuation
 character and between two characters of a script that is written
 without spaces, as L<ansifold(1)|App::ansifold> does.  When fold is
 enabled, the joined paragraphs are folded to the fold width like
-list items; otherwise each is one long line.  Requires pandoc 2.11.3
-or later.  Default is disabled; C<default[refill]=1> in the
-configuration file enables it.
+list items; otherwise each is one long line.  Requires the
+L<CommonMark> Perl module (an interface to libcmark) or pandoc 2.11.3
+or later; the module is used when both are there, and C<--config
+refill_parser=pandoc> chooses pandoc.  Default is disabled;
+C<default[refill]=1> in the configuration file enables it.
 
 =item B<--[no-]table>
 
@@ -1497,9 +1500,10 @@ This command requires the following:
 
 =back
 
-C<--refill> also needs L<pandoc|https://pandoc.org> 2.11.3 or later,
-which is not a Perl module and is not installed with this
-distribution.
+C<--refill> also needs a Markdown parser: the L<CommonMark> module,
+which needs the libcmark C library (C<brew install cmark>, C<apt-get
+install libcmark-dev>) and is only recommended by this distribution,
+or L<pandoc|https://pandoc.org> 2.11.3 or later.
 
 =head1 IMPLEMENTATION
 
@@ -1576,11 +1580,12 @@ Code block detection follows the CommonMark specification:
 =head4 Paragraph Refill
 
 With C<--refill>, the L<App::Greple::md> module joins the lines of
-each paragraph before anything else.  It runs
-L<pandoc|https://pandoc.org> with the C<sourcepos> extension to
-learn which lines of the text form a paragraph, a block quote, a
-list item or a definition, and joins those lines in the original
-text.  The joined lines are folded like list items.
+each paragraph before anything else.  It asks a Markdown parser
+(L<App::Greple::md::Blocks>: the L<CommonMark> module, or
+L<pandoc|https://pandoc.org> with the C<sourcepos> extension) which
+lines of the text form a paragraph, a block quote, a list item or a
+definition, and joins those lines in the original text.  The joined
+lines are folded like list items.
 
 =head4 Text Folding
 
@@ -1804,9 +1809,9 @@ ANSI-aware text folding for line wrapping.
 
 ANSI-aware column formatting for table alignment.
 
-=item L<pandoc|https://pandoc.org>
+=item L<CommonMark>, L<pandoc|https://pandoc.org>
 
-Finds the paragraphs for C<--refill>.
+One of them finds the paragraphs for C<--refill>.
 
 =item L<https://github.com/tecolicom/App-mdee>
 

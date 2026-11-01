@@ -42,6 +42,8 @@ my @cases = (
                               [ "crlf a crlf b\r" ] ],
     [ 'crlf hard break',      [ "hard  \r", "kept\r" ], 0,
                               [ "hard  \r", "kept\r" ] ],
+    [ 'definition list',      [ 'Term', ': def a', 'def b', ': def c' ], 0,
+                              [ 'Term', ': def a def b', ': def c' ] ],
 );
 
 for my $case (@cases) {

@@ -610,15 +610,21 @@ subtest q(refill option) => sub {
     $out = `$mdee --help 2>&1`;
     like($out, qr/\[no-\]refill/, q(--help shows --refill option));
 
-    # a pandoc that always fails: --refill stops before running anything
+    # neither parser works: a pandoc that always fails on PATH and a
+    # CommonMark.pm that dies ahead in PERL5LIB; --refill stops before
+    # running anything
     my $bin = tempdir(CLEANUP => 1);
     open my $fh, q(>), "$bin/pandoc" or die;
     print $fh "#!/bin/sh\nexit 1\n";
     close $fh;
     chmod 0755, "$bin/pandoc";
-    $out = `PATH=$bin:$ENV{PATH} COLUMNS=200 $mdee -n --refill $test_md 2>&1`;
-    isnt($? >> 8, 0, q(--refill fails without a working pandoc));
-    like($out, qr/requires pandoc/, q(the error names pandoc));
+    open $fh, q(>), "$bin/CommonMark.pm" or die;
+    print $fh "die q(not here);\n";
+    close $fh;
+    my $lib = join ':', $bin, grep { defined and length } $ENV{PERL5LIB};
+    $out = `PATH=$bin:$ENV{PATH} PERL5LIB=$lib COLUMNS=200 $mdee -n --refill $test_md 2>&1`;
+    isnt($? >> 8, 0, q(--refill fails without a parser));
+    like($out, qr/requires .*pandoc/, q(the error names the parsers));
     unlike($out, qr/^greple/m, q(the pipeline is not shown));
 
     # default[refill] in config.sh

@@ -23,6 +23,9 @@ requires 'Getopt::EX::termcolor', '1.10';
 
 requires 'App::cat::v';
 
+# --refill finds the paragraphs with CommonMark (needs libcmark) or pandoc
+recommends 'CommonMark';
+
 on 'test' => sub {
     requires 'Test::More', '0.98';
 };

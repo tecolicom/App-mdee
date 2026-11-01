@@ -648,6 +648,8 @@ URL encoding: `uri_escape_utf8($url, "^\\x20-\\x7e")` — escapes only non-ASCII
 
 Terminal background luminance (0-100) is detected via OSC 11 query. Luminance < 50 → dark mode, ≥ 50 → light mode.
 
+When `TERM_LUMINANCE` is set, `detect_terminal_mode` uses it and does not run the query. `t/01_mdee.t` sets it to 100, because the reply of a busy terminal can arrive after termcolor's 0.1 s timeout and then shows up as typed input (`^[]11;rgb:...`).
+
 ### [Getopt::Long::Bash](https://metacpan.org/pod/Getopt::Long::Bash) (getoptlong.sh)
 
 Option parsing uses getoptlong.sh from Getopt::Long::Bash module.

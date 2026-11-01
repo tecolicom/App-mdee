@@ -241,12 +241,16 @@ done
 # User config file path
 config_file="${XDG_CONFIG_HOME:-$HOME/.config}/mdee/config.sh"
 
-# Detect mode from terminal background luminance
+# Detect mode from terminal background luminance (TERM_LUMINANCE when set)
 # Returns "dark" if luminance < 50, "light" otherwise
 # Returns empty string if luminance cannot be determined
 detect_terminal_mode() {
     local lum
-    lum=$(perl -MGetopt::EX::termcolor=luminance -e luminance 2>/dev/null) || return
+    if [[ ${TERM_LUMINANCE:-} ]]; then
+        lum=$TERM_LUMINANCE
+    else
+        lum=$(perl -MGetopt::EX::termcolor=luminance -e luminance 2>/dev/null) || return
+    fi
     [[ $lum ]] || return
     (( lum < 50 )) && echo dark || echo light
 }
@@ -1117,6 +1121,9 @@ Select light or dark mode.  Default is C<light>.
 If the terminal supports background color detection (via
 L<Getopt::EX::termcolor>), the mode is automatically selected based on
 terminal luminance.
+When the environment variable C<TERM_LUMINANCE> is set (0 to 100, as
+L<Getopt::EX::termcolor> uses it), its value is taken instead and the
+terminal is not asked; below 50 is dark.
 
 Each theme has light and dark variants optimized for different terminal
 backgrounds.  The built-in C<default> theme uses RoyalBlue as the base
@@ -1716,6 +1723,15 @@ C<-R> option.
 
 For OSC 8 specification, see:
 L<https://gist.github.com/egmontkob/eb114294efbcd5adb1944c9f3cb5feda>
+
+=head2 Terminal Luminance
+
+Without C<--mode> or C<default[mode]>, B<mdee> asks the terminal for
+its background color (OSC 11) through L<Getopt::EX::termcolor> to
+choose between light and dark mode.  Set C<TERM_LUMINANCE> to a value
+from 0 to 100 to give the answer yourself and skip the query, for
+example in scripts or tests, where a reply that arrives late would
+show up as terminal input.
 
 =head2 Less Environment Variables
 

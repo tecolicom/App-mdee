@@ -36,6 +36,9 @@ my $test_md = File::Spec->rel2abs('t/test.md');
 use File::Temp qw(tempdir);
 my $empty_config = tempdir(CLEANUP => 1);
 $ENV{XDG_CONFIG_HOME} = $empty_config;
+# Do not ask the terminal for its background color: the reply of a
+# busy terminal can come after termcolor gave up and shows up as input.
+$ENV{TERM_LUMINANCE} = 100;
 
 # Check if mdee exists
 ok(-x $mdee, 'mdee is executable');
@@ -73,6 +76,11 @@ subtest 'mode option' => sub {
     my $out_light = `$mdee --mode=light -s cat $test_md 2>&1`;
     my $out_dark = `$mdee --mode=dark -s cat $test_md 2>&1`;
     isnt($out_light, $out_dark, 'light and dark modes produce different output');
+    # TERM_LUMINANCE decides the mode without asking the terminal
+    my $dark = `TERM_LUMINANCE=10 $mdee -n $test_md 2>&1`;
+    like($dark, qr/^greple '-Mmd::config\(mode=dark/m, 'TERM_LUMINANCE below 50 selects dark mode');
+    my $light = `TERM_LUMINANCE=90 $mdee -n $test_md 2>&1`;
+    like($light, qr/^greple '-Mmd::config\(mode=light/m, 'TERM_LUMINANCE of 50 or more selects light mode');
 };
 
 # Test: no-nup option

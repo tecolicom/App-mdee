@@ -487,6 +487,9 @@ bold text, etc.).
     If the terminal supports background color detection (via
     [Getopt::EX::termcolor](https://metacpan.org/pod/Getopt%3A%3AEX%3A%3Atermcolor)), the mode is automatically selected based on
     terminal luminance.
+    When the environment variable `TERM_LUMINANCE` is set (0 to 100, as
+    [Getopt::EX::termcolor](https://metacpan.org/pod/Getopt%3A%3AEX%3A%3Atermcolor) uses it), its value is taken instead and the
+    terminal is not asked; below 50 is dark.
 
     Each theme has light and dark variants optimized for different terminal
     backgrounds.  The built-in `default` theme uses RoyalBlue as the base
@@ -1011,6 +1014,15 @@ When using `less` as pager, version 566 or later is required with
 
 For OSC 8 specification, see:
 [https://gist.github.com/egmontkob/eb114294efbcd5adb1944c9f3cb5feda](https://gist.github.com/egmontkob/eb114294efbcd5adb1944c9f3cb5feda)
+
+## Terminal Luminance
+
+Without `--mode` or `default[mode]`, **mdee** asks the terminal for
+its background color (OSC 11) through [Getopt::EX::termcolor](https://metacpan.org/pod/Getopt%3A%3AEX%3A%3Atermcolor) to
+choose between light and dark mode.  Set `TERM_LUMINANCE` to a value
+from 0 to 100 to give the answer yourself and skip the query, for
+example in scripts or tests, where a reply that arrives late would
+show up as terminal input.
 
 ## Less Environment Variables
 

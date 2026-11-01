@@ -592,6 +592,37 @@ subtest q(runin and runout options) => sub {
 };
 
 # Test: output width option (-w) and --fold-width
+subtest q(reflow option) => sub {
+    my $out = `COLUMNS=200 $mdee -n --reflow $test_md 2>&1`;
+    like($out, qr/^greple .*reflow=1/m, q(--reflow passes reflow=1 to the md module));
+    $out = `COLUMNS=200 $mdee -n $test_md 2>&1`;
+    unlike($out, qr/reflow=/, q(reflow is off by default));
+    $out = `$mdee --help 2>&1`;
+    like($out, qr/\[no-\]reflow/, q(--help shows --reflow option));
+
+    # a pandoc that always fails: --reflow stops before running anything
+    my $bin = tempdir(CLEANUP => 1);
+    open my $fh, q(>), "$bin/pandoc" or die;
+    print $fh "#!/bin/sh\nexit 1\n";
+    close $fh;
+    chmod 0755, "$bin/pandoc";
+    $out = `PATH=$bin:$ENV{PATH} COLUMNS=200 $mdee -n --reflow $test_md 2>&1`;
+    isnt($? >> 8, 0, q(--reflow fails without a working pandoc));
+    like($out, qr/requires pandoc/, q(the error names pandoc));
+    unlike($out, qr/^greple/m, q(the pipeline is not shown));
+
+    # default[reflow] in config.sh
+    my $tmpdir = tempdir(CLEANUP => 1);
+    mkdir "$tmpdir/mdee";
+    open $fh, q(>), "$tmpdir/mdee/config.sh" or die;
+    print $fh "default[reflow]=1\n";
+    close $fh;
+    $out = `XDG_CONFIG_HOME=$tmpdir COLUMNS=200 $mdee -n $test_md 2>&1`;
+    like($out, qr/^greple .*reflow=1/m, q(default[reflow]=1 turns reflow on));
+    $out = `XDG_CONFIG_HOME=$tmpdir COLUMNS=200 $mdee -n --no-reflow $test_md 2>&1`;
+    unlike($out, qr/reflow=/, q(--no-reflow overrides default[reflow]));
+};
+
 subtest q(output width option) => sub {
     my $help = `$mdee --help 2>&1`;
     like($help, qr/--fold-width/, q(--help shows --fold-width option));

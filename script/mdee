@@ -35,6 +35,7 @@ mdee - em·dee, Markdown Easy on the Eyes
      -f  --filter           shortcut for --style=filter
      -p  --plain            shortcut for --style=pager
          --[no-]fold        line folding (default: on)
+         --[no-]reflow      join paragraph lines (default: off)
          --[no-]table       table formatting (default: on)
          --[no-]trim        trim cell spaces (default: on)
          --[no-]nup         nup paged output (default: on)
@@ -81,6 +82,13 @@ Version 1.14
 die() {
     echo "$myname: $*" >&2
     exit 1
+}
+
+# --reflow needs pandoc with the sourcepos extension (2.11.3 or later):
+# run the reader the md module uses, so that the check and the use agree
+check_pandoc() {
+    printf "x\n" | pandoc -f gfm+sourcepos+definition_lists -t json >/dev/null 2>&1 ||
+        die "--reflow requires pandoc with the sourcepos extension (2.11.3 or later)"
 }
 
 # Check bash version (4.3+ required for getoptlong.sh)
@@ -172,6 +180,7 @@ declare -A OPTS=(
     [       filter | f   !         # filter mode           ]=
     [        plain | p   !         # plain mode            ]=
     [         fold |               # line folding          ]=_
+    [       reflow |               # join paragraph lines  ]=_
     [        table |               # table formatting      ]=_
     [         trim |               # trim table cell spaces]=1
     [          nup |               # use nup               ]=_
@@ -333,6 +342,7 @@ fi
 # Output width: explicit option (non-zero) > config default > terminal width
 (( width == 0 )) && width=${default[width]:-0}
 (( fold_width == 0 )) && fold_width=${default[fold_width]:-0}
+[[ $reflow == _ ]] && reflow=${default[reflow]:-}
 # tput reads the size from stderr when stdout is captured, so do not
 # redirect it; without TERM (docker run without a tty) tput only
 # complains, so skip it and fall back to 80 below
@@ -527,6 +537,7 @@ run_greple() {
     [[ $rule  ]] && config_params+=("rule=1")  || config_params+=("rule=0")
     [[ $table_style != pipe ]] && config_params+=("table_style=$table_style")
     [[ $heading_markup ]] && config_params+=("heading_markup=$heading_markup")
+    [[ $reflow ]] && config_params+=("reflow=1")
 
     # Add md_config entries from themes
     config_params+=("${md_config[@]}")
@@ -591,6 +602,9 @@ pass_nup+=("--runin=$runin" "--runout=$runout" "--boundary=$boundary")
 # Add pane/pane-width to pass_nup
 (( pane_width != 85 )) && pass_nup+=("--pane-width=$pane_width")
 (( pane != 0 ))        && pass_nup+=("--pane=$pane")
+
+# Make sure pandoc works before anything runs (also in dryrun mode)
+[[ $reflow ]] && check_pandoc
 
 # Collect pipeline stages
 declare -a stages=(run_greple)

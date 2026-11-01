@@ -79,13 +79,12 @@ for line, only made easier on the eyes with color: the Markdown is
 not interpreted or reformatted.  Some formatting has been added since
 because it made the text more readable: tables are aligned, long
 list items are folded, the default themes hide markup characters,
-and closing hashes are appended to lower-level headings.  Everything
-else is still the source text.  This is why the lines of a
-paragraph are not joined unless `--refill` is given, why backslash
-escapes such as `\*` are shown as written, and why `--no-theme`
-gives back the original file, in color (unless `--refill` is given).
-`--refill` joins the lines that [pandoc](https://pandoc.org) has
-found to be one paragraph, and leaves everything else as it is.
+and closing hashes are appended to lower-level headings.  With
+`--refill`, the lines that [pandoc](https://pandoc.org) has found to
+be one paragraph are joined as well.  Everything else is still the
+source text.  This is why backslash escapes such as `\*` are shown
+as written, and why `--no-theme` gives back the original file, in
+color.
 
 For full Markdown rendering, many other viewers are available, such
 as `glow` and `mdcat`.  Combine them with [nup(1)](https://metacpan.org/pod/App%3A%3Anup) for
@@ -241,9 +240,10 @@ Use [tecolicom/tap](https://github.com/tecolicom/homebrew-tap):
 
 - **--\[no-\]fold**
 
-    Enable or disable line folding for list items.  When enabled, long
-    lines in list items are wrapped with proper indentation using
-    [ansifold(1)](https://metacpan.org/pod/App%3A%3Aansifold).  Default is enabled.
+    Enable or disable line folding for list items, definition lists and,
+    with `--refill`, paragraphs.  When enabled, long lines are wrapped
+    with proper indentation using [ansifold(1)](https://metacpan.org/pod/App%3A%3Aansifold).  Default
+    is enabled.
 
     Supported list markers: `*`, `-`, `1.`, `1)`, `#.`, `#)`.
     The `#.` and `#)` forms are Pandoc's auto-numbered list syntax.
@@ -381,10 +381,10 @@ Use [tecolicom/tap](https://github.com/tecolicom/homebrew-tap):
     Set where [ansicolumn(1)](https://metacpan.org/pod/App%3A%3Aansicolumn) may break a line when nup
     folds the panes, as its `--boundary` option: `word` (default) does
     not break inside an alphanumeric word, `space` not inside a sequence
-    of non-space characters, and `none` breaks anywhere.  Lists and
-    tables are folded by the md module at word boundaries, and this
-    option keeps the paragraphs, which are folded by nup, in step with
-    them.  The value is given to nup (App::nup 1.10 or later), which
+    of non-space characters, and `none` breaks anywhere.  Lists, tables
+    and the paragraphs joined by `--refill` are folded by the md module
+    at word boundaries, and this option keeps the other paragraphs, which
+    are folded by nup, in step with them.  The value is given to nup (App::nup 1.10 or later), which
     gives it to ansicolumn after `~/.ansicolumnrc`, so it takes
     precedence over the value there.
 
@@ -777,6 +777,7 @@ The `${base}` string is expanded to the base color value after loading.
     mdee --no-nup file.md       # output to stdout without nup
     mdee --no-fold file.md      # disable line folding
     mdee --no-table file.md     # disable table formatting
+    mdee -r file.md             # join paragraph lines (needs pandoc)
 
     # Output styles
     mdee -s pager file.md       # fold + table, output to pager
@@ -787,7 +788,7 @@ The `${base}` string is expanded to the base color value after loading.
     # Style shortcuts
     mdee -p file.md             # same as --style=pager
     cat file.md | mdee -f       # highlight stdin (filter mode)
-    mdee -f file.md             # highlight only (no paging)
+    mdee -f file.md             # highlighted output to stdout
 
     # Override individual settings
     mdee -f --fold file.md      # filter + fold
@@ -813,6 +814,10 @@ This command requires the following:
 - [App::ansiecho](https://metacpan.org/pod/App%3A%3Aansiecho) - ANSI color output
 - [Getopt::Long::Bash](https://metacpan.org/pod/Getopt%3A%3ALong%3A%3ABash) - bash option parsing
 - [Getopt::EX::termcolor](https://metacpan.org/pod/Getopt%3A%3AEX%3A%3Atermcolor) - terminal background detection
+
+`--refill` also needs [pandoc](https://pandoc.org) 2.11.3 or later,
+which is not a Perl module and is not installed with this
+distribution.
 
 # IMPLEMENTATION
 
@@ -846,8 +851,8 @@ each stage without running them, and `-d` prints the stage names.
 ### Processing Stages
 
 The pipeline consists of configurable stages.  Processing options
-can be enabled or disabled independently using `--[no-]fold`,
-`--[no-]table`, and `--[no-]nup` options.
+can be enabled or disabled independently using `--[no-]refill`,
+`--[no-]fold`, `--[no-]table`, and `--[no-]nup` options.
 
 #### Syntax Highlighting
 
@@ -871,13 +876,23 @@ Code block detection follows the CommonMark specification:
 - Closing fence: 0-3 spaces indentation, same character, same or more count
 - Backticks and tildes cannot be mixed (```` ``` ```` must close with ```` ``` ````)
 
+#### Paragraph Refill
+
+With `--refill`, the [App::Greple::md](https://metacpan.org/pod/App%3A%3AGreple%3A%3Amd) module joins the lines of
+each paragraph before anything else.  It runs
+[pandoc](https://pandoc.org) with the `sourcepos` extension to
+learn which lines of the text form a paragraph, a block quote, a
+list item or a definition, and joins those lines in the original
+text.  The joined lines are folded like list items.
+
 #### Text Folding
 
 Text folding is handled within the [App::Greple::md](https://metacpan.org/pod/App%3A%3AGreple%3A%3Amd) module
 using [Greple::tee](https://metacpan.org/pod/Greple%3A%3Atee) to pipe matched regions through
 [ansifold(1)](https://metacpan.org/pod/App%3A%3Aansifold).  It preserves ANSI escape sequences
-and maintains proper indentation for nested lists.  Code blocks,
-HTML comments, and tables are excluded from folding.
+and maintains proper indentation for nested lists.  List items,
+definition lists and the paragraphs joined by `--refill` are
+folded; code blocks, HTML comments, and tables are excluded.
 
 Recognized list markers include `*`, `-`, `1.`, `1)`, `#.`,
 and `#)`.  The `#` marker is Pandoc's auto-numbered list syntax.
@@ -897,7 +912,7 @@ Column alignment is parsed from the separator line: `:---` (left,
 default), `:---:` (center), `---:` (right).  The `parse_separator()`
 function extracts alignment markers and passes `--table-right` and
 `--table-center` options to [ansicolumn(1)](https://metacpan.org/pod/App%3A%3Aansicolumn) (requires
-version 1.53 or later).  Colons are stripped from the separator line
+version 1.61 or later).  Colons are stripped from the separator line
 before further processing.
 
 When `--rule` is enabled (default), ASCII pipe characters are replaced
@@ -959,7 +974,8 @@ The color specification supports modifiers:
 
 **em·dee** uses [Getopt::EX::termcolor](https://metacpan.org/pod/Getopt%3A%3AEX%3A%3Atermcolor) to detect terminal background
 luminance.  If luminance is below 50%, dark mode is automatically
-selected.
+selected.  The environment variable `TERM_LUMINANCE` gives the
+luminance without the detection (see ["Terminal Luminance"](#terminal-luminance)).
 
 # LIMITATIONS
 
@@ -982,11 +998,17 @@ Other nested forms (e.g., `**bold _italic_**`) are not.
 Link patterns do not span multiple lines.  The link text and URL must
 be on the same line.
 
-Links inside other highlighted elements (such as headings or bold
-text) are not processed.
-
 Reference-style links (`[text][ref]` with `[ref]: url` elsewhere)
 are not supported.
+
+## Paragraph Refill
+
+`--refill` joins lines by the rules of Markdown, as pandoc reads
+them.  Lines of verse, addresses or lyrics that rely on the line
+breaks without a hard line break (two spaces or a backslash at the
+end of the line) are joined as well, and so are the lines of a
+display math block between `$$` lines.  Do not use `--refill`
+for such documents.
 
 ## Table Alignment
 
@@ -1066,6 +1088,10 @@ does not override them.
 - [ansicolumn](https://metacpan.org/pod/ansicolumn)
 
     ANSI-aware column formatting for table alignment.
+
+- [pandoc](https://pandoc.org)
+
+    Finds the paragraphs for `--refill`.
 
 - [https://github.com/tecolicom/App-mdee](https://github.com/tecolicom/App-mdee)
 

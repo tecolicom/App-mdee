@@ -30,6 +30,8 @@ App::Greple::md - Greple module for Markdown syntax highlighting
 
     greple -Mmd -- --fold file.md
 
+    greple -Mmd --refill -- file.md
+
 =head1 DESCRIPTION
 
 B<App::Greple::md> is a L<greple|App::Greple> module for viewing
@@ -57,9 +59,10 @@ The following options are defined as greple command options
 
 =head2 B<--fold>
 
-Enable text folding for list items and definition lists.  Long lines
-are wrapped with proper indentation using L<ansifold(1)|App::ansifold>
-via L<Greple::tee>.  Code blocks, HTML comments, and tables are
+Enable text folding for list items, definition lists and the
+paragraphs joined by C<--refill>.  Long lines are wrapped with proper
+indentation using L<ansifold(1)|App::ansifold> via L<Greple::tee>.
+Code blocks, HTML comments, and tables are
 excluded from folding.  The fold width is controlled by the
 C<fold_width> config parameter (default: 80), and the run-in and
 run-out widths for line breaking (kinsoku) by C<fold_runin> and
@@ -374,6 +377,10 @@ ANSI-aware column formatting used for table alignment.
 =item L<App::ansifold>
 
 ANSI-aware text folding used for line wrapping in list items.
+
+=item L<pandoc|https://pandoc.org>
+
+Finds the paragraphs for C<refill=1>.
 
 =back
 

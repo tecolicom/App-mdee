@@ -680,13 +680,12 @@ for line, only made easier on the eyes with color: the Markdown is
 not interpreted or reformatted.  Some formatting has been added since
 because it made the text more readable: tables are aligned, long
 list items are folded, the default themes hide markup characters,
-and closing hashes are appended to lower-level headings.  Everything
-else is still the source text.  This is why the lines of a
-paragraph are not joined unless C<--refill> is given, why backslash
-escapes such as C<\*> are shown as written, and why C<--no-theme>
-gives back the original file, in color (unless C<--refill> is given).
-C<--refill> joins the lines that L<pandoc|https://pandoc.org> has
-found to be one paragraph, and leaves everything else as it is.
+and closing hashes are appended to lower-level headings.  With
+C<--refill>, the lines that L<pandoc|https://pandoc.org> has found to
+be one paragraph are joined as well.  Everything else is still the
+source text.  This is why backslash escapes such as C<\*> are shown
+as written, and why C<--no-theme> gives back the original file, in
+color.
 
 For full Markdown rendering, many other viewers are available, such
 as C<glow> and C<mdcat>.  Combine them with L<nup(1)|App::nup> for
@@ -862,9 +861,10 @@ outputs through a pager (C<$PAGER> or C<less>) instead of nup.
 
 =item B<--[no-]fold>
 
-Enable or disable line folding for list items.  When enabled, long
-lines in list items are wrapped with proper indentation using
-L<ansifold(1)|App::ansifold>.  Default is enabled.
+Enable or disable line folding for list items, definition lists and,
+with C<--refill>, paragraphs.  When enabled, long lines are wrapped
+with proper indentation using L<ansifold(1)|App::ansifold>.  Default
+is enabled.
 
 Supported list markers: C<*>, C<->, C<1.>, C<1)>, C<#.>, C<#)>.
 The C<#.> and C<#)> forms are Pandoc's auto-numbered list syntax.
@@ -1002,10 +1002,10 @@ in by the width kept free, not more.
 Set where L<ansicolumn(1)|App::ansicolumn> may break a line when nup
 folds the panes, as its C<--boundary> option: C<word> (default) does
 not break inside an alphanumeric word, C<space> not inside a sequence
-of non-space characters, and C<none> breaks anywhere.  Lists and
-tables are folded by the md module at word boundaries, and this
-option keeps the paragraphs, which are folded by nup, in step with
-them.  The value is given to nup (App::nup 1.10 or later), which
+of non-space characters, and C<none> breaks anywhere.  Lists, tables
+and the paragraphs joined by C<--refill> are folded by the md module
+at word boundaries, and this option keeps the other paragraphs, which
+are folded by nup, in step with them.  The value is given to nup (App::nup 1.10 or later), which
 gives it to ansicolumn after F<~/.ansicolumnrc>, so it takes
 precedence over the value there.
 
@@ -1448,6 +1448,7 @@ The C<${base}> string is expanded to the base color value after loading.
     mdee --no-nup file.md       # output to stdout without nup
     mdee --no-fold file.md      # disable line folding
     mdee --no-table file.md     # disable table formatting
+    mdee -r file.md             # join paragraph lines (needs pandoc)
 
     # Output styles
     mdee -s pager file.md       # fold + table, output to pager
@@ -1458,7 +1459,7 @@ The C<${base}> string is expanded to the base color value after loading.
     # Style shortcuts
     mdee -p file.md             # same as --style=pager
     cat file.md | mdee -f       # highlight stdin (filter mode)
-    mdee -f file.md             # highlight only (no paging)
+    mdee -f file.md             # highlighted output to stdout
 
     # Override individual settings
     mdee -f --fold file.md      # filter + fold
@@ -1496,6 +1497,10 @@ This command requires the following:
 
 =back
 
+C<--refill> also needs L<pandoc|https://pandoc.org> 2.11.3 or later,
+which is not a Perl module and is not installed with this
+distribution.
+
 =head1 IMPLEMENTATION
 
 B<em·dee> is implemented as a Bash script that orchestrates multiple
@@ -1528,8 +1533,8 @@ each stage without running them, and C<-d> prints the stage names.
 =head3 Processing Stages
 
 The pipeline consists of configurable stages.  Processing options
-can be enabled or disabled independently using C<--[no-]fold>,
-C<--[no-]table>, and C<--[no-]nup> options.
+can be enabled or disabled independently using C<--[no-]refill>,
+C<--[no-]fold>, C<--[no-]table>, and C<--[no-]nup> options.
 
 =head4 Syntax Highlighting
 
@@ -1568,13 +1573,23 @@ Code block detection follows the CommonMark specification:
 
 =back
 
+=head4 Paragraph Refill
+
+With C<--refill>, the L<App::Greple::md> module joins the lines of
+each paragraph before anything else.  It runs
+L<pandoc|https://pandoc.org> with the C<sourcepos> extension to
+learn which lines of the text form a paragraph, a block quote, a
+list item or a definition, and joins those lines in the original
+text.  The joined lines are folded like list items.
+
 =head4 Text Folding
 
 Text folding is handled within the L<App::Greple::md> module
 using L<Greple::tee> to pipe matched regions through
 L<ansifold(1)|App::ansifold>.  It preserves ANSI escape sequences
-and maintains proper indentation for nested lists.  Code blocks,
-HTML comments, and tables are excluded from folding.
+and maintains proper indentation for nested lists.  List items,
+definition lists and the paragraphs joined by C<--refill> are
+folded; code blocks, HTML comments, and tables are excluded.
 
 Recognized list markers include C<*>, C<->, C<1.>, C<1)>, C<#.>,
 and C<#)>.  The C<#> marker is Pandoc's auto-numbered list syntax.
@@ -1594,7 +1609,7 @@ Column alignment is parsed from the separator line: C<:---> (left,
 default), C<:---:> (center), C<---:> (right).  The C<parse_separator()>
 function extracts alignment markers and passes C<--table-right> and
 C<--table-center> options to L<ansicolumn(1)|App::ansicolumn> (requires
-version 1.53 or later).  Colons are stripped from the separator line
+version 1.61 or later).  Colons are stripped from the separator line
 before further processing.
 
 When C<--rule> is enabled (default), ASCII pipe characters are replaced
@@ -1662,7 +1677,8 @@ The color specification supports modifiers:
 
 B<em·dee> uses L<Getopt::EX::termcolor> to detect terminal background
 luminance.  If luminance is below 50%, dark mode is automatically
-selected.
+selected.  The environment variable C<TERM_LUMINANCE> gives the
+luminance without the detection (see L</Terminal Luminance>).
 
 =head1 LIMITATIONS
 
@@ -1685,11 +1701,17 @@ Other nested forms (e.g., C<< **bold _italic_** >>) are not.
 Link patterns do not span multiple lines.  The link text and URL must
 be on the same line.
 
-Links inside other highlighted elements (such as headings or bold
-text) are not processed.
-
 Reference-style links (C<[text][ref]> with C<[ref]: url> elsewhere)
 are not supported.
+
+=head2 Paragraph Refill
+
+C<--refill> joins lines by the rules of Markdown, as pandoc reads
+them.  Lines of verse, addresses or lyrics that rely on the line
+breaks without a hard line break (two spaces or a backslash at the
+end of the line) are joined as well, and so are the lines of a
+display math block between C<$$> lines.  Do not use C<--refill>
+for such documents.
 
 =head2 Table Alignment
 
@@ -1781,6 +1803,10 @@ ANSI-aware text folding for line wrapping.
 =item L<ansicolumn>
 
 ANSI-aware column formatting for table alignment.
+
+=item L<pandoc|https://pandoc.org>
+
+Finds the paragraphs for C<--refill>.
 
 =item L<https://github.com/tecolicom/App-mdee>
 

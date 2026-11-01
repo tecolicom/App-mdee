@@ -113,6 +113,11 @@ C<foldwidth> config parameter (default: 80).
 
 See also the C<--fold> command option.
 
+=head2 B<--[no-]reflow>
+
+Join the lines of paragraphs into one line each (see L</Paragraph
+Reflow>).  Disabled by default.  Requires pandoc.
+
 =head2 B<--[no-]table>
 
 Enable or disable table formatting.  When enabled (default),
@@ -207,6 +212,8 @@ Available parameters:
     foldwidth       fold width in columns (default: 80)
     fold_runin      run-in width in folded lines (default: 4)
     fold_runout     run-out width in folded lines (default: 4)
+    reflow          join the lines of paragraphs; needs pandoc
+                    (default: 0)
     table           table formatting (default: 1)
     table_trim      trim cell whitespace (default: 1)
     table_width     table width in columns; cells of over-wide
@@ -234,6 +241,20 @@ Available parameters:
     tick_close      inline code close marker (default: ´)
     nofork          nofork+raw mode for code ref calls (default: 1)
     hashed.h1-h6    closing hashes per level (default: 0)
+
+=head2 Paragraph Reflow
+
+With C<reflow=1>, the lines of every paragraph, block quote, list
+item and definition are joined into one line before the text is
+colorized.  Which lines belong together is decided by
+L<pandoc|https://pandoc.org> (2.11.3 or later), run with the
+C<sourcepos> extension on the text; the module joins the lines of
+the original text and changes nothing else.  Hard line breaks are
+kept, and so is the break before a list marker, a horizontal rule or
+a table row.  When folding is enabled, the joined lines are folded
+too.
+
+    greple -Mmd::config(reflow=1) file.md
 
 =head2 OSC 8 Hyperlinks
 

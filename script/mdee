@@ -677,8 +677,11 @@ because it made the text more readable: tables are aligned, long
 list items are folded, the default themes hide markup characters,
 and closing hashes are appended to lower-level headings.  Everything
 else is still the source text.  This is why paragraphs are not
-reflowed, why backslash escapes such as C<\*> are shown as written,
-and why C<--no-theme> gives back the original file, in color.
+reflowed unless C<--reflow> is given, why backslash escapes such as
+C<\*> are shown as written, and why C<--no-theme> gives back the
+original file, in color (unless C<--reflow> is given).  C<--reflow>
+joins the lines that L<pandoc|https://pandoc.org> has found to be one
+paragraph, and leaves everything else as it is.
 
 For full Markdown rendering, many other viewers are available, such
 as C<glow> and C<mdcat>.  Combine them with L<nup(1)|App::nup> for
@@ -860,6 +863,23 @@ L<ansifold(1)|App::ansifold>.  Default is enabled.
 
 Supported list markers: C<*>, C<->, C<1.>, C<1)>, C<#.>, C<#)>.
 The C<#.> and C<#)> forms are Pandoc's auto-numbered list syntax.
+
+=item B<--[no-]reflow>
+
+Join the lines of each paragraph into one line.  The text is given to
+L<pandoc|https://pandoc.org> with its C<sourcepos> extension to find
+out which lines make up a paragraph, a block quote, a list item or
+the body of a definition, and only those lines are joined, in the
+original text; headings, tables, code blocks, front matter and
+everything else stay as written.  A hard line break (two or more
+spaces or a backslash at the end of a line) is kept.  Lines are
+joined with one space, or with nothing after a fullwidth punctuation
+character and between two characters of a script that is written
+without spaces, as L<ansifold(1)|App::ansifold> does.  When fold is
+enabled, the joined paragraphs are folded to the fold width like
+list items; otherwise each is one long line.  Requires pandoc 2.11.3
+or later.  Default is disabled; C<default[reflow]=1> in the
+configuration file enables it.
 
 =item B<--[no-]table>
 
@@ -1351,6 +1371,7 @@ This is a shell script that can set defaults and override colors:
     default[style]='pager'           # set default style
     default[width]=170               # set default output width
     default[fold_width]=80           # set default fold width
+    default[reflow]=1                # join paragraph lines
     default[base_color]='DarkCyan'   # set default base color
 
 The C<default> associative array supports the following keys:
@@ -1366,6 +1387,8 @@ The C<default> associative array supports the following keys:
 =item C<default[width]> - Corresponds to C<--width> (e.g., C<170>)
 
 =item C<default[fold_width]> - Corresponds to C<--fold-width> (e.g., C<80>)
+
+=item C<default[reflow]> - Corresponds to C<--reflow> (C<1> to enable)
 
 =item C<default[pane_width]> - Corresponds to C<--pane-width> (e.g., C<100>)
 

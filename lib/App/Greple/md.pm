@@ -422,33 +422,33 @@ my @color_labels = qw(
 );
 
 my $config = Getopt::EX::Config->new(
-    mode       => '',  # light / dark
-    osc8       => 1,   # OSC 8 hyperlinks
-    base_color => '',  # override base color
-    colorize   => 1,   # syntax highlighting
-    fold       => 0,   # text folding
-    refill     => 0,   # join the lines of paragraphs
-    refill_parser => '', # cmark (CommonMark module) or pandoc; '' = whichever is there
-    fold_width => 80,  # fold width
-    fold_runin => 4,   # run-in width in folded lines (ansifold default)
-    fold_runout => 4,  # run-out width in folded lines (ansifold default)
-    table      => 1,   # table formatting
-    table_trim => 1,   # trim cell content whitespace
-    table_width => 0,  # table width; wrap over-wide cells (0 = off)
-    table_cell => '',  # per-column widths for ansicolumn --cell (colon separated)
-    table_wrap_mark => '',  # mark for continuation lines of wrapped cells
-    table_cell_mark => '',  # mark for the first line of cells in wrapped columns
-    table_runin     => 2,       # run-in width in wrapped cells
-    table_runout    => 2,       # run-out width in wrapped cells
-    table_boundary  => 'word',  # fold boundary in wrapped cells
-    table_linebreak => 'all',   # line break (kinsoku) mode in wrapped cells
-    rule       => 1,   # box-drawing characters for tables
-    table_style => 'pipe',  # pipe: column separators; simple: spaces and rules only
-    nofork     => 1,   # use nofork+raw for code ref calls
-    heading_markup => 0,  # inline formatting in headings
-    tick_open  => '`',       # inline code open marker
-    tick_close => "\x{b4}",  # inline code close marker (´)
-    hashed     => { h1 => 0, h2 => 0, h3 => 0, h4 => 0, h5 => 0, h6 => 0 },
+    mode            => '',       # light / dark
+    osc8            => 1,        # OSC 8 hyperlinks
+    base_color      => '',       # override base color
+    colorize        => 1,        # syntax highlighting
+    fold            => 0,        # text folding
+    refill          => 0,        # join the lines of paragraphs
+    refill_parser   => '',       # cmark (CommonMark module) or pandoc; '' = whichever is there
+    fold_width      => 80,       # fold width
+    fold_runin      => 4,        # run-in width in folded lines (ansifold default)
+    fold_runout     => 4,        # run-out width in folded lines (ansifold default)
+    table           => 1,        # table formatting
+    table_trim      => 1,        # trim cell content whitespace
+    table_width     => 0,        # table width; wrap over-wide cells (0 = off)
+    table_cell      => '',       # per-column widths for ansicolumn --cell (colon separated)
+    table_wrap_mark => '',       # mark for continuation lines of wrapped cells
+    table_cell_mark => '',       # mark for the first line of cells in wrapped columns
+    table_runin     => 2,        # run-in width in wrapped cells
+    table_runout    => 2,        # run-out width in wrapped cells
+    table_boundary  => 'word',   # fold boundary in wrapped cells
+    table_linebreak => 'all',    # line break (kinsoku) mode in wrapped cells
+    rule            => 1,        # box-drawing characters for tables
+    table_style     => 'pipe',   # pipe: column separators; simple: spaces and rules only
+    nofork          => 1,        # use nofork+raw for code ref calls
+    heading_markup  => 0,        # inline formatting in headings
+    tick_open       => '`',      # inline code open marker
+    tick_close      => "\x{b4}", # inline code close marker (´)
+    hashed          => { h1 => 0, h2 => 0, h3 => 0, h4 => 0, h5 => 0, h6 => 0 },
     (map { $_ => undef } @color_labels),  # color labels (undef = not set)
 );
 

@@ -595,6 +595,8 @@ subtest q(runin and runout options) => sub {
 subtest q(reflow option) => sub {
     my $out = `COLUMNS=200 $mdee -n --reflow $test_md 2>&1`;
     like($out, qr/^greple .*reflow=1/m, q(--reflow passes reflow=1 to the md module));
+    $out = `COLUMNS=200 $mdee -n -r $test_md 2>&1`;
+    like($out, qr/^greple .*reflow=1/m, q(-r is --reflow));
     $out = `COLUMNS=200 $mdee -n $test_md 2>&1`;
     unlike($out, qr/reflow=/, q(reflow is off by default));
     $out = `$mdee --help 2>&1`;

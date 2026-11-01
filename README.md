@@ -16,7 +16,7 @@ mdee - em·dee, Markdown Easy on the Eyes
      -f  --filter           shortcut for --style=filter
      -p  --plain            shortcut for --style=pager
          --[no-]fold        line folding (default: on)
-         --[no-]reflow      join paragraph lines (default: off)
+     -r  --[no-]reflow      join paragraph lines (default: off)
          --[no-]table       table formatting (default: on)
          --[no-]trim        trim cell spaces (default: on)
          --[no-]nup         nup paged output (default: on)
@@ -248,7 +248,7 @@ Use [tecolicom/tap](https://github.com/tecolicom/homebrew-tap):
     Supported list markers: `*`, `-`, `1.`, `1)`, `#.`, `#)`.
     The `#.` and `#)` forms are Pandoc's auto-numbered list syntax.
 
-- **--\[no-\]reflow**
+- **-r**, **--\[no-\]reflow**
 
     Join the lines of each paragraph into one line.  The text is given to
     [pandoc](https://pandoc.org) with its `sourcepos` extension to find

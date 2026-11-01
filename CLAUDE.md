@@ -315,13 +315,13 @@ In dryrun mode the stage functions really run, in a `$(...)` subshell each, up t
 
 ### App::Greple::md Module
 
-Syntax highlighting, table formatting, and text folding are handled by the `App::Greple::md` Perl module. mdee invokes `greple -Mmd::config(mode,foldlist,foldwidth,table,table_trim,rule,heading_markup,...) -- --filter --filestyle=once --color=always`.
+Syntax highlighting, table formatting, and text folding are handled by the `App::Greple::md` Perl module. mdee invokes `greple -Mmd::config(mode,fold,fold_width,table,table_trim,rule,heading_markup,...) -- --filter --filestyle=once --color=always`.
 
-- `-Mmd::config(...)`: Module config params (mode, foldlist, foldwidth, table, table_trim, rule, heading_markup, hashed.*, color labels)
+- `-Mmd::config(...)`: Module config params (mode, fold, fold_width, table, table_trim, rule, heading_markup, hashed.*, color labels)
 - `--show LABEL=VALUE`: Field visibility control; passed from `show[]` array
 - `pass_md[]`: Passthrough options for md module (e.g., `--colormap` via `:>pass_md`)
 - Options before `--` are module-specific; after `--` are greple options
-- Fold controlled via `foldlist=1`; md module adds `--fold-by $foldwidth $fold_runin $fold_runout` to its default option
+- Fold controlled via `fold=1`; md module adds `--fold-by $fold_width $fold_runin $fold_runout` to its default option
 
 ### Protection Mechanism (protect/restore)
 
@@ -422,16 +422,16 @@ Inline code ([CommonMark Code Spans](https://spec.commonmark.org/0.31.2/#code-sp
 
 ### Text Folding (md module)
 
-Text folding is handled within the `App::Greple::md` module using `-Mtee` to pipe matched regions through `ansifold`. The md module defines `--fold-by` as a greple option in its `__DATA__` section, and `--fold` is dynamically defined in `finalize()` via `$mod->setopt()` as a command option alias. The module option `--foldlist` enables folding via config.
+Text folding is handled within the `App::Greple::md` module using `-Mtee` to pipe matched regions through `ansifold`. The md module defines `--fold-by` as a greple option in its `__DATA__` section, and `--fold` is dynamically defined in `finalize()` via `$mod->setopt()` as a command option alias. The module option `--fold` enables folding via config.
 
 #### Fold Architecture
 
-- `foldlist` config parameter (default: 0) enables/disables folding
-- `foldwidth` config parameter (default: 80) controls the fold width
+- `fold` config parameter (default: 0) enables/disables folding
+- `fold_width` config parameter (default: 80) controls the fold width
 - `fold_runin`/`fold_runout` config parameters (default: 4, the ansifold default) are the run-in and run-out widths for the line breaking of folded lines; mdee passes its own `--runin`/`--runout` values (default 4 as well), so the folded lines run in by exactly the width that mdee keeps free in the pane and the outer fold (nup) never breaks them again
-- `finalize()` defines `--fold` as `--fold-by $foldwidth $fold_runin $fold_runout` via `$mod->setopt()` (for direct command-line use); `--fold-by` takes the three values as `$<shift>` arguments
-- When `foldlist=1` in config, `finalize()` adds the same `--fold-by ...` to the module's default option
-- mdee passes `foldlist=1,foldwidth=$width` in config when fold is enabled
+- `finalize()` defines `--fold` as `--fold-by $fold_width $fold_runin $fold_runout` via `$mod->setopt()` (for direct command-line use); `--fold-by` takes the three values as `$<shift>` arguments
+- When `fold=1` in config, `finalize()` adds the same `--fold-by ...` to the module's default option
+- mdee passes `fold=1,fold_width=$width` in config when fold is enabled
 - The `--fold-by` option in `__DATA__` uses `-Mtee "&ansifold"` with `--exclude` patterns for code blocks, HTML comments, and tables
 - Formatted tables are excluded from folding by `--exclude &__PACKAGE__::table_regions`: `table_regions()` builds its pattern from the config at run time and matches three or more consecutive lines that start with a border/rule character, a dash, whitespace, or the first character of a configured mark (`table_wrap_mark`, `table_cell_mark`) and contain a column separator, where the block must include a separator row such as `───┼───`, so that list items containing `|` are not mistaken for a table. It works in trim and non-trim, rule and non-rule modes, including wrapped continuation lines. A `define` in `__DATA__` cannot depend on the config because option text is expanded when the module is parsed, before `finalize()` runs. Non-ASCII characters in `__DATA__` patterns must be written as `\x{2502}`-style escapes: the pattern text is not decoded, so literal box-drawing characters never match decoded input
 
@@ -551,8 +551,8 @@ sub fix_separator {
    - Non-rule mode: spaces → `-`, borders `|` only when present
 
 Config parameters from mdee:
-- `foldlist=1`: Enable text folding (default disabled in md module)
-- `foldwidth=$width`: Fold width in columns
+- `fold=1`: Enable text folding (default disabled in md module)
+- `fold_width=$width`: Fold width in columns
 - `fold_runin=$runin`, `fold_runout=$runout`: Run-in and run-out widths for the folded lines, the same values mdee gives to nup (default 4, as in ansifold and in the md module)
 - `table=1`: Enable table formatting (default enabled in md module)
 - `table_trim=1`: Enable cell whitespace trimming (default enabled in md module)

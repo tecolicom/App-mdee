@@ -26,7 +26,7 @@ App::Greple::md - Greple module for Markdown syntax highlighting
 
     greple -Mmd --no-table -- file.md
 
-    greple -Mmd --foldlist -- file.md
+    greple -Mmd --fold -- file.md
 
     greple -Mmd -- --fold file.md
 
@@ -61,17 +61,17 @@ Enable text folding for list items and definition lists.  Long lines
 are wrapped with proper indentation using L<ansifold(1)|App::ansifold>
 via L<Greple::tee>.  Code blocks, HTML comments, and tables are
 excluded from folding.  The fold width is controlled by the
-C<foldwidth> config parameter (default: 80), and the run-in and
+C<fold_width> config parameter (default: 80), and the run-in and
 run-out widths for line breaking (kinsoku) by C<fold_runin> and
 C<fold_runout> (default: 4, as in ansifold).
 
     greple -Mmd -- --fold file.md
-    greple -Mmd::config(foldwidth=60) -- --fold file.md
+    greple -Mmd::config(fold_width=60) -- --fold file.md
 
 Supported list markers: C<*>, C<->, C<1.>, C<1)>, C<#.>, C<#)>.
 
-The module option C<--foldlist> is a convenient alternative that
-enables folding via config.
+The module option C<--fold> (before C<-->) enables the same folding
+through the config.
 
 =head1 MODULE OPTIONS
 
@@ -101,17 +101,19 @@ When disabled, no color is applied to Markdown elements.
 
     greple -Mmd --no-colorize -- file.md
 
-=head2 B<--[no-]foldlist>
+=head2 B<--[no-]fold>
 
-Enable or disable text folding.  Disabled by default.  When
-enabled, long lines in list items and definition lists are wrapped
-with proper indentation.  The fold width is controlled by the
-C<foldwidth> config parameter (default: 80).
+Enable or disable text folding (config C<fold>).  Disabled by default.
+When enabled, long lines in list items, definition lists and the
+paragraphs joined by C<--refill> are wrapped with proper indentation.
+The fold width is controlled by the C<fold_width> config parameter
+(default: 80).
 
-    greple -Mmd --foldlist -- file.md
-    greple -Mmd::config(foldlist=1,foldwidth=60) file.md
+    greple -Mmd --fold -- file.md
+    greple -Mmd::config(fold=1,fold_width=60) file.md
 
-See also the C<--fold> command option.
+The greple command option of the same name, C<--fold> after C<-->,
+folds the same lines once without setting the config.
 
 =head2 B<--[no-]refill>
 
@@ -208,8 +210,8 @@ Available parameters:
     mode            light or dark (default: light)
     base_color      base color override
     colorize        syntax highlighting (default: 1)
-    foldlist        text folding (default: 0)
-    foldwidth       fold width in columns (default: 80)
+    fold            text folding (default: 0)
+    fold_width      fold width in columns (default: 80)
     fold_runin      run-in width in folded lines (default: 4)
     fold_runout     run-out width in folded lines (default: 4)
     refill          join the lines of paragraphs; needs pandoc
@@ -409,10 +411,10 @@ my $config = Getopt::EX::Config->new(
     osc8       => 1,   # OSC 8 hyperlinks
     base_color => '',  # override base color
     colorize   => 1,   # syntax highlighting
-    foldlist   => 0,   # text folding
+    fold       => 0,   # text folding
     refill     => 0,   # join the lines of paragraphs (needs pandoc)
-    foldwidth  => 80,  # fold width
-    fold_runin  => 4,  # run-in width in folded lines (ansifold default)
+    fold_width => 80,  # fold width
+    fold_runin => 4,   # run-in width in folded lines (ansifold default)
     fold_runout => 4,  # run-out width in folded lines (ansifold default)
     table      => 1,   # table formatting
     table_trim => 1,   # trim cell content whitespace
@@ -509,7 +511,7 @@ sub finalize {
     no_user_settings(qw(ansicolumn ansifold));
     $config->deal_with($argv,
                        "mode|m=s", "base_color|B=s",
-                       "colorize!", "nofork!", "foldlist!", "refill!", "foldwidth=i", "fold_runin=i", "fold_runout=i",
+                       "colorize!", "nofork!", "fold!", "refill!", "fold_width=i", "fold_runin=i", "fold_runout=i",
                        "table!", "table_trim!",
                        "table_width=i", "table_cell=s", "table_wrap_mark=s", "table_cell_mark=s", "rule!", "table_style=s",
                        "table_runin=i", "table_runout=i", "table_boundary=s", "table_linebreak=s",
@@ -522,10 +524,10 @@ sub finalize {
     if (defined $hm && $hm eq '') {
         $config->{heading_markup} = 'all';
     }
-    if (my $w = $config->{foldwidth}) {
+    if (my $w = $config->{fold_width}) {
         my $fold = join ' ', '--fold-by', $w, @{$config}{qw(fold_runin fold_runout)};
         $mod->setopt('--fold', $fold);
-        if ($config->{foldlist}) {
+        if ($config->{fold}) {
             my @default = $mod->default;
             $mod->setopt('default', @default, $fold);
         }

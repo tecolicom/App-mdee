@@ -389,6 +389,7 @@ my $config = Getopt::EX::Config->new(
     base_color => '',  # override base color
     colorize   => 1,   # syntax highlighting
     foldlist   => 0,   # text folding
+    reflow     => 0,   # join the lines of paragraphs (needs pandoc)
     foldwidth  => 80,  # fold width
     fold_runin  => 4,  # run-in width in folded lines (ansifold default)
     fold_runout => 4,  # run-out width in folded lines (ansifold default)
@@ -487,7 +488,7 @@ sub finalize {
     no_user_settings(qw(ansicolumn ansifold));
     $config->deal_with($argv,
                        "mode|m=s", "base_color|B=s",
-                       "colorize!", "nofork!", "foldlist!", "foldwidth=i", "fold_runin=i", "fold_runout=i",
+                       "colorize!", "nofork!", "foldlist!", "reflow!", "foldwidth=i", "fold_runin=i", "fold_runout=i",
                        "table!", "table_trim!",
                        "table_width=i", "table_cell=s", "table_wrap_mark=s", "table_cell_mark=s", "rule!", "table_style=s",
                        "table_runin=i", "table_runout=i", "table_boundary=s", "table_linebreak=s",
@@ -875,6 +876,60 @@ sub table_regions {
     }xxm;
     my $sep = qr{ (?= [^\n]* [ $cross | ] ) [ $rule $cross | - ]+ \n }xx;
     match_regions(pattern => qr/ (?= (?:$row)*? $sep ) (?:$row){3,} /x);
+}
+
+#
+# Paragraph reflow
+#
+
+# Join the lines of one paragraph (or list item, quote, definition)
+# into a single line.  The rules are those of ansifold's fill_up: the
+# line break after a fullwidth punctuation character and between two
+# characters of a script written without spaces (CJK) is simply
+# removed, any other becomes one space.  A line is left as it is, as
+# the start of a new line, when the line before it ends in a hard
+# break (two or more spaces, or a backslash), or when it starts with
+# a list marker or is a horizontal rule, which pandoc may report as
+# part of the paragraph (a "#." list, "Text\n***").  From the second
+# line on, up to $depth quote markers and the indentation are removed
+# before joining.
+#
+# The character properties are defined as subroutines in App::ansifold
+# and looked up when the pattern is compiled, so the patterns are
+# built here, after the module is loaded, not at compile time.
+sub reflow_block {
+    my($lines, $depth) = @_;
+    state $punct  = do {
+        require App::ansifold;
+        my $p = "App::ansifold::InFullwidthPunctuation";
+        qr/\p{$p}/;
+    };
+    state $concat = do {
+        my $p = "App::ansifold::InConcatScript";
+        qr/\p{$p}/;
+    };
+    my $prefix = qr/^\h*(?:>\h?){0,$depth}\h*/;
+    my $marker = qr/^\h*(?:[*+-]|(?:\d+|#)[.)])\h+/;
+    my $hr     = qr/^ {0,3}(?:[-*_][ ]*){3,}$/;
+    my $hard   = qr/(?:\\| {2,})$/;
+    my @out;
+    for my $line (@$lines) {
+        if (!@out or $out[-1] =~ $hard or $line =~ $marker or $line =~ $hr) {
+            push @out, $line;
+            next;
+        }
+        my $text = $line =~ s/$prefix//r;
+        if ($out[-1] =~ /$punct$/) {
+            $out[-1] .= $text;
+        } elsif ($out[-1] =~ /$concat$/ and $text =~ /^$concat/) {
+            $out[-1] .= $text;
+        } else {
+            $out[-1] =~ s/ +$//;
+            $text =~ s/^ +//;
+            $out[-1] .= " $text";
+        }
+    }
+    @out;
 }
 
 sub begin {

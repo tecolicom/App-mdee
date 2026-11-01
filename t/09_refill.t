@@ -9,7 +9,7 @@ use File::Temp qw(tempfile tempdir);
 use lib '.';
 use t::Util;
 
-# reflow=1 joins the lines that pandoc reports as one paragraph (list
+# refill=1 joins the lines that pandoc reports as one paragraph (list
 # item, quote, definition) and leaves everything else as written.  The
 # joined lines are folded when fold is on.  Needs pandoc with the
 # sourcepos extension.
@@ -135,11 +135,11 @@ my $md = md_file($input);
 my $toml = md_file(qq(+++\ntitle = "x"\n+++\n\npara a\npara b\n));
 
 subtest 'join paragraphs' => sub {
-    my $out = run("'-Mmd::config(colorize=0,table=0,reflow=1)' $md")->stdout;
+    my $out = run("'-Mmd::config(colorize=0,table=0,refill=1)' $md")->stdout;
     is(plain($out), $joined, 'paragraph, list item, quote, definition are joined; the rest is as written');
     $out = run("'-Mmd::config(colorize=0,table=0)' $md")->stdout;
-    is(plain($out), $input, 'reflow=0 leaves the text as it is');
-    $out = run("'-Mmd::config(colorize=0,table=0,reflow=1)' $toml")->stdout;
+    is(plain($out), $input, 'refill=0 leaves the text as it is');
+    $out = run("'-Mmd::config(colorize=0,table=0,refill=1)' $toml")->stdout;
     is(plain($out), qq(+++\ntitle = "x"\n+++\n\npara a para b\n), 'TOML front matter is left as it is');
 };
 
@@ -148,7 +148,7 @@ my $item = "- $sentence $sentence";
 my $fold_md = md_file(join "\n", "# Fold", '', ($sentence) x 3, '', $item, '', "> $sentence", "> $sentence", '', ($sentence) x 2, '');
 
 subtest 'fold joined lines' => sub {
-    my $out = run("'-Mmd::config(colorize=0,reflow=1,foldlist=1,foldwidth=40)' $fold_md")->stdout;
+    my $out = run("'-Mmd::config(colorize=0,refill=1,foldlist=1,foldwidth=40)' $fold_md")->stdout;
     cmp_ok(max_width($out), '<=', 40, 'joined paragraph is folded to the fold width');
     my @quick = plain($out) =~ /\bquick\b/g;
     is(scalar @quick, 9, 'every line appears once in the output');
@@ -156,18 +156,18 @@ subtest 'fold joined lines' => sub {
     is(scalar @indented, 6, 'only the continuation lines of the list item and the quote are indented');
     like(plain($out), qr/^- the quick.*\n  lazy dog/m, 'continuation lines of a list item are indented');
     like(plain($out), qr/^> the quick.*\n  lazy dog/m, 'continuation lines of a quote are indented under the text');
-    $out = run("'-Mmd::config(colorize=0,reflow=1,foldlist=0)' $fold_md")->stdout;
+    $out = run("'-Mmd::config(colorize=0,refill=1,foldlist=0)' $fold_md")->stdout;
     like(plain($out), qr/^(?:$sentence ){2}$sentence$/m, 'without fold the joined paragraph is one line');
-    $out = run("'-Mmd::config(reflow=1,foldlist=1,foldwidth=40)' $fold_md")->stdout;
+    $out = run("'-Mmd::config(refill=1,foldlist=1,foldwidth=40)' $fold_md")->stdout;
     like(plain($out), qr/^> the quick.*\n  lazy dog/m, 'quote continuation lines are indented with colorize on');
     like(plain($out), qr/^- the quick.*\n  lazy dog/m, 'list continuation lines are indented with colorize on');
 };
 
 subtest 'two files' => sub {
-    my $one = plain(run("'-Mmd::config(colorize=0,reflow=1,foldlist=1,foldwidth=40)' -h $fold_md")->stdout);
-    my $two = plain(run("'-Mmd::config(colorize=0,reflow=1,foldlist=1,foldwidth=40)' -h $fold_md $fold_md")->stdout);
+    my $one = plain(run("'-Mmd::config(colorize=0,refill=1,foldlist=1,foldwidth=40)' -h $fold_md")->stdout);
+    my $two = plain(run("'-Mmd::config(colorize=0,refill=1,foldlist=1,foldwidth=40)' -h $fold_md $fold_md")->stdout);
     $two =~ s/\f//g;
-    is($two, $one x 2, 'the second file is reflowed like the first');
+    is($two, $one x 2, 'the second file is refilled like the first');
 };
 
 my $cell = 'alpha beta gamma delta epsilon zeta eta theta iota kappa lambda';  # wider than 40
@@ -193,7 +193,7 @@ EOF
 
 for my $style ('', ',table_style=simple') {
     subtest "paragraph below a wrapped table$style" => sub {
-        my $out = plain(run("'-Mmd::config(colorize=0,reflow=1,foldlist=1,foldwidth=40,table_width=40$style)' $table_md")->stdout);
+        my $out = plain(run("'-Mmd::config(colorize=0,refill=1,foldlist=1,foldwidth=40,table_width=40$style)' $table_md")->stdout);
         cmp_ok(max_width($out), '<=', 40, 'paragraph below the table is folded');
         my @one = $out =~ /\bone\b/g;
         is(scalar @one, 1, 'table rows appear once');
@@ -201,7 +201,7 @@ for my $style ('', ',table_style=simple') {
         is(scalar @quick, 2, 'paragraph lines appear once');
     };
     subtest "paragraph right below a wrapped table$style" => sub {
-        my $out = plain(run("'-Mmd::config(colorize=0,reflow=1,foldlist=1,foldwidth=40,table_width=40$style)' $tight_md")->stdout);
+        my $out = plain(run("'-Mmd::config(colorize=0,refill=1,foldlist=1,foldwidth=40,table_width=40$style)' $tight_md")->stdout);
         cmp_ok(max_width($out), '<=', 40, 'paragraph right below the table is folded');
         my @one = $out =~ /\bone\b/g;
         is(scalar @one, 1, 'table rows appear once');

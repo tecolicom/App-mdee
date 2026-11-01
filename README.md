@@ -16,7 +16,7 @@ mdee - em·dee, Markdown Easy on the Eyes
      -f  --filter           shortcut for --style=filter
      -p  --plain            shortcut for --style=pager
          --[no-]fold        line folding (default: on)
-     -r  --[no-]reflow      join paragraph lines (default: off)
+     -r  --[no-]refill      join paragraph lines (default: off)
          --[no-]table       table formatting (default: on)
          --[no-]trim        trim cell spaces (default: on)
          --[no-]nup         nup paged output (default: on)
@@ -80,12 +80,12 @@ not interpreted or reformatted.  Some formatting has been added since
 because it made the text more readable: tables are aligned, long
 list items are folded, the default themes hide markup characters,
 and closing hashes are appended to lower-level headings.  Everything
-else is still the source text.  This is why paragraphs are not
-reflowed unless `--reflow` is given, why backslash escapes such as
-`\*` are shown as written, and why `--no-theme` gives back the
-original file, in color (unless `--reflow` is given).  `--reflow`
-joins the lines that [pandoc](https://pandoc.org) has found to be one
-paragraph, and leaves everything else as it is.
+else is still the source text.  This is why the lines of a
+paragraph are not joined unless `--refill` is given, why backslash
+escapes such as `\*` are shown as written, and why `--no-theme`
+gives back the original file, in color (unless `--refill` is given).
+`--refill` joins the lines that [pandoc](https://pandoc.org) has
+found to be one paragraph, and leaves everything else as it is.
 
 For full Markdown rendering, many other viewers are available, such
 as `glow` and `mdcat`.  Combine them with [nup(1)](https://metacpan.org/pod/App%3A%3Anup) for
@@ -248,7 +248,7 @@ Use [tecolicom/tap](https://github.com/tecolicom/homebrew-tap):
     Supported list markers: `*`, `-`, `1.`, `1)`, `#.`, `#)`.
     The `#.` and `#)` forms are Pandoc's auto-numbered list syntax.
 
-- **-r**, **--\[no-\]reflow**
+- **-r**, **--\[no-\]refill**
 
     Join the lines of each paragraph into one line.  The text is given to
     [pandoc](https://pandoc.org) with its `sourcepos` extension to find
@@ -262,7 +262,7 @@ Use [tecolicom/tap](https://github.com/tecolicom/homebrew-tap):
     without spaces, as [ansifold(1)](https://metacpan.org/pod/App%3A%3Aansifold) does.  When fold is
     enabled, the joined paragraphs are folded to the fold width like
     list items; otherwise each is one long line.  Requires pandoc 2.11.3
-    or later.  Default is disabled; `default[reflow]=1` in the
+    or later.  Default is disabled; `default[refill]=1` in the
     configuration file enables it.
 
 - **--\[no-\]table**
@@ -720,7 +720,7 @@ This is a shell script that can set defaults and override colors:
     default[style]='pager'           # set default style
     default[width]=170               # set default output width
     default[fold_width]=80           # set default fold width
-    default[reflow]=1                # join paragraph lines
+    default[refill]=1                # join paragraph lines
     default[base_color]='DarkCyan'   # set default base color
 
 The `default` associative array supports the following keys:
@@ -730,7 +730,7 @@ The `default` associative array supports the following keys:
 - `default[style]` - Corresponds to `--style` (e.g., `pager`, `cat`)
 - `default[width]` - Corresponds to `--width` (e.g., `170`)
 - `default[fold_width]` - Corresponds to `--fold-width` (e.g., `80`)
-- `default[reflow]` - Corresponds to `--reflow` (`1` to enable)
+- `default[refill]` - Corresponds to `--refill` (`1` to enable)
 - `default[pane_width]` - Corresponds to `--pane-width` (e.g., `100`)
 - `default[pane]` - Corresponds to `--pane` (e.g., `2`)
 - `default[base_color]` - Corresponds to `--base-color` (e.g., `DarkCyan`)

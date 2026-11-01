@@ -113,10 +113,10 @@ C<foldwidth> config parameter (default: 80).
 
 See also the C<--fold> command option.
 
-=head2 B<--[no-]reflow>
+=head2 B<--[no-]refill>
 
 Join the lines of paragraphs into one line each (see L</Paragraph
-Reflow>).  Disabled by default.  Requires pandoc.
+Refill>).  Disabled by default.  Requires pandoc.
 
 =head2 B<--[no-]table>
 
@@ -212,7 +212,7 @@ Available parameters:
     foldwidth       fold width in columns (default: 80)
     fold_runin      run-in width in folded lines (default: 4)
     fold_runout     run-out width in folded lines (default: 4)
-    reflow          join the lines of paragraphs; needs pandoc
+    refill          join the lines of paragraphs; needs pandoc
                     (default: 0)
     table           table formatting (default: 1)
     table_trim      trim cell whitespace (default: 1)
@@ -242,9 +242,9 @@ Available parameters:
     nofork          nofork+raw mode for code ref calls (default: 1)
     hashed.h1-h6    closing hashes per level (default: 0)
 
-=head2 Paragraph Reflow
+=head2 Paragraph Refill
 
-With C<reflow=1>, the lines of every paragraph, block quote, list
+With C<refill=1>, the lines of every paragraph, block quote, list
 item and definition are joined into one line before the text is
 colorized.  Which lines belong together is decided by
 L<pandoc|https://pandoc.org> (2.11.3 or later), run with the
@@ -254,7 +254,7 @@ kept, and so is the break before a list marker, a horizontal rule or
 a table row.  When folding is enabled, the joined lines are folded
 too.
 
-    greple -Mmd::config(reflow=1) file.md
+    greple -Mmd::config(refill=1) file.md
 
 =head2 OSC 8 Hyperlinks
 
@@ -410,7 +410,7 @@ my $config = Getopt::EX::Config->new(
     base_color => '',  # override base color
     colorize   => 1,   # syntax highlighting
     foldlist   => 0,   # text folding
-    reflow     => 0,   # join the lines of paragraphs (needs pandoc)
+    refill     => 0,   # join the lines of paragraphs (needs pandoc)
     foldwidth  => 80,  # fold width
     fold_runin  => 4,  # run-in width in folded lines (ansifold default)
     fold_runout => 4,  # run-out width in folded lines (ansifold default)
@@ -509,7 +509,7 @@ sub finalize {
     no_user_settings(qw(ansicolumn ansifold));
     $config->deal_with($argv,
                        "mode|m=s", "base_color|B=s",
-                       "colorize!", "nofork!", "foldlist!", "reflow!", "foldwidth=i", "fold_runin=i", "fold_runout=i",
+                       "colorize!", "nofork!", "foldlist!", "refill!", "foldwidth=i", "fold_runin=i", "fold_runout=i",
                        "table!", "table_trim!",
                        "table_width=i", "table_cell=s", "table_wrap_mark=s", "table_cell_mark=s", "rule!", "table_style=s",
                        "table_runin=i", "table_runout=i", "table_boundary=s", "table_linebreak=s",
@@ -900,7 +900,7 @@ sub table_regions {
 }
 
 #
-# Paragraph reflow
+# Paragraph refill
 #
 
 # Join the lines of one paragraph (or list item, quote, definition)
@@ -921,7 +921,7 @@ sub table_regions {
 # The character properties are defined as subroutines in App::ansifold
 # and looked up when the pattern is compiled, so the patterns are
 # built here, after the module is loaded, not at compile time.
-sub reflow_block {
+sub refill_block {
     my($lines, $depth) = @_;
     state $punct  = do {
         require App::ansifold;
@@ -959,11 +959,11 @@ sub reflow_block {
     @out;
 }
 
-# The line ranges that reflow() joined, as [first, last] in the text
+# The line ranges that refill() joined, as [first, last] in the text
 # after joining, and the formatted tables, as [first line, lines added],
-# both for the current file.  reflow_regions() turns them into the
+# both for the current file.  refill_regions() turns them into the
 # regions that --fold-by folds.
-our @reflow_lines;
+our @refill_lines;
 our @table_shift;
 
 # Run pandoc on the text and return the blocks it reports with a source
@@ -989,7 +989,7 @@ sub pandoc_blocks {
         ->command(qw(pandoc -f gfm+sourcepos+definition_lists -t json))
         ->with(stdin => $text)
         ->run;
-    die "reflow: pandoc failed\n" if $result->{result} != 0;
+    die "refill: pandoc failed\n" if $result->{result} != 0;
     my $doc = JSON::PP->new->decode($result->{data});
     my @blocks;
     my $walk; $walk = sub {
@@ -1035,8 +1035,8 @@ sub pandoc_blocks {
 # definition (Plain) in $_, from the bottom up so that the line numbers
 # of the blocks above stay valid, and remember where the joined lines
 # are in the result.
-sub reflow {
-    @reflow_lines = ();
+sub refill {
+    @refill_lines = ();
     my @lines = split /\n/, $_, -1;
     my @done;
     my $limit = @lines + 1;
@@ -1048,27 +1048,27 @@ sub reflow {
         my($first, $last) = @{$b}{qw(first last)};
         next if $last < $first or $last >= $limit or $first <= $front;
         $limit = $first;
-        my @joined = reflow_block([ @lines[$first-1 .. $last-1] ], $b->{depth});
+        my @joined = refill_block([ @lines[$first-1 .. $last-1] ], $b->{depth});
         splice @lines, $first-1, $last-$first+1, @joined;
         unshift @done, [ $first, scalar @joined, $last - $first + 1 - @joined ];
     }
     my $shift = 0;
     for my $d (@done) {
         my($first, $count, $removed) = @$d;
-        push @reflow_lines, [ $first - $shift, $first - $shift + $count - 1 ];
+        push @refill_lines, [ $first - $shift, $first - $shift + $count - 1 ];
         $shift += $removed;
     }
     $_ = join "\n", @lines;
 }
 
-# The lines that reflow() joined, one region per line including its
+# The lines that refill() joined, one region per line including its
 # newline, for --fold-by.  The text has been through colorize(), which
 # keeps the number of lines, and format_table(), which does not: the
 # tables above a range have added the lines in @table_shift.
-sub reflow_regions {
+sub refill_regions {
     my %arg = @_;
     delete $arg{&FILELABEL};
-    return () unless @reflow_lines;
+    return () unless @refill_lines;
     my @start = (0);
     my $pos = 0;
     while (($pos = index($_, "\n", $pos)) >= 0) {
@@ -1076,7 +1076,7 @@ sub reflow_regions {
     }
     my $end = length $_;
     my @regions;
-    for my $range (@reflow_lines) {
+    for my $range (@refill_lines) {
         for my $line ($range->[0] .. $range->[1]) {
             my $shift = 0;
             for my $t (@table_shift) {
@@ -1092,8 +1092,8 @@ sub reflow_regions {
 
 
 sub begin {
-    @reflow_lines = @table_shift = ();
-    reflow()       if $config->{reflow};
+    @refill_lines = @table_shift = ();
+    refill()       if $config->{refill};
     colorize()     if $config->{colorize};
     format_table() if $config->{table};
 }
@@ -1236,6 +1236,6 @@ option --fold-by \
     --exclude &__PACKAGE__::table_regions \
     --cm N -E {LIST_ITEM} \
     --cm N -E {DEFINITION} \
-    --cm N --le &__PACKAGE__::reflow_regions \
+    --cm N --le &__PACKAGE__::refill_regions \
     --crmode
 

@@ -4,12 +4,12 @@ use utf8;
 use Test::More;
 use open qw(:std :encoding(utf-8));
 
-# Unit tests for reflow_block: joins the lines of one paragraph the way
+# Unit tests for refill_block: joins the lines of one paragraph the way
 # ansifold's fill_up does, keeping the break after a hard break and
 # before a list marker or horizontal rule line.
 use_ok('App::Greple::md');
 
-sub reflow_block { App::Greple::md::reflow_block(@_) }
+sub refill_block { App::Greple::md::refill_block(@_) }
 
 my @cases = (
     [ 'plain lines',          [ 'para line one', 'para line two' ], 0,
@@ -46,7 +46,7 @@ my @cases = (
 
 for my $case (@cases) {
     my($name, $lines, $depth, $want) = @$case;
-    my @got = reflow_block([ @$lines ], $depth);
+    my @got = refill_block([ @$lines ], $depth);
     is_deeply(\@got, $want, $name);
 }
 

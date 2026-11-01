@@ -600,42 +600,42 @@ subtest q(runin and runout options) => sub {
 };
 
 # Test: output width option (-w) and --fold-width
-subtest q(reflow option) => sub {
-    my $out = `COLUMNS=200 $mdee -n --reflow $test_md 2>&1`;
-    like($out, qr/^greple .*reflow=1/m, q(--reflow passes reflow=1 to the md module));
+subtest q(refill option) => sub {
+    my $out = `COLUMNS=200 $mdee -n --refill $test_md 2>&1`;
+    like($out, qr/^greple .*refill=1/m, q(--refill passes refill=1 to the md module));
     $out = `COLUMNS=200 $mdee -n -r $test_md 2>&1`;
-    like($out, qr/^greple .*reflow=1/m, q(-r is --reflow));
+    like($out, qr/^greple .*refill=1/m, q(-r is --refill));
     $out = `COLUMNS=200 $mdee -n $test_md 2>&1`;
-    unlike($out, qr/reflow=/, q(reflow is off by default));
+    unlike($out, qr/refill=/, q(refill is off by default));
     $out = `$mdee --help 2>&1`;
-    like($out, qr/\[no-\]reflow/, q(--help shows --reflow option));
+    like($out, qr/\[no-\]refill/, q(--help shows --refill option));
 
-    # a pandoc that always fails: --reflow stops before running anything
+    # a pandoc that always fails: --refill stops before running anything
     my $bin = tempdir(CLEANUP => 1);
     open my $fh, q(>), "$bin/pandoc" or die;
     print $fh "#!/bin/sh\nexit 1\n";
     close $fh;
     chmod 0755, "$bin/pandoc";
-    $out = `PATH=$bin:$ENV{PATH} COLUMNS=200 $mdee -n --reflow $test_md 2>&1`;
-    isnt($? >> 8, 0, q(--reflow fails without a working pandoc));
+    $out = `PATH=$bin:$ENV{PATH} COLUMNS=200 $mdee -n --refill $test_md 2>&1`;
+    isnt($? >> 8, 0, q(--refill fails without a working pandoc));
     like($out, qr/requires pandoc/, q(the error names pandoc));
     unlike($out, qr/^greple/m, q(the pipeline is not shown));
 
-    # default[reflow] in config.sh
+    # default[refill] in config.sh
     my $tmpdir = tempdir(CLEANUP => 1);
     mkdir "$tmpdir/mdee";
     open $fh, q(>), "$tmpdir/mdee/config.sh" or die;
-    print $fh "default[reflow]=1\n";
+    print $fh "default[refill]=1\n";
     close $fh;
     $out = `XDG_CONFIG_HOME=$tmpdir COLUMNS=200 $mdee -n $test_md 2>&1`;
-    like($out, qr/^greple .*reflow=1/m, q(default[reflow]=1 turns reflow on));
-    $out = `XDG_CONFIG_HOME=$tmpdir COLUMNS=200 $mdee -n --no-reflow $test_md 2>&1`;
-    unlike($out, qr/reflow=/, q(--no-reflow overrides default[reflow]));
+    like($out, qr/^greple .*refill=1/m, q(default[refill]=1 turns refill on));
+    $out = `XDG_CONFIG_HOME=$tmpdir COLUMNS=200 $mdee -n --no-refill $test_md 2>&1`;
+    unlike($out, qr/refill=/, q(--no-refill overrides default[refill]));
     open $fh, q(>), "$tmpdir/mdee/config.sh" or die;
-    print $fh "default[reflow]=0\n";
+    print $fh "default[refill]=0\n";
     close $fh;
     $out = `XDG_CONFIG_HOME=$tmpdir COLUMNS=200 $mdee -n $test_md 2>&1`;
-    unlike($out, qr/reflow=/, q(default[reflow]=0 leaves reflow off));
+    unlike($out, qr/refill=/, q(default[refill]=0 leaves refill off));
 };
 
 subtest q(output width option) => sub {

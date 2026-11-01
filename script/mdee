@@ -35,7 +35,7 @@ mdee - em·dee, Markdown Easy on the Eyes
      -f  --filter           shortcut for --style=filter
      -p  --plain            shortcut for --style=pager
          --[no-]fold        line folding (default: on)
-     -r  --[no-]reflow      join paragraph lines (default: off)
+     -r  --[no-]refill      join paragraph lines (default: off)
          --[no-]table       table formatting (default: on)
          --[no-]trim        trim cell spaces (default: on)
          --[no-]nup         nup paged output (default: on)
@@ -84,11 +84,11 @@ die() {
     exit 1
 }
 
-# --reflow needs pandoc with the sourcepos extension (2.11.3 or later):
+# --refill needs pandoc with the sourcepos extension (2.11.3 or later):
 # run the reader the md module uses, so that the check and the use agree
 check_pandoc() {
     printf "x\n" | pandoc -f gfm+sourcepos+definition_lists -t json >/dev/null 2>&1 ||
-        die "--reflow requires pandoc with the sourcepos extension (2.11.3 or later)"
+        die "--refill requires pandoc with the sourcepos extension (2.11.3 or later)"
 }
 
 # Check bash version (4.3+ required for getoptlong.sh)
@@ -180,7 +180,7 @@ declare -A OPTS=(
     [       filter | f   !         # filter mode           ]=
     [        plain | p   !         # plain mode            ]=
     [         fold |               # line folding          ]=_
-    [       reflow | r             # join paragraph lines  ]=_
+    [       refill | r             # join paragraph lines  ]=_
     [        table |               # table formatting      ]=_
     [         trim |               # trim table cell spaces]=1
     [          nup |               # use nup               ]=_
@@ -346,8 +346,8 @@ fi
 # Output width: explicit option (non-zero) > config default > terminal width
 (( width == 0 )) && width=${default[width]:-0}
 (( fold_width == 0 )) && fold_width=${default[fold_width]:-0}
-[[ $reflow == _ ]] && reflow=${default[reflow]:-}
-[[ $reflow == 0 ]] && reflow=
+[[ $refill == _ ]] && refill=${default[refill]:-}
+[[ $refill == 0 ]] && refill=
 # tput reads the size from stderr when stdout is captured, so do not
 # redirect it; without TERM (docker run without a tty) tput only
 # complains, so skip it and fall back to 80 below
@@ -542,7 +542,7 @@ run_greple() {
     [[ $rule  ]] && config_params+=("rule=1")  || config_params+=("rule=0")
     [[ $table_style != pipe ]] && config_params+=("table_style=$table_style")
     [[ $heading_markup ]] && config_params+=("heading_markup=$heading_markup")
-    [[ $reflow ]] && config_params+=("reflow=1")
+    [[ $refill ]] && config_params+=("refill=1")
 
     # Add md_config entries from themes
     config_params+=("${md_config[@]}")
@@ -609,7 +609,7 @@ pass_nup+=("--runin=$runin" "--runout=$runout" "--boundary=$boundary")
 (( pane != 0 ))        && pass_nup+=("--pane=$pane")
 
 # Make sure pandoc works before anything runs (also in dryrun mode)
-[[ $reflow ]] && check_pandoc
+[[ $refill ]] && check_pandoc
 
 # Collect pipeline stages
 declare -a stages=(run_greple)
@@ -681,12 +681,12 @@ not interpreted or reformatted.  Some formatting has been added since
 because it made the text more readable: tables are aligned, long
 list items are folded, the default themes hide markup characters,
 and closing hashes are appended to lower-level headings.  Everything
-else is still the source text.  This is why paragraphs are not
-reflowed unless C<--reflow> is given, why backslash escapes such as
-C<\*> are shown as written, and why C<--no-theme> gives back the
-original file, in color (unless C<--reflow> is given).  C<--reflow>
-joins the lines that L<pandoc|https://pandoc.org> has found to be one
-paragraph, and leaves everything else as it is.
+else is still the source text.  This is why the lines of a
+paragraph are not joined unless C<--refill> is given, why backslash
+escapes such as C<\*> are shown as written, and why C<--no-theme>
+gives back the original file, in color (unless C<--refill> is given).
+C<--refill> joins the lines that L<pandoc|https://pandoc.org> has
+found to be one paragraph, and leaves everything else as it is.
 
 For full Markdown rendering, many other viewers are available, such
 as C<glow> and C<mdcat>.  Combine them with L<nup(1)|App::nup> for
@@ -869,7 +869,7 @@ L<ansifold(1)|App::ansifold>.  Default is enabled.
 Supported list markers: C<*>, C<->, C<1.>, C<1)>, C<#.>, C<#)>.
 The C<#.> and C<#)> forms are Pandoc's auto-numbered list syntax.
 
-=item B<-r>, B<--[no-]reflow>
+=item B<-r>, B<--[no-]refill>
 
 Join the lines of each paragraph into one line.  The text is given to
 L<pandoc|https://pandoc.org> with its C<sourcepos> extension to find
@@ -883,7 +883,7 @@ character and between two characters of a script that is written
 without spaces, as L<ansifold(1)|App::ansifold> does.  When fold is
 enabled, the joined paragraphs are folded to the fold width like
 list items; otherwise each is one long line.  Requires pandoc 2.11.3
-or later.  Default is disabled; C<default[reflow]=1> in the
+or later.  Default is disabled; C<default[refill]=1> in the
 configuration file enables it.
 
 =item B<--[no-]table>
@@ -1379,7 +1379,7 @@ This is a shell script that can set defaults and override colors:
     default[style]='pager'           # set default style
     default[width]=170               # set default output width
     default[fold_width]=80           # set default fold width
-    default[reflow]=1                # join paragraph lines
+    default[refill]=1                # join paragraph lines
     default[base_color]='DarkCyan'   # set default base color
 
 The C<default> associative array supports the following keys:
@@ -1396,7 +1396,7 @@ The C<default> associative array supports the following keys:
 
 =item C<default[fold_width]> - Corresponds to C<--fold-width> (e.g., C<80>)
 
-=item C<default[reflow]> - Corresponds to C<--reflow> (C<1> to enable)
+=item C<default[refill]> - Corresponds to C<--refill> (C<1> to enable)
 
 =item C<default[pane_width]> - Corresponds to C<--pane-width> (e.g., C<100>)
 

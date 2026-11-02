@@ -1182,6 +1182,7 @@ option default \
 define {CODE_BLOCK}  ^ {0,3}(?<bt>(?<fc>[`~])\g{fc}{2,}+)(.*)\n((?s:.*?))^ {0,3}\g{bt}\g{fc}*+\h*$
 define {COMMENT}     ^<!--(?![->])(?s:.+?)-->
 define {SGR}         (?:\e\[[\d;]*[mK])*
+define {SGR_END}     (?:\e\[[0;]*[mK])*
 define {LIST_MARKER} (?:[*-]|(?:\d+|#)[.)])
 define {LIST_ITEM}   ^\h*{LIST_MARKER}\h+.*\n
 define {QUOTE_LINE}  ^ {0,3}(?:{SGR}>\h?)+.*\n
@@ -1190,7 +1191,10 @@ define {QUOTE_LINE}  ^ {0,3}(?:{SGR}>\h?)+.*\n
 # a list marker or a definition colon, which become spaces of the same
 # width.  Every line matches (all parts may be empty), so that every line
 # sets its own prefix.
-define {AUTOINDENT}  ^\h*(?<q>(?:{SGR}>\h?)*{SGR})(?:\h*(?:{LIST_MARKER}|:)\h+|\h+)?
+# After the markers only reset and erase sequences (SGR_END) belong to
+# the group: any sequence (SGR) would take the opening of a span that
+# follows, and every continuation line would start inside that span.
+define {AUTOINDENT}  ^\h*(?<q>(?:{SGR}>\h?)*{SGR_END})(?:\h*(?:{LIST_MARKER}|:)\h+|\h+)?
 define {DEFINITION}  (?:\A|\G\n|\n\n).+\n\n?(:\h+.*\n)
 
 option --fold-by \

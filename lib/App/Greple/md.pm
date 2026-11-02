@@ -343,7 +343,7 @@ config parameters.
 =head2 Block Elements
 
     LABEL            LIGHT / DARK
-    blockquote       ${base}D
+    blockquote       ${base}
     horizontal_rule  L15
     comment          ${base}+r60
 
@@ -484,7 +484,7 @@ my %default_colors = (
     italic          => 'I',
     strike          => 'X',
     emphasis_mark   => 'L18',
-    blockquote      => '${base}D',
+    blockquote      => '${base}',
     horizontal_rule => 'L15',
 );
 

@@ -1006,6 +1006,18 @@ Multi-line emphasis text is not supported.
 `***bold italic***` and `___bold italic___` are supported.
 Other nested forms (e.g., `**bold _italic_**`) are not.
 
+## Block Quotes
+
+A block quote is recognized by its `>` markers at the start of a
+line, after up to three spaces.  Only the markers are colored, not the
+quoted text.  Headings, lists and code blocks inside a quote are not
+recognized, so they get no color of their own, and a code block in a
+quote does not protect its contents from inline highlighting.
+
+A line without a marker that continues a quoted paragraph (a lazy
+continuation in CommonMark) is shown as an ordinary line, unless
+`--refill` joins it to the quote.
+
 ## Links
 
 Link patterns do not span multiple lines.  The link text and URL must

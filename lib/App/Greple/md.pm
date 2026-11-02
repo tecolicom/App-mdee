@@ -59,9 +59,11 @@ The following options are defined as greple command options
 
 =head2 B<--fold>
 
-Enable text folding for list items, definition lists and the
-paragraphs joined by C<--refill>.  Long lines are wrapped with proper
-indentation using L<ansifold(1)|App::ansifold> via L<Greple::tee>.
+Enable text folding for list items, definition lists, block quotes
+and the paragraphs joined by C<--refill>.  Long lines are wrapped
+with proper indentation using L<ansifold(1)|App::ansifold> via
+L<Greple::tee>; the continuation lines of a block quote start with
+the quote marker again.
 Code blocks, HTML comments, and tables are
 excluded from folding.  The fold width is controlled by the
 C<fold_width> config parameter (default: 80), and the run-in and
@@ -107,8 +109,9 @@ When disabled, no color is applied to Markdown elements.
 =head2 B<--[no-]fold>
 
 Enable or disable text folding (config C<fold>).  Disabled by default.
-When enabled, long lines in list items, definition lists and the
-paragraphs joined by C<--refill> are wrapped with proper indentation.
+When enabled, long lines in list items, definition lists, block
+quotes and the paragraphs joined by C<--refill> are wrapped with
+proper indentation.
 The fold width is controlled by the C<fold_width> config parameter
 (default: 80).
 
@@ -836,7 +839,7 @@ my %colorize = (
     }),
 
     blockquotes => Step(blockquote => sub {
-        s/^(>+\h?)(.*)$/md_color('blockquote', $1) . $2/mge;
+        s/^( {0,3})((?:>\h?)+)(.*)$/$1 . md_color('blockquote', $2) . $3/mge;
     }),
 );
 
@@ -1178,12 +1181,22 @@ option default \
 
 define {CODE_BLOCK}  ^ {0,3}(?<bt>(?<fc>[`~])\g{fc}{2,}+)(.*)\n((?s:.*?))^ {0,3}\g{bt}\g{fc}*+\h*$
 define {COMMENT}     ^<!--(?![->])(?s:.+?)-->
-define {LIST_ITEM}   ^\h*(?:[*-]|(?:\d+|#)[.)])\h+.*\n
+define {SGR}         (?:\e\[[\d;]*[mK])*
+define {LIST_MARKER} (?:[*-]|(?:\d+|#)[.)])
+define {LIST_ITEM}   ^\h*{LIST_MARKER}\h+.*\n
+define {QUOTE_LINE}  ^ {0,3}(?:{SGR}>\h?)+.*\n
+# The prefix of a folded line's continuation lines: the quote markers
+# (named group, repeated by ansifold --keepindent=named), then the indent,
+# a list marker or a definition colon, which become spaces of the same
+# width.  Every line matches (all parts may be empty), so that every line
+# sets its own prefix.
+define {AUTOINDENT}  ^\h*(?<q>(?:{SGR}>\h?)*{SGR})(?:\h*(?:{LIST_MARKER}|:)\h+|\h+)?
 define {DEFINITION}  (?:\A|\G\n|\n\n).+\n\n?(:\h+.*\n)
 
 option --fold-by \
     -Mtee "&ansifold" --crmode \
-        --autoindent='^\h*(?:[*-]|(?:\d+|#)[.)]|:)\h+|^\h+|^(?:(?:\e\[[\d;]*[mK])*>\h?)+(?:\e\[[\d;]*[mK])*|^' \
+        --autoindent='{AUTOINDENT}' \
+        --keepindent=named \
         --smart --width=$<shift> --runin=$<shift> --runout=$<shift> \
     -- \
     --exclude {CODE_BLOCK} \
@@ -1191,6 +1204,7 @@ option --fold-by \
     --exclude &__PACKAGE__::table_regions \
     --cm N -E {LIST_ITEM} \
     --cm N -E {DEFINITION} \
+    --cm N -E {QUOTE_LINE} \
     --cm N --le &__PACKAGE__::refill_regions \
     --crmode
 

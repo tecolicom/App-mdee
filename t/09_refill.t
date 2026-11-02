@@ -160,13 +160,15 @@ subtest 'fold joined lines' => sub {
     my @quick = plain($out) =~ /\bquick\b/g;
     is(scalar @quick, 9, 'every line appears once in the output');
     my @indented = plain($out) =~ /^  \S/mg;
-    is(scalar @indented, 6, 'only the continuation lines of the list item and the quote are indented');
+    is(scalar @indented, 3, 'only the continuation lines of the list item are indented with spaces');
+    my @quoted = plain($out) =~ /^> \S/mg;
+    is(scalar @quoted, 4, 'the quote and its continuation lines all start with the quote marker');
     like(plain($out), qr/^- the quick.*\n  lazy dog/m, 'continuation lines of a list item are indented');
-    like(plain($out), qr/^> the quick.*\n  lazy dog/m, 'continuation lines of a quote are indented under the text');
+    like(plain($out), qr/^> the quick.*\n> lazy dog/m, 'continuation lines of a quote repeat the quote marker');
     $out = run("'-Mmd::config(colorize=0,$config,fold=0)' $fold_md")->stdout;
     like(plain($out), qr/^(?:$sentence ){2}$sentence$/m, 'without fold the joined paragraph is one line');
     $out = run("'-Mmd::config($config,fold=1,fold_width=40)' $fold_md")->stdout;
-    like(plain($out), qr/^> the quick.*\n  lazy dog/m, 'quote continuation lines are indented with colorize on');
+    like(plain($out), qr/^> the quick.*\n> lazy dog/m, 'quote continuation lines repeat the marker with colorize on');
     like(plain($out), qr/^- the quick.*\n  lazy dog/m, 'list continuation lines are indented with colorize on');
 };
 

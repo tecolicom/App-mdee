@@ -240,10 +240,12 @@ Use [tecolicom/tap](https://github.com/tecolicom/homebrew-tap):
 
 - **--\[no-\]fold**
 
-    Enable or disable line folding for list items, definition lists and,
-    with `--refill`, paragraphs.  When enabled, long lines are wrapped
-    with proper indentation using [ansifold(1)](https://metacpan.org/pod/App%3A%3Aansifold).  Default
-    is enabled.
+    Enable or disable line folding for list items, definition lists,
+    block quotes and, with `--refill`, paragraphs.  When enabled, long
+    lines are wrapped with proper indentation using
+    [ansifold(1)](https://metacpan.org/pod/App%3A%3Aansifold): the continuation lines of a list item
+    are indented under its text, those of a block quote start with the
+    quote marker again.  Default is enabled.
 
     Supported list markers: `*`, `-`, `1.`, `1)`, `#.`, `#)`.
     The `#.` and `#)` forms are Pandoc's auto-numbered list syntax.

@@ -862,10 +862,12 @@ outputs through a pager (C<$PAGER> or C<less>) instead of nup.
 
 =item B<--[no-]fold>
 
-Enable or disable line folding for list items, definition lists and,
-with C<--refill>, paragraphs.  When enabled, long lines are wrapped
-with proper indentation using L<ansifold(1)|App::ansifold>.  Default
-is enabled.
+Enable or disable line folding for list items, definition lists,
+block quotes and, with C<--refill>, paragraphs.  When enabled, long
+lines are wrapped with proper indentation using
+L<ansifold(1)|App::ansifold>: the continuation lines of a list item
+are indented under its text, those of a block quote start with the
+quote marker again.  Default is enabled.
 
 Supported list markers: C<*>, C<->, C<1.>, C<1)>, C<#.>, C<#)>.
 The C<#.> and C<#)> forms are Pandoc's auto-numbered list syntax.

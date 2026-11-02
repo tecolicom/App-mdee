@@ -6,7 +6,7 @@ requires 'Text::ANSI::Fold::Util';
 requires 'URI::Escape';
 
 requires 'App::ansiecho';
-requires 'App::ansifold', '1.35';
+requires 'App::ansifold', '1.36';
 requires 'App::ansicolumn', '1.61';
 requires 'Term::ANSIColor::Concise', '3.02';
 

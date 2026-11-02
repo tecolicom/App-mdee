@@ -250,22 +250,26 @@ Use [tecolicom/tap](https://github.com/tecolicom/homebrew-tap):
 
 - **-r**, **--\[no-\]refill**
 
-    Join the lines of each paragraph into one line.  The text is given to
-    [pandoc](https://pandoc.org) with its `sourcepos` extension to find
-    out which lines make up a paragraph, a block quote, a list item or
-    the body of a definition, and only those lines are joined, in the
-    original text; headings, tables, code blocks, front matter and
-    everything else stay as written.  A hard line break (two or more
-    spaces or a backslash at the end of a line) is kept.  Lines are
-    joined with one space, or with nothing after a fullwidth punctuation
-    character and between two characters of a script that is written
-    without spaces, as [ansifold(1)](https://metacpan.org/pod/App%3A%3Aansifold) does.  When fold is
-    enabled, the joined paragraphs are folded to the fold width like
-    list items; otherwise each is one long line.  Requires the
-    [CommonMark](https://metacpan.org/pod/CommonMark) Perl module (an interface to libcmark) or pandoc 2.11.3
-    or later; the module is used when both are there, and `--config
-    refill_parser=pandoc` chooses pandoc.  Default is disabled;
+    Join the lines of each paragraph into one line.  Default is disabled;
     `default[refill]=1` in the configuration file enables it.
+
+    What a paragraph is, a Markdown parser decides: a run of lines at the
+    top level, in a block quote, in a list item or in a definition body.
+    Those lines are joined in the original text.  Headings, tables, code
+    blocks, front matter and everything else stay as written.  A hard
+    line break (two or more spaces or a backslash at the end of a line)
+    is kept.
+
+    Lines are joined with one space, or with nothing after a fullwidth
+    punctuation character and between two characters of a script that is
+    written without spaces, as [ansifold(1)](https://metacpan.org/pod/App%3A%3Aansifold) does.  When
+    fold is enabled, the joined paragraphs are folded to the fold width
+    like list items; otherwise each is one long line.
+
+    The parser is [Markdown::Perl](https://metacpan.org/pod/Markdown%3A%3APerl), which is installed with **mdee**, or
+    the [CommonMark](https://metacpan.org/pod/CommonMark) module (an interface to libcmark) when it is there,
+    which is faster.  `--config refill_parser=pandoc` uses pandoc 2.11.3
+    or later instead.
 
 - **--\[no-\]table**
 
@@ -817,10 +821,12 @@ This command requires the following:
 - [Getopt::Long::Bash](https://metacpan.org/pod/Getopt%3A%3ALong%3A%3ABash) - bash option parsing
 - [Getopt::EX::termcolor](https://metacpan.org/pod/Getopt%3A%3AEX%3A%3Atermcolor) - terminal background detection
 
-`--refill` also needs a Markdown parser: the [CommonMark](https://metacpan.org/pod/CommonMark) module,
-which needs the libcmark C library (`brew install cmark`, `apt-get
-install libcmark-dev`) and is only recommended by this distribution,
-or [pandoc](https://pandoc.org) 2.11.3 or later.
+`--refill` finds the paragraphs with [Markdown::Perl](https://metacpan.org/pod/Markdown%3A%3APerl) (pure Perl,
+installed with this distribution).  The [CommonMark](https://metacpan.org/pod/CommonMark) module, which
+needs the libcmark C library (`brew install cmark`, `apt-get install
+libcmark-dev`) and is only recommended, is used when it is there
+because it is faster; [pandoc](https://pandoc.org) 2.11.3 or later is
+a third choice.
 
 # IMPLEMENTATION
 
@@ -883,8 +889,9 @@ Code block detection follows the CommonMark specification:
 
 With `--refill`, the [App::Greple::md](https://metacpan.org/pod/App%3A%3AGreple%3A%3Amd) module joins the lines of
 each paragraph before anything else.  It asks a Markdown parser
-([App::Greple::md::Blocks](https://metacpan.org/pod/App%3A%3AGreple%3A%3Amd%3A%3ABlocks): the [CommonMark](https://metacpan.org/pod/CommonMark) module, or
-[pandoc](https://pandoc.org) with the `sourcepos` extension) which
+([App::Greple::md::Blocks](https://metacpan.org/pod/App%3A%3AGreple%3A%3Amd%3A%3ABlocks): the [CommonMark](https://metacpan.org/pod/CommonMark) module,
+[Markdown::Perl](https://metacpan.org/pod/Markdown%3A%3APerl), or [pandoc](https://pandoc.org) with the
+`sourcepos` extension) which
 lines of the text form a paragraph, a block quote, a list item or a
 definition, and joins those lines in the original text.  The joined
 lines are folded like list items.
@@ -1093,7 +1100,7 @@ does not override them.
 
     ANSI-aware column formatting for table alignment.
 
-- [CommonMark](https://metacpan.org/pod/CommonMark), [pandoc](https://pandoc.org)
+- [CommonMark](https://metacpan.org/pod/CommonMark), [Markdown::Perl](https://metacpan.org/pod/Markdown%3A%3APerl), [pandoc](https://pandoc.org)
 
     One of them finds the paragraphs for `--refill`.
 

@@ -610,15 +610,19 @@ subtest q(refill option) => sub {
     $out = `$mdee --help 2>&1`;
     like($out, qr/\[no-\]refill/, q(--help shows --refill option));
 
-    # neither parser works: a pandoc that always fails on PATH and a
-    # CommonMark.pm that dies ahead in PERL5LIB; --refill stops before
-    # running anything
+    # no parser works: a pandoc that always fails on PATH, and a
+    # CommonMark.pm and a Markdown/Perl.pm that die ahead in PERL5LIB;
+    # --refill stops before running anything
     my $bin = tempdir(CLEANUP => 1);
     open my $fh, q(>), "$bin/pandoc" or die;
     print $fh "#!/bin/sh\nexit 1\n";
     close $fh;
     chmod 0755, "$bin/pandoc";
     open $fh, q(>), "$bin/CommonMark.pm" or die;
+    print $fh "die q(not here);\n";
+    close $fh;
+    mkdir "$bin/Markdown";
+    open $fh, q(>), "$bin/Markdown/Perl.pm" or die;
     print $fh "die q(not here);\n";
     close $fh;
     my $lib = join ':', $bin, grep { defined and length } $ENV{PERL5LIB};

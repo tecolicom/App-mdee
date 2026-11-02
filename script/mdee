@@ -89,7 +89,7 @@ die() {
 # module uses, so that the check and the use agree
 check_refill() {
     perl -MApp::Greple::md::Blocks=available -e 'exit !available()' 2>/dev/null ||
-        die "--refill requires the CommonMark module or pandoc with the sourcepos extension (2.11.3 or later)"
+        die "--refill requires a Markdown parser: the Markdown::Perl or CommonMark module, or pandoc with the sourcepos extension (2.11.3 or later)"
 }
 
 # Check bash version (4.3+ required for getoptlong.sh)
@@ -872,22 +872,26 @@ The C<#.> and C<#)> forms are Pandoc's auto-numbered list syntax.
 
 =item B<-r>, B<--[no-]refill>
 
-Join the lines of each paragraph into one line.  The text is given to
-L<pandoc|https://pandoc.org> with its C<sourcepos> extension to find
-out which lines make up a paragraph, a block quote, a list item or
-the body of a definition, and only those lines are joined, in the
-original text; headings, tables, code blocks, front matter and
-everything else stay as written.  A hard line break (two or more
-spaces or a backslash at the end of a line) is kept.  Lines are
-joined with one space, or with nothing after a fullwidth punctuation
-character and between two characters of a script that is written
-without spaces, as L<ansifold(1)|App::ansifold> does.  When fold is
-enabled, the joined paragraphs are folded to the fold width like
-list items; otherwise each is one long line.  Requires the
-L<CommonMark> Perl module (an interface to libcmark) or pandoc 2.11.3
-or later; the module is used when both are there, and C<--config
-refill_parser=pandoc> chooses pandoc.  Default is disabled;
+Join the lines of each paragraph into one line.  Default is disabled;
 C<default[refill]=1> in the configuration file enables it.
+
+What a paragraph is, a Markdown parser decides: a run of lines at the
+top level, in a block quote, in a list item or in a definition body.
+Those lines are joined in the original text.  Headings, tables, code
+blocks, front matter and everything else stay as written.  A hard
+line break (two or more spaces or a backslash at the end of a line)
+is kept.
+
+Lines are joined with one space, or with nothing after a fullwidth
+punctuation character and between two characters of a script that is
+written without spaces, as L<ansifold(1)|App::ansifold> does.  When
+fold is enabled, the joined paragraphs are folded to the fold width
+like list items; otherwise each is one long line.
+
+The parser is L<Markdown::Perl>, which is installed with B<mdee>, or
+the L<CommonMark> module (an interface to libcmark) when it is there,
+which is faster.  C<--config refill_parser=pandoc> uses pandoc 2.11.3
+or later instead.
 
 =item B<--[no-]table>
 
@@ -1500,10 +1504,12 @@ This command requires the following:
 
 =back
 
-C<--refill> also needs a Markdown parser: the L<CommonMark> module,
-which needs the libcmark C library (C<brew install cmark>, C<apt-get
-install libcmark-dev>) and is only recommended by this distribution,
-or L<pandoc|https://pandoc.org> 2.11.3 or later.
+C<--refill> finds the paragraphs with L<Markdown::Perl> (pure Perl,
+installed with this distribution).  The L<CommonMark> module, which
+needs the libcmark C library (C<brew install cmark>, C<apt-get install
+libcmark-dev>) and is only recommended, is used when it is there
+because it is faster; L<pandoc|https://pandoc.org> 2.11.3 or later is
+a third choice.
 
 =head1 IMPLEMENTATION
 
@@ -1581,8 +1587,9 @@ Code block detection follows the CommonMark specification:
 
 With C<--refill>, the L<App::Greple::md> module joins the lines of
 each paragraph before anything else.  It asks a Markdown parser
-(L<App::Greple::md::Blocks>: the L<CommonMark> module, or
-L<pandoc|https://pandoc.org> with the C<sourcepos> extension) which
+(L<App::Greple::md::Blocks>: the L<CommonMark> module,
+L<Markdown::Perl>, or L<pandoc|https://pandoc.org> with the
+C<sourcepos> extension) which
 lines of the text form a paragraph, a block quote, a list item or a
 definition, and joins those lines in the original text.  The joined
 lines are folded like list items.
@@ -1809,7 +1816,7 @@ ANSI-aware text folding for line wrapping.
 
 ANSI-aware column formatting for table alignment.
 
-=item L<CommonMark>, L<pandoc|https://pandoc.org>
+=item L<CommonMark>, L<Markdown::Perl>, L<pandoc|https://pandoc.org>
 
 One of them finds the paragraphs for C<--refill>.
 

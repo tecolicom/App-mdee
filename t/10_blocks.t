@@ -37,6 +37,9 @@ for my $parser (@parsers) {
     }
 }
 
+# Markdown::Perl is a required dependency, so mdperl is always there
+ok((grep { $_ eq 'mdperl' } @parsers), 'mdperl is available');
+
 # the default parser is the first available one
 my @default = blocks("a\nb\n");
 is(scalar @default, 1, 'default parser finds the paragraph');

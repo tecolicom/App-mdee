@@ -58,6 +58,7 @@
             "Getopt::EX::Config" : "1.0202",
             "Getopt::EX::termcolor" : "1.10",
             "Getopt::Long::Bash" : "v0.7.2",
+            "Markdown::Perl" : "1.14",
             "Term::ANSIColor::Concise" : "3.02",
             "Text::ANSI::Fold" : "2.3304",
             "Text::ANSI::Fold::Util" : "0",

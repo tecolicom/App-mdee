@@ -23,7 +23,9 @@ requires 'Getopt::EX::termcolor', '1.10';
 
 requires 'App::cat::v';
 
-# --refill finds the paragraphs with CommonMark (needs libcmark) or pandoc
+# --refill finds the paragraphs with Markdown::Perl (pure Perl), or faster
+# with CommonMark (needs libcmark); pandoc is a third choice
+requires 'Markdown::Perl', '1.14';
 recommends 'CommonMark';
 
 on 'test' => sub {

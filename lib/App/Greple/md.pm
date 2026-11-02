@@ -121,8 +121,7 @@ folds the same lines once without setting the config.
 =head2 B<--[no-]refill>
 
 Join the lines of paragraphs into one line each (see L</Paragraph
-Refill>).  Disabled by default.  Requires the L<CommonMark> module or
-pandoc.
+Refill>).  Disabled by default.
 
 =head2 B<--[no-]table>
 
@@ -218,10 +217,10 @@ Available parameters:
     fold_width      fold width in columns (default: 80)
     fold_runin      run-in width in folded lines (default: 4)
     fold_runout     run-out width in folded lines (default: 4)
-    refill          join the lines of paragraphs (default: 0); needs
-                    the CommonMark module or pandoc
-    refill_parser   cmark (the CommonMark module) or pandoc (default:
-                    whichever is there, cmark first)
+    refill          join the lines of paragraphs (default: 0)
+    refill_parser   cmark (the CommonMark module), mdperl (Markdown::Perl)
+                    or pandoc (default: the first that is there, in
+                    that order)
     table           table formatting (default: 1)
     table_trim      trim cell whitespace (default: 1)
     table_width     table width in columns; cells of over-wide
@@ -256,8 +255,9 @@ With C<refill=1>, the lines of every paragraph, block quote, list
 item and definition are joined into one line before the text is
 colorized.  Which lines belong together is decided by a Markdown
 parser (L<App::Greple::md::Blocks>): the L<CommonMark> module, an
-interface to libcmark, when it is installed, or
-L<pandoc|https://pandoc.org> (2.11.3 or later) run with the
+interface to libcmark, when it is installed, otherwise
+L<Markdown::Perl>, which is pure Perl and always installed with this
+module, or L<pandoc|https://pandoc.org> (2.11.3 or later) run with the
 C<sourcepos> extension; C<refill_parser> chooses one.  The module
 joins the lines of the original text and changes nothing else.  Hard
 line breaks are kept, and so is the break before a list marker, a
@@ -386,8 +386,8 @@ ANSI-aware text folding used for line wrapping in list items.
 
 =item L<App::Greple::md::Blocks>
 
-Finds the paragraphs for C<refill=1> with L<CommonMark> or
-L<pandoc|https://pandoc.org>.
+Finds the paragraphs for C<refill=1> with L<CommonMark>,
+L<Markdown::Perl> or L<pandoc|https://pandoc.org>.
 
 =back
 

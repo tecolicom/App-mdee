@@ -14,25 +14,29 @@ our @EXPORT_OK = qw(blocks available);
 # type is Para or Plain for a paragraph, depth the number of block
 # quotes the block is in, and first and last its line numbers (from 1).
 # The positions come from the CommonMark module (libcmark, in this
-# process) or from pandoc with its sourcepos extension, whichever the
-# parser option names; without it, from the first one that is available.
+# process), from Markdown::Perl (pure Perl, a required dependency) or
+# from pandoc with its sourcepos extension, whichever the parser option
+# names; without it, from the first one that is available, in that order.
 sub blocks {
     my($text, %opt) = @_;
     my $parser = $opt{parser} || (available())[0]
-        // die "refill: neither the CommonMark module nor pandoc with sourcepos is available\n";
+        // die "refill: no Markdown parser is available (CommonMark, Markdown::Perl or pandoc with sourcepos)\n";
     if ($parser eq 'cmark') {
         return cmark_blocks($text);
+    } elsif ($parser eq 'mdperl') {
+        return mdperl_blocks($text);
     } elsif ($parser eq 'pandoc') {
         return pandoc_blocks($text);
     } else {
-        die "refill_parser: $parser: use cmark or pandoc\n";
+        die "refill_parser: $parser: use cmark, mdperl or pandoc\n";
     }
 }
 
-# The parsers that work here, cmark first.
+# The parsers that work here, the fastest first.
 sub available {
     state @parsers = (
         (eval { require CommonMark; 1 } ? 'cmark' : ()),
+        (mdperl_works() ? 'mdperl' : ()),
         (pandoc_works() ? 'pandoc' : ()),
     );
     @parsers;
@@ -70,6 +74,71 @@ sub cmark_blocks {
         };
     }
     @blocks;
+}
+
+# Markdown::Perl has no public parse tree and no positions, but its block
+# parser builds a paragraph line by line in _do_paragraph and closes it
+# in _finalize_paragraph, and it keeps the offset of the current line in
+# last_pos.  mdperl_blocks wraps those two subs while it parses and takes
+# the line numbers from there.  This leans on private names, so
+# mdperl_works checks that they still exist, and the parser is not
+# offered when they do not; t/10_blocks.t compares the result with the
+# other parsers.
+my @mdperl_private = qw(_do_paragraph _finalize_paragraph _parse);
+sub mdperl_works {
+    eval { require Markdown::Perl; require Markdown::Perl::BlockParser; 1 } or return 0;
+    for my $name (@mdperl_private) {
+        my $pkg = $name eq '_parse' ? 'Markdown::Perl' : 'Markdown::Perl::BlockParser';
+        return 0 unless defined &{"${pkg}::$name"};
+    }
+    1;
+}
+
+sub mdperl_blocks {
+    my $text = shift;
+    mdperl_works() or die "refill: Markdown::Perl is not usable\n";
+    my @blocks;
+    my %state;      # per parser object: first, last, and the line count so far
+    my $do  = \&Markdown::Perl::BlockParser::_do_paragraph;
+    my $fin = \&Markdown::Perl::BlockParser::_finalize_paragraph;
+    no warnings 'redefine';
+    local *Markdown::Perl::BlockParser::_do_paragraph = sub {
+        my($this) = @_;
+        my $before = @{$this->{paragraph}};
+        my $r = $do->(@_);
+        if (@{$this->{paragraph}} > $before) {
+            # the line number of the current line, counting from where we
+            # last counted (the parser may step back a line)
+            my $s = $state{$this} //= { pos => 0, line => 1 };
+            my $pos = $this->{last_pos};
+            if ($pos < $s->{pos}) { @$s{qw(pos line)} = (0, 1) }
+            $s->{line} += substr($this->{md}, $s->{pos}, $pos - $s->{pos}) =~ tr/\n//;
+            $s->{pos} = $pos;
+            # a new paragraph starts when the first line goes in (a setext
+            # heading takes the lines away without closing the paragraph)
+            $s->{first} = $s->{line} if $before == 0 or !defined $s->{first};
+            $s->{last} = $s->{line};
+        }
+        $r;
+    };
+    local *Markdown::Perl::BlockParser::_finalize_paragraph = sub {
+        my($this) = @_;
+        my $s = $state{$this};
+        if (@{$this->{paragraph}} and $s and defined $s->{first}) {
+            push @blocks, {
+                type  => 'Para',
+                depth => scalar(grep { $_->{block}{type} eq 'quotes' } @{$this->{blocks_stack}}),
+                first => $s->{first},
+                last  => $s->{last},
+            };
+            delete @$s{qw(first last)};
+        }
+        $fin->(@_);
+    };
+    # tables are left as paragraphs, as libcmark reports them, so that the
+    # table-row rules of refill_block apply the same way for every parser
+    Markdown::Perl->new(mode => 'github', use_table_blocks => 0, parse_file_metadata => 'yaml')->_parse(\$text);
+    sort { $a->{first} <=> $b->{first} } @blocks;
 }
 
 # Run pandoc on the text and return the blocks it reports with a source
@@ -151,8 +220,8 @@ App::Greple::md::Blocks - find the paragraphs of a Markdown text
     use App::Greple::md::Blocks qw(blocks available);
 
     my @blocks = blocks($text);                    # first available parser
-    my @blocks = blocks($text, parser => 'cmark'); # or 'pandoc'
-    my @parsers = available();                     # ('cmark', 'pandoc')
+    my @blocks = blocks($text, parser => 'cmark'); # or 'mdperl', 'pandoc'
+    my @parsers = available();                     # ('cmark', 'mdperl', 'pandoc')
 
 =head1 DESCRIPTION
 
@@ -165,7 +234,7 @@ Each block is a hash with C<type> (C<Para> or C<Plain> for a
 paragraph), C<depth> (the number of block quotes the block is in) and
 C<first> and C<last> (its first and last line, counted from 1).
 
-Two parsers are supported:
+Three parsers are supported:
 
 =over 4
 
@@ -176,6 +245,15 @@ process.  It is fast, but it does not know GFM tables and definition
 lists, which it reports as paragraphs; L<App::Greple::md> keeps their
 lines apart by their shape.
 
+=item C<mdperl>
+
+L<Markdown::Perl>, a CommonMark implementation in pure Perl and a
+dependency of this distribution, so it is always there.  It publishes
+no parse tree or positions; the module wraps two private subroutines
+of its block parser while it parses and reads the line numbers from
+there, checks first that those subroutines exist, and parses tables as
+paragraphs, like libcmark, so that the three parsers agree.
+
 =item C<pandoc>
 
 L<pandoc|https://pandoc.org> 2.11.3 or later, run as a child process
@@ -184,12 +262,12 @@ with C<-f gfm+sourcepos+definition_lists -t json>.
 =back
 
 C<available()> returns the names of the parsers that work on this
-system, C<cmark> first, and C<blocks()> uses the first of them unless
-C<parser> is given.
+system, the fastest first (C<cmark>, C<mdperl>, C<pandoc>), and
+C<blocks()> uses the first of them unless C<parser> is given.
 
 =head1 SEE ALSO
 
-L<App::Greple::md>, L<CommonMark>, L<https://pandoc.org>
+L<App::Greple::md>, L<CommonMark>, L<Markdown::Perl>, L<https://pandoc.org>
 
 =head1 AUTHOR
 

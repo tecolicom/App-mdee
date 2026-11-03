@@ -568,6 +568,17 @@ subtest q(table style option) => sub {
     }
 };
 
+subtest q(pass_md in config.sh) => sub {
+    my $tmp = tempdir(CLEANUP => 1);
+    mkdir "$tmp/mdee";
+    open my $fh, q(>), "$tmp/mdee/config.sh" or die;
+    print $fh "pass_md+=(--begin 'sub{ s/a/b/ }')\nmd_config+=(tick_open=x)\n";
+    close $fh;
+    my $out = `XDG_CONFIG_HOME=$tmp COLUMNS=200 $mdee -n $test_md 2>&1`;
+    is(() = $out =~ /--begin 'sub\{ s\/a\/b/g, 1, q(pass_md of config.sh is given once));
+    is(() = $out =~ /tick_open=x/g, 1, q(md_config of config.sh is given once));
+};
+
 subtest q(filename option) => sub {
     my $help = `$mdee --help 2>&1`;
     like($help, qr/--\[no-\]filename/, q(--help shows --filename option));

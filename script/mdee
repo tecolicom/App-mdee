@@ -330,6 +330,7 @@ fi
 # Load user config (may set default[theme], default[mode], default[style], etc.)
 [[ -f "$config_file" ]] && . "$config_file" || :
 _user_md_config=("${md_config[@]}") _user_pass_md=("${pass_md[@]}")
+md_config=() pass_md=()
 
 # Apply config defaults if theme not explicitly specified
 if [[ ! $_theme_specified ]] && [[ ${default[theme]:-} ]]; then

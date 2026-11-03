@@ -497,6 +497,19 @@ bold text, etc.).
         `default[refill]` in the configuration file; `--refill` given on the
         command line still works.
 
+    - `widen`
+
+        Give circled digits and the wastebasket (U+1F5D1) a column of their
+        own, by adding a no-break space after them, for terminals that draw
+        them over two columns on top of the next character, as on macOS.
+        This gives the function of [App::Greple::md::widen](https://metacpan.org/pod/App%3A%3AGreple%3A%3Amd%3A%3Awiden) to the `--begin`
+        option of the md module.
+
+        The characters are listed in the array `widen_chars` of the theme, as
+        code points and ranges in hexadecimal.  Add more in `config.sh`:
+
+            widen_chars+=(3248-324F)   # circled numbers on black squares
+
     - `markcell` (default)
 
         In a table that has wrapped cells, mark the first line of every
@@ -807,6 +820,11 @@ Color specifications use [Term::ANSIColor::Concise](https://metacpan.org/pod/Ter
 The `FG/BG` notation specifies foreground and background colors
 (e.g., `L25D/${base};E` means gray foreground on base-colored background).
 The `${base}` string is expanded to the base color value after loading.
+
+To change the text before it is formatted, give a function to the
+`--begin` option of the md module:
+
+    pass_md+=(--begin 'sub{ s/\(C\)/\x{A9}/g }')
 
 # EXAMPLES
 

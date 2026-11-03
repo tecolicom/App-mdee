@@ -26,6 +26,7 @@ em·dee (mdee: Markdown, Easy on the Eyes) is a Markdown *text* viewer command i
 - `lib/App/mdee.pm` - Perl module (version info only, generated from script/mdee)
 - `lib/App/Greple/md.pm` - Greple module for Markdown syntax highlighting (bundled)
 - `lib/App/Greple/md/Blocks.pm` - Paragraph positions for `refill`, from the CommonMark module or pandoc
+- `lib/App/Greple/md/widen.pm` - A function for `--begin`, a no-break space after characters that macOS terminals draw over two columns (`-t widen`)
 - `t/00_compile.t` - Compile tests for both App::mdee and App::Greple::md
 - `t/01_mdee.t` - mdee command integration tests
 - `t/02_colorize.t` - md module colorize tests (uses t/runner)
@@ -36,6 +37,8 @@ em·dee (mdee: Markdown, Easy on the Eyes) is a Markdown *text* viewer command i
 - `t/07_fold_runin.t` - fold_runin/fold_runout reach ansifold (line width with and without run-in)
 - `t/08_refill_join.t` - `refill_block` unit tests (joining rules; no pandoc needed)
 - `t/09_refill.t` - `refill=1` through greple: joining, folding of the joined lines, tables above them, with each available parser (skipped without one)
+- `t/12_widen.t` - `App::Greple::md::widen`, alone and through `--begin`
+- `t/13_begin.t` - the `--begin` option of the md module
 - `t/11_quote_fold.t` - long block quote lines are folded with the quote marker repeated on the continuation lines, with and without color
 - `t/14_escape.t` - control characters and escape sequences of the file are removed, colors stay
 - `t/10_blocks.t` - `App::Greple::md::Blocks`: both parsers report the same paragraph lines (skipped without one)
@@ -427,6 +430,14 @@ Inline code ([CommonMark Code Spans](https://spec.commonmark.org/0.31.2/#code-sp
 ### Control Characters in the File
 
 `begin()` first calls `remove_controls`, so that a Markdown file from someone else cannot send anything but colors to the terminal: OSC (title, clipboard, hyperlink), DCS, CSI other than SGR, other escape sequences, C0 controls except `\t \n \f \r`, DEL and C1. OSC and CSI use `$osc_re` and `$csi_re` of Text::ANSI::Fold, which also take the 8-bit forms; `$STRING` has the same form for DCS, SOS, PM and APC. ECMA-48 ends these with ST only; BEL is taken too, as in `$osc_re`, because terminals use it. A string sequence without a terminator, or with a control character that a command string cannot have, loses only its introducer, and its text stays. SGR stays, because a colored file is a reasonable input, except `\e[256m`, the mark of `protect()`: `\e[256mN\e[m` in a file would bring back protected text or die in `restore()`. The file name label is printed by greple and is not covered. Theme names with `/` are rejected by `load_theme_file`, so that `--theme` cannot run a file outside the theme directories.
+
+### The `--begin` Option of the md Module
+
+`--begin FUNCTION` before `--` is an option of the md module (`deal_with`, `@opt_begin`), like `--cm`: `begin()` calls each function first, with the text in `$_`, before `refill`, `colorize` and `format_table`. The `--begin` of greple after `--` is too late, because the module's own `--begin` from its default option comes first and `-M` must be at the beginning of the arguments. Functions are parsed once with `parse_func` of Getopt::EX::Func (a public API), `PACKAGE => 'main'` as in greple; a `sub{...}` is allowed. `resolve_function` finds the function and requires its package when it is not defined yet (a function defined by a module given with `-M` is used as it is), so a function in a module of its own needs no `-M`, which would have to come ahead of `-Mmd`. A name without a package is looked for in `main`, as in greple, and then as `App::Greple::md::name::name`. A function or a package that is not found is only warned about and skipped, while a module that exists and does not compile still dies. An extension that needs Perl code is therefore `lib/App/Greple/md/name.pm` with a function `name` and a theme with one line, `--begin '&name'`, not a part of `md.pm`. Perl's `AUTOLOAD` was tried for this and not used: it hides the check that the function exists, and a mistyped call inside `md.pm` would end up in it. In config.sh or a theme: `pass_md+=(--begin 'sub{ ... }')`.
+
+### The `widen` Function (experimental)
+
+`App::Greple::md::widen::widen` is a function for `--begin` (`-t widen`; `chars=2460-24FF:3248-324F` as a parameter). The theme lists the characters in the array `widen_chars` (with `+=`, one entry per line with a comment) and passes them as `chars`, so that config.sh, which is sourced before the themes, can add more with `widen_chars+=(...)`; the list depends on the terminal and its font, not on the code. The default of `chars` in the module (`2460-24FF:1F5D1`) is for greple without mdee. Circled digits (U+2460-U+24FF) have East Asian Width Ambiguous: one column to the tools and to the terminal, while macOS terminals (iTerm2 and Terminal) draw them over two, on top of the next character. The default `chars` is `2460-24FF:1F5D1`: the wastebasket 🗑 (U+1F5D1) has East Asian Width N and no Emoji_Presentation, so it is one column too, and is drawn as a two-column emoji. Menlo has no such glyphs, so a font fallback is the likely reason. Setting the terminal to treat Ambiguous as wide is no answer, because the box-drawing characters of the tables are Ambiguous too. The function adds U+00A0 after each character (after a variation selector U+FE0E or U+FE0F that follows it, possessively, so that the space does not cut the selector off the character), so that every tool counts two columns: a no-break space because `trim` of ansifold removes only ASCII spaces, so the column stays at the end of a folded line; at the end of a table cell it is removed by the cell separator pattern, and the padding of the cell takes its place. Fenced code with an info string, code spans, link destinations and autolinks are passed over by `(*SKIP)(*FAIL)`; fenced code without one is changed, because it is often a figure or an output (the README of OMC has such a figure), while a program must stay as written. It runs before `refill`, as all functions of `--begin` do.
 
 ### Text Folding (md module)
 

@@ -167,6 +167,25 @@ of this module:
     greple -Mmd --cm h1=RD -- --cm B -E foo file.md  # h1 is red, foo blue
     greple -Mmd --cm h1=RD file.md                   # h1: Unknown label
 
+=head2 B<--begin> I<FUNCTION>
+
+Call I<FUNCTION> on the whole text of each file, in C<$_>, before this
+module does anything to it, so that the tables and the folded lines
+follow the change.  I<FUNCTION> is a C<sub{...}> or the name of a
+function, as C<&func(key=value)> or C<&Package::func(key=value)>.  A
+name without a package is looked for in C<main>, and then in the module
+C<App::Greple::md::func>, named after the function.  The package is
+loaded if the function is not defined yet.  A function that is not found
+is reported with a warning and skipped.  The option can be repeated.
+
+    greple -Mmd --begin 'sub{ s/\(C\)/\x{A9}/g }' -- file.md
+
+Unlike the C<--begin> of B<greple> after C<-->, which runs after this
+module, this one runs before it.  In a configuration file or a theme of
+L<mdee>, it is given as C<pass_md+=(--begin '...')>.
+
+L<App::Greple::md::widen> has such a function, C<&widen>.
+
 =head2 B<--heading-markup>[=I<STEPS>], B<--hm>[=I<STEPS>]
 
 Control inline markup processing inside headings.  By default,
@@ -413,6 +432,11 @@ ANSI-aware column formatting used for table alignment.
 
 ANSI-aware text folding used for line wrapping in list items.
 
+=item L<App::Greple::md::widen>
+
+A function for B<--begin>, for characters that terminals draw over two
+columns.
+
 =item L<App::Greple::md::Blocks>
 
 Finds the paragraphs for C<refill=1> with L<CommonMark>,
@@ -448,6 +472,7 @@ use Text::ANSI::Fold qw($csi_re $osc_re);
 use Text::ANSI::Fold::Util qw(ansi_width);
 use Getopt::EX::Config;
 use Getopt::EX::Colormap;
+use Getopt::EX::Func qw(parse_func);
 use App::Greple::Common qw(FILELABEL);
 use App::Greple::Regions qw(match_regions);
 use App::Greple::md::Blocks qw(blocks);
@@ -561,6 +586,7 @@ sub default_theme {
 
 my $cm;
 my @opt_cm;
+my @opt_begin;
 my %show;
 
 sub finalize {
@@ -575,6 +601,7 @@ sub finalize {
                        "heading_markup|hm:s", "cjk_friendly!", "tick_open=s", "tick_close=s",
                        "hashed=s%",
                        "colormap|cm=s" => \@opt_cm,
+                       "begin=s" => \@opt_begin,
                        "show=s%" => \%show);
     # --hm with no argument gives "": treat as "all"
     my $hm = $config->{heading_markup};
@@ -1141,9 +1168,51 @@ sub remove_controls {
     s/$CONTROLS//g;
 }
 
+# Find the function of a --begin option and load its package, so that a
+# module does not have to be given with -M ahead of this one.  A name without
+# a package is looked for in main, and then as the function name of the
+# module App::Greple::md::name.  Returns the option with the full name.  A
+# function that does not exist is only reported, and the text is shown
+# without it; a module that exists and does not compile is an error.
+sub resolve_function {
+    my $spec = shift;
+    $spec =~ m{ ^ &? (?<name> \w+ (?: :: \w+ )* ) (?<arg> (?= [(=] | $ ) .* ) }xs or return $spec;
+    my($name, $arg) = @+{qw(name arg)};
+    my @candidate = $name =~ /::/ ? $name : ("main::$name", "App::Greple::md::${name}::$name");
+    no strict q(refs);
+    for my $func (@candidate) {
+        load_package($func =~ s/::\w+$//r) unless defined &$func;
+        return "&$func$arg" if defined &$func;
+    }
+    warn "--begin: $name: function not found\n";
+    return;
+}
+
+sub load_package {
+    my $package = shift;
+    return if $package eq q(main);
+    my $file = $package =~ s{::}{/}gr . q(.pm);
+    return if eval { require $file; 1 };
+    die $@ unless $@ =~ /^Can't locate \Q$file\E /;
+}
+
+# The functions of --begin, parsed once.  The names belong to main, as
+# with the --begin of greple.
+sub begin_functions {
+    state $func = [ map {
+        parse_func({ PACKAGE => 'main' }, $_) or die "$_: function format error\n";
+        my $spec = resolve_function($_);
+        defined $spec ? parse_func({ PACKAGE => 'main' }, $spec) : ();
+    } @opt_begin ];
+    @$func;
+}
+
 sub begin {
     remove_controls();
     @refill_lines = @table_shift = ();
+    for my $func (begin_functions()) {
+        $func->call(@_);
+    }
     refill()       if $config->{refill};
     colorize()     if $config->{colorize};
     format_table() if $config->{table};

@@ -958,12 +958,13 @@ sub refill_block {
     my $hr     = qr/^ {0,3}(?:[-*_][ ]*){3,}\r?$/;
     my $row    = qr/^ {0,3}\|.+\|\h*\r?$/;
     my $def    = qr/^\h*:\h/;
+    my $note   = qr/$prefix\[\^[^\]\s]+\]:/;
     my $hard   = qr/(?:(?<!\\)(?:\\\\)*\\|(?<! ) {2,})\r?$/;  # odd number of backslashes, or two spaces (the lookbehinds keep it linear)
     my @out;
     for my $line (@$lines) {
         if (!@out or $out[-1] =~ $hard or $out[-1] =~ $row
             or $line =~ $marker or $line =~ $hr or $line =~ $row
-            or $line =~ $def) {
+            or $line =~ $def or $line =~ $note) {
             push @out, $line;
             next;
         }

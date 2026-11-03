@@ -895,8 +895,9 @@ each paragraph before anything else.  It asks a Markdown parser
 [Markdown::Perl](https://metacpan.org/pod/Markdown%3A%3APerl), or [pandoc](https://pandoc.org) with the
 `sourcepos` extension) which
 lines of the text form a paragraph, a block quote, a list item or a
-definition, and joins those lines in the original text.  The joined
-lines are folded like list items.
+definition, and joins those lines in the original text.  A line that
+starts a footnote definition (`[^name]:`) stays on its own line.  The
+joined lines are folded like list items.
 
 #### Text Folding
 

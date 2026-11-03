@@ -6,7 +6,7 @@ use open qw(:std :encoding(utf-8));
 
 # Unit tests for refill_block: joins the lines of one paragraph the way
 # ansifold's fill_up does, keeping the break after a hard break and
-# before a list marker or horizontal rule line.
+# before a list marker, horizontal rule or footnote definition line.
 use_ok('App::Greple::md');
 
 sub refill_block { App::Greple::md::refill_block(@_) }
@@ -52,6 +52,16 @@ my @cases = (
                               [ "hard  \r", "kept\r" ] ],
     [ 'definition list',      [ 'Term', ': def a', 'def b', ': def c' ], 0,
                               [ 'Term', ': def a def b', ': def c' ] ],
+    [ 'footnote definitions', [ '[^a]: note a', '[^b-1]: note b', 'more b' ], 0,
+                              [ '[^a]: note a', '[^b-1]: note b more b' ] ],
+    [ 'footnote after text',  [ 'text', '[^a]: note a' ], 0,
+                              [ 'text', '[^a]: note a' ] ],
+    [ 'footnote definitions in a quote', [ '> [^a]: note a', '> [^b]: note b' ], 1,
+                              [ '> [^a]: note a', '> [^b]: note b' ] ],
+    [ 'footnote reference at the start of a line', [ 'text', '[^a] and more' ], 0,
+                              [ 'text [^a] and more' ] ],
+    [ 'link text at the start of a line', [ 'text', '[a]: not a footnote' ], 0,
+                              [ 'text [a]: not a footnote' ] ],
 );
 
 for my $case (@cases) {

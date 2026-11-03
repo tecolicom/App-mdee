@@ -1,13 +1,13 @@
 requires 'perl', '5.026';
 
 requires 'File::Share';
-requires 'Text::ANSI::Fold', '2.3304';
+requires 'Text::ANSI::Fold', '2.37';
 requires 'Text::ANSI::Fold::Util';
 requires 'Text::VisualWidth::PP', '0.09';
 requires 'URI::Escape';
 
 requires 'App::ansiecho';
-requires 'App::ansifold', '1.36';
+requires 'App::ansifold', '1.38';
 requires 'App::ansicolumn', '1.61';
 requires 'Term::ANSIColor::Concise', '3.02';
 

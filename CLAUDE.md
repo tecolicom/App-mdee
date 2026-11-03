@@ -83,7 +83,7 @@ md_config+=(hashed.h3=1 hashed.h4=1 hashed.h5=1 hashed.h6=1)
 
 #### Chaining Themes
 
-The `--theme` option is an array (`@` type). The default is `(hashed nomark markcell)`, declared as a Bash array before `OPTS` (the OPTS default is empty; getoptlong.sh preserves pre-declared arrays). Themes support comma-separated values and repeated options. Themes accumulate (added to the default); use `--no-theme` to clear. Duplicate themes are removed by `uniq_array`. Themes are applied in order, each modifying `theme_light`/`theme_dark`:
+The `--theme` option is an array with a callback (`@!` type). The default is `(hashed nomark markcell)`, declared as a Bash array before `OPTS` (the OPTS default is empty; getoptlong.sh preserves pre-declared arrays). Themes support comma-separated values and repeated options. Themes accumulate (added to the default); use `--no-theme` to clear. Duplicate themes are removed by `uniq_array`. Themes are applied in order, each modifying `theme_light`/`theme_dark`:
 
 ```bash
 mdee file.md                        # default: hashed + nomark + markcell
@@ -694,7 +694,7 @@ Key format: `option_name | short_opt  spec  # comment`
 
 - `[&REQUIRE]=version`: Minimum getoptlong.sh version
 - `[&USAGE]="..."`: Usage message for --help
-- If a function with the same name as an option exists, it's called after parsing (callback)
+- A function with the same name as an option is called only when the spec has `!` (`@!`, `%!`, `:!`); without it, the function is left alone
 - Invocation: `. getoptlong.sh OPTS "$@"`
 
 ## Limitations

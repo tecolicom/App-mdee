@@ -426,6 +426,24 @@ CONF
         unlike($out, qr/###/, '--no-theme --theme=warm skips hashed');
     }
 
+    # Test --theme and --no-theme skip default[theme]: the result must
+    # differ from what default[theme] gives
+    {
+        open my $fh, q(>), "$config_dir/config.sh" or die;
+        print $fh "default[theme]=\x27warm\x27\n";
+        close $fh;
+        my $out = `XDG_CONFIG_HOME=$tmpdir $mdee -d --dryrun --mode=light --no-theme $test_md 2>&1`;
+        unlike($out, qr/Coral/, q(--no-theme skips default[theme]));
+        $out = `XDG_CONFIG_HOME=$tmpdir $mdee -d --dryrun --mode=light --theme=hashed $test_md 2>&1`;
+        unlike($out, qr/Coral/, q(--theme skips default[theme]));
+        like($out, qr/hashed\.h3=1/, q(--theme still adds to the built-in default));
+        open $fh, q(>), "$config_dir/config.sh" or die;
+        print $fh "default[theme]=\x27hashed\x27\n";
+        close $fh;
+        $out = `XDG_CONFIG_HOME=$tmpdir $mdee -d --dryrun --mode=light --theme=warm $test_md 2>&1`;
+        like($out, qr/Coral/, q(the theme given with --theme is applied));
+    }
+
     # Test --base-color overrides config theme override
     {
         open my $fh, '>', "$config_dir/config.sh" or die;

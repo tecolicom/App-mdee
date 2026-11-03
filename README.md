@@ -22,7 +22,7 @@ mdee - em·dee, Markdown Easy on the Eyes
          --[no-]nup         nup paged output (default: on)
      -V  --parallel         show files side by side
          --[no-]rule        use Unicode rules for tables (default: on)
-         --table-style=#    table style: pipe or simple (default: pipe)
+         --table-style=#    table style: lattice, 3line or simple (default: lattice)
          --cat-v            visualize whitespace via cat-v
      -w  --width=#          output width (default: terminal width)
          --fold-width=#     fold width (default: pane width - 3 - run-in)
@@ -325,22 +325,33 @@ Use [tecolicom/tap](https://github.com/tecolicom/homebrew-tap):
 
 - **--table-style**=_STYLE_
 
-    Select how tables are drawn.  `pipe` (default) keeps a separator
-    between the columns, `│` or `|` depending on `--rule`:
+    Select how tables are drawn.  `lattice` (default) keeps a separator
+    between the columns, `│` or `|` depending on `--rule`.  `pipe` is
+    another name of it, kept for compatibility:
 
          Left │ Center │ Right │ Default
         ──────┼────────┼───────┼─────────
          a    │   b    │     c │ d
 
-    `simple` draws tables like Pandoc's simple tables: the columns are
-    separated by spaces only, the header is underlined per column, and a
-    rule the width of the table is drawn above and below it.
+    `3line` separates the columns by spaces only and draws three rules: a
+    rule the width of the table above and below it, and a rule per column
+    below the header.
 
         ─────────────────────────────────
          Left   Center   Right   Default
         ────── ──────── ─────── ─────────
          a        b          c   d
         ─────────────────────────────────
+
+    `simple` also separates the columns by spaces only, and draws the
+    rule per column below the header and below the table.
+
+         Left   Center   Right   Default
+        ────── ──────── ─────── ─────────
+         a        b          c   d
+        ────── ──────── ─────── ─────────
+
+    The rules are drawn with `-` with `--no-rule`.
 
 - **--cat-v**
 

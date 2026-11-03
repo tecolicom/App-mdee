@@ -240,9 +240,12 @@ Available parameters:
     table_boundary  fold boundary in wrapped cells (default: word)
     table_linebreak line break mode in wrapped cells: none, runin,
                     runout or all (default: all)
-    table_style     pipe: column separators (default); simple: columns
-                    separated by spaces, header rule per column, and a
-                    rule above and below the table
+    table_style     lattice: column separators (default; pipe is
+                    another name); 3line: columns separated by spaces,
+                    a rule above and below the table and per column
+                    below the header; simple: columns separated by
+                    spaces, a rule per column below the header and
+                    below the table
     rule            box-drawing characters (default: 1)
     osc8            OSC 8 hyperlinks (default: 1)
     heading_markup  inline markup in headings (default: 0)
@@ -446,7 +449,7 @@ my $config = Getopt::EX::Config->new(
     table_boundary  => 'word',   # fold boundary in wrapped cells
     table_linebreak => 'all',    # line break (kinsoku) mode in wrapped cells
     rule            => 1,        # box-drawing characters for tables
-    table_style     => 'pipe',   # pipe: column separators; simple: spaces and rules only
+    table_style     => 'lattice', # lattice (or pipe): column separators; 3line, simple: spaces and rules only
     nofork          => 1,        # use nofork+raw for code ref calls
     heading_markup  => 0,        # inline formatting in headings
     tick_open       => '`',      # inline code open marker
@@ -1058,11 +1061,13 @@ sub begin {
 }
 
 sub format_table {
-    # simple style (Pandoc's simple table): no column separators, the
-    # header rule per column, a full-width rule above and below.  The
-    # table is formatted as in rule mode and the separators are blanked.
-    my $simple = $config->{table_style} eq 'simple';
-    my $sep = ($config->{rule} || $simple) ? "\x{2502}" : '|';  # │ or |
+    # lattice (or pipe) has column separators.  3line and simple have
+    # none and a header rule per column: 3line adds a full-width rule
+    # above and below, simple the header rule below.  They are formatted
+    # as in rule mode and the separators are blanked.
+    my $style = $config->{table_style};
+    my $open = $style eq '3line' || $style eq 'simple';
+    my $sep = ($config->{rule} || $open) ? "\x{2502}" : '|';  # │ or |
 
     # A row may have spaces after the last pipe (GFM ignores them); they
     # are allowed in the block and removed, so that every row ends in
@@ -1110,13 +1115,18 @@ sub format_table {
         my @wrap = map { "--$_=" . $config->{"table_$_"} } qw(runin runout boundary linebreak);
         my $formatted = call_ansicolumn($block, @sep_opt, '-o', $sep, '-t', '--cu=1', @align, @fit, @wrap);
         my $table = fix_separator($formatted, $sep);
-        if ($simple) {
-            # blank the column separators; add full-width rules above
-            # and below the table (pandoc simple table with a top line)
+        if ($open) {
+            # blank the column separators and add the rules
             $table =~ tr/\x{2502}\x{253C}\x{251C}\x{2524}/    /;
-            my($first) = $table =~ /^(.*)$/m;
-            my $rule = "\x{2500}" x ansi_width($first);
-            $table = "$rule\n$table$rule\n";
+            if ($style eq '3line') {
+                my($first) = $table =~ /^(.*)$/m;
+                my $rule = "\x{2500}" x ansi_width($first);
+                $table = "$rule\n$table$rule\n";
+            } else {
+                my($rule) = $table =~ /^([\x{2500} ]+)$/m;
+                $table .= "$rule\n" if defined $rule;
+            }
+            $table =~ s{^[\x{2500} ]+$}{ $& =~ tr/\x{2500}/-/r }mge unless $config->{rule};
         }
         push @table_shift, [ $line, ($table =~ tr/\n//) - $lines ];
         $table;

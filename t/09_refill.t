@@ -200,7 +200,7 @@ $sentence
 $sentence
 EOF
 
-for my $style ('', ',table_style=simple') {
+for my $style ('', ',table_style=3line', ',table_style=simple') {
     subtest "paragraph below a wrapped table$style" => sub {
         my $out = plain(run("'-Mmd::config(colorize=0,$config,fold=1,fold_width=40,table_width=40$style)' $table_md")->stdout);
         cmp_ok(max_width($out), '<=', 40, 'paragraph below the table is folded');

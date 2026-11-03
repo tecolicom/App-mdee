@@ -146,22 +146,59 @@ SKIP: {
     }
 }
 
-# Simple table style: no column separators, per-column header rule,
-# full-width rules above and below
+# Table styles without column separators
 {
     my $strip = sub { local $_ = shift; s/\e\[[0-9;]*[mK]//g; $_ };
-    my $out = $strip->(run("'-Mmd::config(colorize=0,table=1,table_style=simple)' $test_md")->stdout);
-    my @lines = split /\n/, $out;
-    my($h) = grep { $lines[$_] =~ /Left.*Center.*Right.*Default/ } 0..$#lines;
+    my $table = sub {
+	my $config = shift;
+	my $out = $strip->(run("'-Mmd::config(colorize=0,table=1,$config)' $test_md")->stdout);
+	my @lines = split /\n/, $out;
+	my($h) = grep { $lines[$_] =~ /Left.*Center.*Right.*Default/ } 0..$#lines;
+	(\@lines, $h);
+    };
+    my $H = "\x{2500}";
+
+    # 3line: a full-width rule above the header, below the header per
+    # column, and a full-width rule below the table
+    my($l, $h) = $table->("table_style=3line");
+    ok(defined $h, "aligned table found in 3line style");
+    SKIP: {
+	skip "table not found", 5 unless defined $h;
+	like($l->[$h - 1], qr/^${H}+$/, "3line: a full-width rule above the header");
+	like($l->[$h + 1], qr/^${H}+( ${H}+){3}\s*$/, "3line: the header rule is drawn per column");
+	like($l->[$h + 4], qr/^${H}+$/, "3line: a full-width rule below the table");
+	unlike(join("\n", @$l[$h .. $h + 3]), qr/[\x{2502}\x{253C}|]/, "3line: no column separators");
+	like($l->[$h + 2], qr/\s+c\s+d/, "3line: right alignment is kept");
+    }
+
+    # simple: nothing above the header, per-column rules below the
+    # header and below the table
+    ($l, $h) = $table->("table_style=simple");
     ok(defined $h, "aligned table found in simple style");
     SKIP: {
-        skip "table not found", 5 unless defined $h;
-        my $H = "\x{2500}";
-        like($lines[$h - 1], qr/^${H}+$/, "a full-width rule above the header");
-        like($lines[$h + 1], qr/^${H}+( ${H}+){3}\s*$/, "the header rule is drawn per column");
-        like($lines[$h + 4], qr/^${H}+$/, "a full-width rule below the table");
-        unlike(join("\n", @lines[$h .. $h + 3]), qr/[\x{2502}\x{253C}|]/, "no column separators");
-        like($lines[$h + 2], qr/\s+c\s+d/, "right alignment is kept");
+	skip "table not found", 4 unless defined $h;
+	unlike($l->[$h - 1] // '', qr/$H/, "simple: no rule above the header");
+	like($l->[$h + 1], qr/^${H}+( ${H}+){3}\s*$/, "simple: the header rule is drawn per column");
+	is($l->[$h + 4], $l->[$h + 1], "simple: the same rule below the table");
+	unlike(join("\n", @$l[$h .. $h + 3]), qr/[\x{2502}\x{253C}|]/, "simple: no column separators");
+    }
+
+    # rule=0 draws the rules in ASCII in all styles
+    for my $style (qw(3line simple)) {
+	($l, $h) = $table->("table_style=$style,rule=0");
+	ok(defined $h, "aligned table found in $style style without rule");
+	SKIP: {
+	    skip "table not found", 2 unless defined $h;
+	    like($l->[$h + 1], qr/^-+( -+){3}\s*$/, "$style: ASCII header rule with rule=0");
+	    unlike(join("\n", @$l[$h - 1 .. $h + 4]), qr/$H/, "$style: no box-drawing rule with rule=0");
+	}
+    }
+
+    # lattice is the default, and pipe is another name of it
+    my($d) = $table->("table=1");
+    for my $style (qw(lattice pipe)) {
+	($l, $h) = $table->("table_style=$style");
+	is_deeply($l, $d, "table_style=$style is the default");
     }
 }
 

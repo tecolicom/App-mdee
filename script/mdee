@@ -41,7 +41,7 @@ mdee - em·dee, Markdown Easy on the Eyes
          --[no-]nup         nup paged output (default: on)
      -V  --parallel         show files side by side
          --[no-]rule        use Unicode rules for tables (default: on)
-         --table-style=#    table style: pipe or simple (default: pipe)
+         --table-style=#    table style: lattice, 3line or simple (default: lattice)
          --cat-v            visualize whitespace via cat-v
      -w  --width=#          output width (default: terminal width)
          --fold-width=#     fold width (default: pane width - 3 - run-in)
@@ -187,7 +187,7 @@ declare -A OPTS=(
     [          nup |               # use nup               ]=_
     [     parallel | V             # files side by side    ]=
     [         rule |               # table rule lines      ]=_
-    [  table-style |    :          # table style           ]=pipe
+    [  table-style |    :          # table style           ]=lattice
     [        width | w  : =i       # output width          ]=0
     [   fold-width |    : =i       # fold width            ]=0
     [        runin |    : =i       # run-in width          ]=4
@@ -388,8 +388,9 @@ esac
 [[ $rule  == _ ]] && rule=${style_defaults[rule]}
 [[ ${rule:-} ]] && rule='│'
 case $table_style in
-    pipe|simple) ;;
-    *) die "--table-style: pipe or simple expected, not '$table_style'" ;;
+    lattice|3line|simple) ;;
+    pipe) table_style=lattice ;;
+    *) die "--table-style: lattice, 3line or simple expected, not '$table_style'" ;;
 esac
 case $boundary in
     word|space|none) ;;
@@ -543,7 +544,7 @@ run_greple() {
     [[ $table ]] && config_params+=("table=1") || config_params+=("table=0")
     [[ $trim  ]] && config_params+=("table_trim=1") || config_params+=("table_trim=0")
     [[ $rule  ]] && config_params+=("rule=1")  || config_params+=("rule=0")
-    [[ $table_style != pipe ]] && config_params+=("table_style=$table_style")
+    [[ $table_style != lattice ]] && config_params+=("table_style=$table_style")
     [[ $heading_markup ]] && config_params+=("heading_markup=$heading_markup")
     [[ $refill ]] && config_params+=("refill=1")
 
@@ -949,22 +950,33 @@ rules (C<─>).  Default is enabled.
 
 =item B<--table-style>=I<STYLE>
 
-Select how tables are drawn.  C<pipe> (default) keeps a separator
-between the columns, C<│> or C<|> depending on C<--rule>:
+Select how tables are drawn.  C<lattice> (default) keeps a separator
+between the columns, C<│> or C<|> depending on C<--rule>.  C<pipe> is
+another name of it, kept for compatibility:
 
      Left │ Center │ Right │ Default
     ──────┼────────┼───────┼─────────
      a    │   b    │     c │ d
 
-C<simple> draws tables like Pandoc's simple tables: the columns are
-separated by spaces only, the header is underlined per column, and a
-rule the width of the table is drawn above and below it.
+C<3line> separates the columns by spaces only and draws three rules: a
+rule the width of the table above and below it, and a rule per column
+below the header.
 
     ─────────────────────────────────
      Left   Center   Right   Default
     ────── ──────── ─────── ─────────
      a        b          c   d
     ─────────────────────────────────
+
+C<simple> also separates the columns by spaces only, and draws the
+rule per column below the header and below the table.
+
+     Left   Center   Right   Default
+    ────── ──────── ─────── ─────────
+     a        b          c   d
+    ────── ──────── ─────── ─────────
+
+The rules are drawn with C<-> with C<--no-rule>.
 
 =item B<--cat-v>
 

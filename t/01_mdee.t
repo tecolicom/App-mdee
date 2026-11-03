@@ -553,11 +553,19 @@ subtest q(table style option) => sub {
     my $default = `COLUMNS=200 $mdee -ddn $test_md 2>&1`;
     unlike($default, qr/table_style=/, q(no table_style parameter by default));
 
-    my $simple = `COLUMNS=200 $mdee -ddn --table-style=simple $test_md 2>&1`;
-    like($simple, qr/debug: greple .*table_style=simple/, q(--table-style=simple is passed to the md module));
+    for my $style (qw(3line simple)) {
+	my $out = `COLUMNS=200 $mdee -ddn --table-style=$style $test_md 2>&1`;
+	like($out, qr/debug: greple .*table_style=$style/, qq(--table-style=$style is passed to the md module));
+    }
+    for my $style (qw(lattice pipe)) {
+	my $out = `COLUMNS=200 $mdee -ddn --table-style=$style $test_md 2>&1`;
+	unlike($out, qr/table_style=/, qq(--table-style=$style is the default));
+    }
 
-    my $bad = `$mdee -n --table-style=grid $test_md 2>&1`;
-    like($bad, qr/--table-style: pipe or simple expected/, q(an unknown table style is rejected));
+    for my $style (qw(grid unknown)) {
+	my $bad = `$mdee -n --table-style=$style $test_md 2>&1`;
+	like($bad, qr/--table-style: lattice, 3line or simple expected/, qq(--table-style=$style is rejected));
+    }
 };
 
 subtest q(filename option) => sub {

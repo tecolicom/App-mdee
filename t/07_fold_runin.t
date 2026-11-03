@@ -17,6 +17,7 @@ use t::Util;
 $ENV{HOME} = File::Temp::tempdir(CLEANUP => 1);
 
 my($fh, $md) = tempfile(SUFFIX => '.md', UNLINK => 1);
+binmode $fh, ':encoding(utf-8)';
 # "- " + 14 double-width chars = 30 columns, then "。" (2 columns)
 print $fh "- " . ("あ" x 14) . "。" . ("い" x 10) . "。\n";
 close $fh;

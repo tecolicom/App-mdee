@@ -3,6 +3,7 @@ requires 'perl', '5.026';
 requires 'File::Share';
 requires 'Text::ANSI::Fold', '2.3304';
 requires 'Text::ANSI::Fold::Util';
+requires 'Text::VisualWidth::PP', '0.09';
 requires 'URI::Escape';
 
 requires 'App::ansiecho';

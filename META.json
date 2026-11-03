@@ -62,6 +62,7 @@
             "Term::ANSIColor::Concise" : "3.02",
             "Text::ANSI::Fold" : "2.3304",
             "Text::ANSI::Fold::Util" : "0",
+            "Text::VisualWidth::PP" : "0.09",
             "URI::Escape" : "0",
             "perl" : "5.026"
          }

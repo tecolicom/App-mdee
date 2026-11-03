@@ -699,6 +699,10 @@ Key format: `option_name | short_opt  spec  # comment`
 
 ## Limitations
 
+### Lines Added by Colorize with `--refill`
+
+`refill_regions()` takes the line numbers from `refill()` and corrects them only for the lines that `format_table` adds (`@table_shift`); it assumes that `colorize()` keeps the line count. A color label with a function that adds lines, such as the `fatchap` theme (`h1=+;sub{"#\n$_\n#"}`), breaks this: below each such h1 the regions are off by two lines, so a joined paragraph may stay unfolded (`nup` then folds it without the indent) and another line may be folded instead. The text itself does not change. This stays as a limitation: the `headings` step cannot count lines cheaply, because code blocks are protected as one placeholder at that point (only the heading line is restored), headings are processed from h6 to h1, and a fix there would not cover other labels. The `fatchap` theme sets `default[refill]=` so that the default does not run into this, while `-r` on the command line still works; `refill` is resolved from `default[refill]` after the theme files for this reason. Other `default[...]` keys are resolved before the themes, so setting them in a theme has no effect.
+
 ### Blocks inside Block Quotes
 
 A block quote is recognized by its `>` markers only: they are colored and a long quote line is folded with the markers repeated. Headings, lists, code fences and other blocks inside a quote are not recognized (the heading, list and fence patterns are anchored at the start of the line), so a heading in a quote is not colored, a list item in a quote is not folded as a list item, and a code fence in a quote does not protect its contents. In the Markdown files at hand such quotes are rare (no headings, few lists), so this stays as it is. `--refill` is not affected: the parser reports the paragraphs inside the quote correctly.

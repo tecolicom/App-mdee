@@ -347,8 +347,6 @@ fi
 # Output width: explicit option (non-zero) > config default > terminal width
 (( width == 0 )) && width=${default[width]:-0}
 (( fold_width == 0 )) && fold_width=${default[fold_width]:-0}
-[[ $refill == _ ]] && refill=${default[refill]:-}
-[[ $refill == 0 ]] && refill=
 # tput reads the size from stderr when stdout is captured, so do not
 # redirect it; without TERM (docker run without a tty) tput only
 # complains, so skip it and fall back to 80 below
@@ -420,6 +418,10 @@ while IFS= read -r _t; do
         load_theme_file "$_t" || die "theme not found: $_t"
     fi
 done < <(uniq_array "${theme[@]}")
+
+# After the themes, because fatchap turns off the default
+[[ $refill == _ ]] && refill=${default[refill]:-}
+[[ $refill == 0 ]] && refill=
 
 # Re-add config.sh settings after the themes so that they take precedence
 md_config+=("${_user_md_config[@]}") pass_md+=("${_user_pass_md[@]}")
@@ -1100,6 +1102,12 @@ Change base color to Coral.
 Add decorative border lines (C<#>) above and below h1 headings,
 using C<=+> to append a text transformation while preserving the
 original heading color.
+
+With C<--refill>, the added lines are not counted, so paragraphs below
+the h1 headings may not be folded properly by this module.  The text
+itself does not change.  For this reason, this theme turns off
+C<default[refill]> in the configuration file; C<--refill> given on the
+command line still works.
 
 =item C<markcell> (default)
 

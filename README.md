@@ -468,6 +468,12 @@ bold text, etc.).
         using `=+` to append a text transformation while preserving the
         original heading color.
 
+        With `--refill`, the added lines are not counted, so paragraphs below
+        the h1 headings may not be folded properly by this module.  The text
+        itself does not change.  For this reason, this theme turns off
+        `default[refill]` in the configuration file; `--refill` given on the
+        command line still works.
+
     - `markcell` (default)
 
         In a table that has wrapped cells, mark the first line of every

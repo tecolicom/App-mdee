@@ -646,6 +646,20 @@ subtest q(refill option) => sub {
     close $fh;
     $out = `XDG_CONFIG_HOME=$tmpdir COLUMNS=200 $mdee -n $test_md 2>&1`;
     unlike($out, qr/refill=/, q(default[refill]=0 leaves refill off));
+
+    # fatchap adds lines, which puts the folding of refill off, so it
+    # turns off the default but not the option
+    open $fh, q(>), "$tmpdir/mdee/config.sh" or die;
+    print $fh "default[refill]=1\n";
+    close $fh;
+    $out = `XDG_CONFIG_HOME=$tmpdir COLUMNS=200 $mdee -n -t fatchap $test_md 2>&1`;
+    unlike($out, qr/refill=/, q(fatchap turns off default[refill]));
+    $out = `XDG_CONFIG_HOME=$tmpdir COLUMNS=200 $mdee -n -t fatchap -r $test_md 2>&1`;
+    like($out, qr/^greple .*refill=1/m, q(--refill works with fatchap));
+    $out = `XDG_CONFIG_HOME=$tmpdir COLUMNS=200 $mdee -n -t fatchap --no-refill $test_md 2>&1`;
+    unlike($out, qr/refill=/, q(--no-refill works with fatchap));
+    $out = `XDG_CONFIG_HOME=$tmpdir COLUMNS=200 $mdee -n -t warm $test_md 2>&1`;
+    like($out, qr/^greple .*refill=1/m, q(other themes leave default[refill]));
 };
 
 subtest q(output width option) => sub {

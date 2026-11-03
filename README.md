@@ -610,6 +610,11 @@ bold text, etc.).
         --colormap code_block=/L20;E   # dark background for code blocks
         --colormap bold='${base}D'     # base color bold
 
+    This option is passed to the [App::Greple::md](https://metacpan.org/pod/App%3A%3AGreple%3A%3Amd) module, as a module
+    option before `--` in the **greple** command line (see it with `-n`).
+    It is not the `--cm` option of **greple**, so `FILE` and `FILE_FORMAT`
+    are set by `--config` instead.
+
     Available labels:
 
         h1 - h6           Heading levels 1 through 6

@@ -154,6 +154,15 @@ function specs via L<Getopt::EX::Colormap>.
     greple -Mmd --cm h1=RD -- file.md
     greple -Mmd --cm bold='${base}D' -- file.md
 
+B<greple> has an option of the same name.  Before C<-->, C<--cm> belongs
+to this module and takes the labels above.  After C<-->, or when there
+is no C<-->, it is the option of B<greple>, which colors the matched
+text and its own labels such as C<FILE>, and complains about the labels
+of this module:
+
+    greple -Mmd --cm h1=RD -- --cm B -E foo file.md  # h1 is red, foo blue
+    greple -Mmd --cm h1=RD file.md                   # h1: Unknown label
+
 =head2 B<--heading-markup>[=I<STEPS>], B<--hm>[=I<STEPS>]
 
 Control inline markup processing inside headings.  By default,

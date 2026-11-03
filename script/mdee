@@ -1263,6 +1263,11 @@ L<Term::ANSIColor::Concise> format.
     --colormap code_block=/L20;E   # dark background for code blocks
     --colormap bold='${base}D'     # base color bold
 
+This option is passed to the L<App::Greple::md> module, as a module
+option before C<--> in the B<greple> command line (see it with C<-n>).
+It is not the C<--cm> option of B<greple>, so C<FILE> and C<FILE_FORMAT>
+are set by C<--config> instead.
+
 Available labels:
 
     h1 - h6           Heading levels 1 through 6

@@ -134,6 +134,7 @@ uniq_array() {
 # Searches user_theme_dir then share_theme_dir, trying .sh and .bash
 load_theme_file() {
     local name=$1
+    [[ $name == */* ]] && return 1   # no way out of the theme directories
     local file
     for dir in "$user_theme_dir" "$share_theme_dir"; do
         [[ $dir ]] || continue

@@ -37,6 +37,7 @@ em·dee (mdee: Markdown, Easy on the Eyes) is a Markdown *text* viewer command i
 - `t/08_refill_join.t` - `refill_block` unit tests (joining rules; no pandoc needed)
 - `t/09_refill.t` - `refill=1` through greple: joining, folding of the joined lines, tables above them, with each available parser (skipped without one)
 - `t/11_quote_fold.t` - long block quote lines are folded with the quote marker repeated on the continuation lines, with and without color
+- `t/14_escape.t` - control characters and escape sequences of the file are removed, colors stay
 - `t/10_blocks.t` - `App::Greple::md::Blocks`: both parsers report the same paragraph lines (skipped without one)
 - `t/Util.pm` - Test helper for greple-based tests
 - `t/runner/` - Submodule (p5-script-runner) for finding greple path
@@ -422,6 +423,10 @@ The closing fence is the same character as the opening one and at least as long,
 ATX headings ([CommonMark](https://spec.commonmark.org/0.31.2/#atx-headings)), for each level `$hdr` from `######` down to `#`: `^( {0,3}$hdr(?:\h+.*)?)$`.  Up to 3 spaces of indentation are allowed, and a line of `#`s alone is an empty heading; `#foo` (no space) and seven `#`s are not headings.
 
 Inline code ([CommonMark Code Spans](https://spec.commonmark.org/0.31.2/#code-spans)) uses the `$CODE` pattern, which matches both single and multi-backtick spans. For multi-backtick (2+), optional leading/trailing spaces are stripped per CommonMark spec.
+
+### Control Characters in the File
+
+`begin()` first calls `remove_controls`, so that a Markdown file from someone else cannot send anything but colors to the terminal: OSC (title, clipboard, hyperlink), DCS, CSI other than SGR, other escape sequences, C0 controls except `\t \n \f \r`, DEL and C1. A string sequence without a terminator loses only its introducer, not the text up to the end of the file. SGR stays, because a colored file is a reasonable input, except `\e[256m`, the mark of `protect()`: `\e[256mN\e[m` in a file would bring back protected text or die in `restore()`. The file name label is printed by greple and is not covered. Theme names with `/` are rejected by `load_theme_file`, so that `--theme` cannot run a file outside the theme directories.
 
 ### Text Folding (md module)
 

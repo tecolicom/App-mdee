@@ -597,6 +597,25 @@ subtest q(pass_md in config.sh) => sub {
     is(() = $out =~ /tick_open=x/g, 1, q(md_config of config.sh is given once));
 };
 
+subtest q(theme name with a path) => sub {
+    my $tmp = tempdir(CLEANUP => 1);
+    mkdir "$tmp/mdee";
+    mkdir "$tmp/mdee/theme";
+    open my $fh, q(>), "$tmp/evil.sh" or die;
+    print $fh "touch $tmp/run\n";
+    close $fh;
+    open $fh, q(>), "$tmp/mdee/theme/good.sh" or die;
+    print $fh "touch $tmp/good\n";
+    close $fh;
+    my $out = `XDG_CONFIG_HOME=$tmp $mdee -n -t ../../evil $test_md 2>&1`;
+    isnt($?, 0, q(a name with a slash is an error));
+    like($out, qr/theme not found/, q(as a theme not found));
+    ok(!-e "$tmp/run", q(the file does not run));
+    `XDG_CONFIG_HOME=$tmp $mdee -n -t good $test_md 2>&1`;
+    is($?, 0, q(a theme in the directory is fine));
+    ok(-e "$tmp/good", q(and runs));
+};
+
 subtest q(filename option) => sub {
     my $help = `$mdee --help 2>&1`;
     like($help, qr/--\[no-\]filename/, q(--help shows --filename option));

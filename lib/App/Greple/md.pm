@@ -52,6 +52,10 @@ For a complete Markdown viewing experience with line folding,
 multi-column output, and themes, see L<App::mdee>, which uses this
 module as its highlighting engine.
 
+Control characters and escape sequences in the file, which could change
+the title or the clipboard or clear the screen, are removed before
+anything else, and so are not shown.  Colors stay.
+
 =head1 COMMAND OPTIONS
 
 The following options are defined as greple command options
@@ -1062,7 +1066,26 @@ sub refill_regions {
 }
 
 
+# What a file must not send to the terminal: everything but colors, and the
+# mark of protect(), which would bring back or look for protected text.
+my $CONTROLS = qr{
+    \e \[ (?! 256m ) [0-9;:]* m (*SKIP)(*FAIL)
+  |
+    \e [\]PX^_] (?: [^\a\e]*+ (?: \a | \e\\ ) )?    # OSC, DCS, SOS, PM, APC
+  |
+    \e \[ [\x30-\x3f]* [\x20-\x2f]* [\x40-\x7e]     # CSI
+  |
+    \e [\x20-\x2f]* [\x30-\x7e]
+  |
+    [\x00-\x08\x0b\x0e-\x1f\x7f-\x9f]
+}x;
+
+sub remove_controls {
+    s/$CONTROLS//g;
+}
+
 sub begin {
+    remove_controls();
     @refill_lines = @table_shift = ();
     refill()       if $config->{refill};
     colorize()     if $config->{colorize};

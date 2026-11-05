@@ -424,6 +424,7 @@ it under the same terms as Perl itself.
 =cut
 
 use URI::Escape;
+use Text::ANSI::Fold qw($csi_re $osc_re);
 use Text::ANSI::Fold::Util qw(ansi_width);
 use Getopt::EX::Config;
 use Getopt::EX::Colormap;
@@ -1068,12 +1069,18 @@ sub refill_regions {
 
 # What a file must not send to the terminal: everything but colors, and the
 # mark of protect(), which would bring back or look for protected text.
+my $STRING = qr{
+    (?: \e [PX^_] | [\x90\x98\x9e\x9f] )            # DCS, SOS, PM, APC
+    (?: [^\x00-\x07\x0e-\x1f\x7f-\x9f]*+ (?: \e\\ | \x9c | \a ) )?
+}x;
 my $CONTROLS = qr{
     \e \[ (?! 256m ) [0-9;:]* m (*SKIP)(*FAIL)
   |
-    \e [\]PX^_] (?: [^\a\e]*+ (?: \a | \e\\ ) )?    # OSC, DCS, SOS, PM, APC
+    $osc_re
   |
-    \e \[ [\x30-\x3f]* [\x20-\x2f]* [\x40-\x7e]     # CSI
+    $STRING
+  |
+    $csi_re
   |
     \e [\x20-\x2f]* [\x30-\x7e]
   |

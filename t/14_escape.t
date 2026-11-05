@@ -34,7 +34,14 @@ my @cases = (
     [ 'other escape',        "a\ecb\e(0c\n",              "abc\n" ],
     [ 'lone escape',         "a\e",                       "a" ],
     [ 'the mark of protect', "\e[256m0\e[m\n",            "0\e[m\n" ],
-    [ 'C1 of 8 bits',        "a\x{9d}0;T\x{9c}b\x{9b}2J\n", "a0;Tb2J\n" ],
+    [ 'C1 of 8 bits',        "a\x{9d}0;T\x{9c}b\x{9b}2Jc\n", "abc\n" ],
+    [ 'C1 color goes too',   "a\x{9b}31mb\n",             "ab\n" ],
+    [ 'C1 DCS',              "a\x{90}1\x{9c}b\n",         "ab\n" ],
+    [ 'text after 9C stays', "a\e]0;T\x{9c}text\ab\n",    "atextb\n" ],
+    [ 'hyperlink with 9C',   "\e]8;;http://x\x{9c}a\e]8;;\x{9c}\n", "a\n" ],
+    [ 'DCS with BEL',        "a\eP1\ab\n",                "ab\n" ],
+    [ 'APC with ST',         "a\e_1\e\\b\n",              "ab\n" ],
+    [ 'DCS with a control',  "a\eP1\x012\e\\b\n",         "a12b\n" ],
     [ 'other controls',      "a\ab\x08c\x0ed\x7f\n",      "abcd\n" ],
 );
 for (@cases) {

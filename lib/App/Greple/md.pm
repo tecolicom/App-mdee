@@ -317,7 +317,7 @@ Colors follow L<Term::ANSIColor::Concise> format.
     LABEL   LIGHT                    DARK
     h1      L25D/${base};E           L00D/${base};E
     h2      L25D/${base}+y20;E       L00D/${base}-y15;E
-    h3      L25DN/${base}+y30        L00DN/${base}-y25
+    h3      L25DN/${base}+y20        L00DN/${base}-y15
     h4      ${base}UD                ${base}UD
     h5      ${base}UD                ${base}UD
     h6      ${base}D                 ${base}D
@@ -493,7 +493,7 @@ my %default_colors = (
     image_link      => 'I',
     h1              => 'L25D/${base};E',
     h2              => 'L25D/${base}+y20;E',
-    h3              => 'L25DN/${base}+y30',
+    h3              => 'L25DN/${base}+y20',
     h4              => '${base}UD',
     h5              => '${base}UD',
     h6              => '${base}D',
@@ -513,7 +513,7 @@ my %dark_overrides = (
     code_inline     => 'L25/L05',
     h1              => 'L00D/${base};E',
     h2              => 'L00D/${base}-y15;E',
-    h3              => 'L00DN/${base}-y25',
+    h3              => 'L00DN/${base}-y15',
     h4              => '${base}UD',
     h5              => '${base}UD',
     h6              => '${base}D',

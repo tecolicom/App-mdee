@@ -41,7 +41,7 @@ mdee - em·dee, Markdown Easy on the Eyes
          --[no-]nup         nup paged output (default: on)
      -V  --parallel         show files side by side
          --[no-]rule        use Unicode rules for tables (default: on)
-         --table-style=#    table style: lattice, 3line or simple (default: lattice)
+    --ts --table-style=#    table style: lattice, 3line or simple (default: lattice)
          --cat-v            visualize whitespace via cat-v
      -w  --width=#          output width (default: terminal width)
          --fold-width=#     fold width (default: pane width - 3 - run-in)
@@ -173,46 +173,46 @@ declare -a theme=(hashed nomark markcell)
 declare -A adjust=([light]='=y25' [dark]='=y80')
 declare -A OPTS=(
     [&REQUIRE]=0.7.2 [&USAGE]="$USAGE"
-    [         help | h   !         # show help             ]=
-    [      version |     !         # show version          ]=
-    [        debug | d  +          # debug level           ]=0
-    [        trace | x   !         # trace mode            ]=
-    [       dryrun | n             # dry-run mode          ]=
-    [        style | s  :          # output style          ]=
-    [       filter | f   !         # filter mode           ]=
-    [        plain | p   !         # plain mode            ]=
-    [         fold |               # line folding          ]=_
-    [       refill | r             # join paragraph lines  ]=_
-    [        table |               # table formatting      ]=_
-    [         trim |               # trim table cell spaces]=1
-    [          nup |               # use nup               ]=_
-    [     parallel | V             # files side by side    ]=
-    [         rule |               # table rule lines      ]=_
-    [  table-style |    :          # table style           ]=lattice
-    [        width | w  : =i       # output width          ]=0
-    [   fold-width |    : =i       # fold width            ]=0
-    [        runin |    : =i       # run-in width          ]=4
-    [       runout |    : =i       # run-out width         ]=4
-    [       runlen |    :!=i       # run-in and run-out    ]=
-    [     boundary |    :          # fold boundary         ]=word
-    [        theme | t  @!         # color theme           ]=
-    [         mode | m  :          # light or dark         ]=
-    [   base-color | B  :          # base color            ]=
-    [       config |    %!         # theme override        ]=
-    [       adjust |    %          # color adjustment      ]=
-    [ colormap|cm  |    :>pass_md  # color map             ]=
-    [heading-markup|hm  :          # markup in headings    ]=
-    [         show |    %!         # field visibility      ]=
-    [        pager |    ?!         # pager command         ]=
-    [         pane | C  : =i       # number of columns     ]=0
-    [   pane-width | S  : =i       # pane width            ]=85
-    [         grid | G  :>pass_nup # grid layout           ]=
-    [          row | R  :>pass_nup # number of rows        ]=
-    [         page | P  :>pass_nup # page height           ]=
-    [ border-style | bs :>pass_nup # border style          ]=
-    [ page-number  |     >pass_nup # page number            ]=
-    [     filename |               # file name label       ]=1
-    [        cat-v |               # visualize whitespace  ]=
+    [           help | h   !         # show help             ]=
+    [        version |     !         # show version          ]=
+    [          debug | d  +          # debug level           ]=0
+    [          trace | x   !         # trace mode            ]=
+    [         dryrun | n             # dry-run mode          ]=
+    [          style | s  :          # output style          ]=
+    [         filter | f   !         # filter mode           ]=
+    [          plain | p   !         # plain mode            ]=
+    [           fold |               # line folding          ]=_
+    [         refill | r             # join paragraph lines  ]=_
+    [          table |               # table formatting      ]=_
+    [           trim |               # trim table cell spaces]=1
+    [            nup |               # use nup               ]=_
+    [       parallel | V             # files side by side    ]=
+    [           rule |               # table rule lines      ]=_
+    [    table-style | ts :          # table style           ]=lattice
+    [          width | w  : =i       # output width          ]=0
+    [     fold-width |    : =i       # fold width            ]=0
+    [          runin |    : =i       # run-in width          ]=4
+    [         runout |    : =i       # run-out width         ]=4
+    [         runlen |    :!=i       # run-in and run-out    ]=
+    [       boundary |    :          # fold boundary         ]=word
+    [          theme | t  @!         # color theme           ]=
+    [           mode | m  :          # light or dark         ]=
+    [     base-color | B  :          # base color            ]=
+    [         config |    %!         # theme override        ]=
+    [         adjust |    %          # color adjustment      ]=
+    [       colormap | cm :>pass_md  # color map             ]=
+    [ heading-markup | hm :          # markup in headings    ]=
+    [           show |    %!         # field visibility      ]=
+    [          pager |    ?!         # pager command         ]=
+    [           pane | C  : =i       # number of columns     ]=0
+    [     pane-width | S  : =i       # pane width            ]=85
+    [           grid | G  :>pass_nup # grid layout           ]=
+    [            row | R  :>pass_nup # number of rows        ]=
+    [           page | P  :>pass_nup # page height           ]=
+    [   border-style | bs :>pass_nup # border style          ]=
+    [    page-number |     >pass_nup # page number           ]=
+    [       filename |               # file name label       ]=1
+    [          cat-v |               # visualize whitespace  ]=
 )
 
 ##############################################################################
@@ -950,7 +950,7 @@ Unicode box-drawing characters (C<│>, C<├>, C<┤>, C<┼>) and
 dashes (C<->) in separator lines are replaced with horizontal
 rules (C<─>).  Default is enabled.
 
-=item B<--table-style>=I<STYLE>
+=item B<--table-style>=I<STYLE>, B<--ts> I<STYLE>
 
 Select how tables are drawn.  C<lattice> (default) keeps a separator
 between the columns, C<│> or C<|> depending on C<--rule>.  C<pipe> is
@@ -1255,7 +1255,7 @@ C<tick_open>, C<tick_close>, etc.
 
 =over 4
 
-=item B<--colormap>=I<LABEL>=I<SPEC>, B<--cm>=I<LABEL>=I<SPEC>
+=item B<--colormap>=I<LABEL>=I<SPEC>, B<--cm> I<LABEL>=I<SPEC>
 
 Override the color for a specific element.  I<LABEL> is one of the
 color labels listed below.  I<SPEC> follows

@@ -22,7 +22,7 @@ mdee - em·dee, Markdown Easy on the Eyes
          --[no-]nup         nup paged output (default: on)
      -V  --parallel         show files side by side
          --[no-]rule        use Unicode rules for tables (default: on)
-         --table-style=#    table style: lattice, 3line or simple (default: lattice)
+    --ts --table-style=#    table style: lattice, 3line or simple (default: lattice)
          --cat-v            visualize whitespace via cat-v
      -w  --width=#          output width (default: terminal width)
          --fold-width=#     fold width (default: pane width - 3 - run-in)
@@ -323,7 +323,7 @@ Use [tecolicom/tap](https://github.com/tecolicom/homebrew-tap):
     dashes (`-`) in separator lines are replaced with horizontal
     rules (`─`).  Default is enabled.
 
-- **--table-style**=_STYLE_
+- **--table-style**=_STYLE_, **--ts** _STYLE_
 
     Select how tables are drawn.  `lattice` (default) keeps a separator
     between the columns, `│` or `|` depending on `--rule`.  `pipe` is
@@ -600,7 +600,7 @@ bold text, etc.).
 
 ## Highlight Options
 
-- **--colormap**=_LABEL_=_SPEC_, **--cm**=_LABEL_=_SPEC_
+- **--colormap**=_LABEL_=_SPEC_, **--cm** _LABEL_=_SPEC_
 
     Override the color for a specific element.  _LABEL_ is one of the
     color labels listed below.  _SPEC_ follows

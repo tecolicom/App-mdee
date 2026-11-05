@@ -567,6 +567,7 @@ subtest q(parallel option) => sub {
 subtest q(table style option) => sub {
     my $help = `$mdee --help 2>&1`;
     like($help, qr/--table-style=/, q(--help shows --table-style option));
+    like(`COLUMNS=200 $mdee -ddn --ts=3line $test_md 2>&1`, qr/debug: greple .*table_style=3line/, q(--ts is short for --table-style));
 
     my $default = `COLUMNS=200 $mdee -ddn $test_md 2>&1`;
     unlike($default, qr/table_style=/, q(no table_style parameter by default));

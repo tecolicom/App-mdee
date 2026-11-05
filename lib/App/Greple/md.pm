@@ -1074,7 +1074,7 @@ my $STRING = qr{
     (?: [^\x00-\x07\x0e-\x1f\x7f-\x9f]*+ (?: \e\\ | \x9c | \a ) )?
 }x;
 my $CONTROLS = qr{
-    \e \[ (?! 256m ) [0-9;:]* m (*SKIP)(*FAIL)
+    \e \[ (?! 256m ) [0-9:;]* m (*SKIP)(*FAIL)
   |
     $osc_re
   |
@@ -1231,7 +1231,7 @@ option default \
 
 define {CODE_BLOCK}  ^ {0,3}(?<bt>(?<fc>[`~])\g{fc}{2,}+)(.*)\n((?s:.*?))^ {0,3}\g{bt}\g{fc}*+\h*$
 define {COMMENT}     ^<!--(?![->])(?s:.+?)-->
-define {SGR}         (?:\e\[[\d;]*[mK])*
+define {SGR}         (?:\e\[[\d:;]*[mK])*
 define {SGR_END}     (?:\e\[[0;]*[mK])*
 define {LIST_MARKER} (?:[*-]|(?:\d+|#)[.)])
 define {LIST_ITEM}   ^\h*{LIST_MARKER}\h+.*\n

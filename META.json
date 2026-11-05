@@ -60,7 +60,7 @@
             "Getopt::Long::Bash" : "v0.7.2",
             "Markdown::Perl" : "1.14",
             "Term::ANSIColor::Concise" : "3.02",
-            "Text::ANSI::Fold" : "2.37",
+            "Text::ANSI::Fold" : "2.38",
             "Text::ANSI::Fold::Util" : "0",
             "Text::VisualWidth::PP" : "0.09",
             "URI::Escape" : "0",

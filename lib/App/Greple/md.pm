@@ -319,8 +319,8 @@ Colors follow L<Term::ANSIColor::Concise> format.
     h2      L25D/${base}+y20;E       L00D/${base}-y15;E
     h3      L25DN/${base}+y30        L00DN/${base}-y25
     h4      ${base}UD                ${base}UD
-    h5      ${base}U                 ${base}U
-    h6      ${base}                  ${base}
+    h5      ${base}UD                ${base}UD
+    h6      ${base}D                 ${base}D
 
 =head2 Inline Formatting
 
@@ -495,8 +495,8 @@ my %default_colors = (
     h2              => 'L25D/${base}+y20;E',
     h3              => 'L25DN/${base}+y30',
     h4              => '${base}UD',
-    h5              => '${base}U',
-    h6              => '${base}',
+    h5              => '${base}UD',
+    h6              => '${base}D',
     bold            => 'D',
     italic          => 'I',
     strike          => 'X',
@@ -515,8 +515,8 @@ my %dark_overrides = (
     h2              => 'L00D/${base}-y15;E',
     h3              => 'L00DN/${base}-y25',
     h4              => '${base}UD',
-    h5              => '${base}U',
-    h6              => '${base}',
+    h5              => '${base}UD',
+    h6              => '${base}D',
     emphasis_mark   => 'L10',
 );
 

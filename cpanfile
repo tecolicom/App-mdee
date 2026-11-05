@@ -9,7 +9,7 @@ requires 'URI::Escape';
 requires 'App::ansiecho';
 requires 'App::ansifold', '1.38';
 requires 'App::ansicolumn', '1.61';
-requires 'Term::ANSIColor::Concise', '3.02';
+requires 'Term::ANSIColor::Concise', '3.03';
 
 requires 'App::nup', '1.10';
 requires 'Getopt::Long::Bash', '0.7.2';

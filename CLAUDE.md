@@ -84,11 +84,11 @@ md_config+=(hashed.h3=1 hashed.h4=1 hashed.h5=1 hashed.h6=1)
 
 #### Chaining Themes
 
-The `--theme` option is an array with a callback (`@!` type). The default is `(hashed nomark markcell)`, declared as a Bash array before `OPTS` (the OPTS default is empty; getoptlong.sh preserves pre-declared arrays). Themes support comma-separated values and repeated options. Themes accumulate (added to the default); use `--no-theme` to clear. Duplicate themes are removed by `uniq_array`. Themes are applied in order, each modifying `theme_light`/`theme_dark`:
+The `--theme` option is an array with a callback (`@!` type). The default is `(hashed nomark markcell doubleline)`, declared as a Bash array before `OPTS` (the OPTS default is empty; getoptlong.sh preserves pre-declared arrays). Themes support comma-separated values and repeated options. Themes accumulate (added to the default); use `--no-theme` to clear. Duplicate themes are removed by `uniq_array`. Themes are applied in order, each modifying `theme_light`/`theme_dark`:
 
 ```bash
-mdee file.md                        # default: hashed + nomark + markcell
-mdee --theme=warm file.md           # hashed,nomark,markcell (default) + warm
+mdee file.md                        # default: hashed + nomark + markcell + doubleline
+mdee --theme=warm file.md           # the default themes + warm
 mdee --no-theme file.md             # no theme (show all markup)
 mdee --no-theme --theme=warm        # warm only (clear default first)
 ```

@@ -49,7 +49,7 @@ mdee - em·dee, Markdown Easy on the Eyes
          --runout=#         run-out width for line breaking (default: 4)
          --runlen=#         set both run-in and run-out
          --boundary=#       fold boundary: word, space or none (default: word)
-     -t  --theme=#[,#,...]  color theme(s) (default: hashed,nomark,markcell)
+     -t  --theme=#[,#,...]  color theme(s) (default: hashed,nomark,markcell,doubleline)
      -m  --mode=#           light or dark (default: light)
      -B  --base-color=#     override base color of theme
                             (e.g., Ivory, #780043, (120,0,67))
@@ -169,7 +169,7 @@ declare -A default=()
 # the callback below populates _config[] instead, and this hash is ignored.
 declare -A config=()
 
-declare -a theme=(hashed nomark markcell)
+declare -a theme=(hashed nomark markcell doubleline)
 declare -A adjust=([light]='=y25' [dark]='=y80')
 declare -A OPTS=(
     [&REQUIRE]=0.7.2 [&USAGE]="$USAGE"
@@ -1046,10 +1046,10 @@ bold text, etc.).
 
 =item B<-t> I<NAME>, B<--theme>=I<NAME>[,I<NAME>,...]
 
-Select color themes.  The default is C<hashed,nomark,markcell>,
+Select color themes.  The default is C<hashed,nomark,markcell,doubleline>,
 which appends closing hashes to h3-h6 headers, hides markup
-characters for a clean reading experience, and marks the rows of
-tables whose cells are wrapped.
+characters for a clean reading experience, marks the rows of
+tables whose cells are wrapped, and gives h4 a double underline.
 
 Themes specified with C<--theme> are added to the default, not
 replacing it (C<default[theme]> in the configuration file replaces
@@ -1058,7 +1058,7 @@ by repeating the option.  Each theme is applied in order as a
 transformation, and when two themes set the same value the later
 one wins:
 
-    mdee --theme=warm file.md         # hashed,nomark,markcell (default) + warm
+    mdee --theme=warm file.md         # the default themes + warm
     mdee --no-theme --theme=warm      # warm only (clear default first)
     mdee --no-theme file.md           # no theme (show all markup)
 
@@ -1106,6 +1106,18 @@ Content text keeps its formatting (bold, italic,
 strikethrough, code, clickable links) but the surrounding
 markers are not displayed.  Table marks (C<markcell>,
 C<markwrap>) are independent of this theme.
+
+=item C<doubleline> (default)
+
+Give h4 headers a double underline, which is C<ESC[4:2m>, in the
+terminals known to take it, decided by environment variables: iTerm2,
+Ghostty, cmux, VS Code, WezTerm, kitty, Alacritty, Konsole, Windows
+Terminal and terminals based on VTE 0.52 or later.  Elsewhere, inside
+B<tmux> and B<screen>, and where the variables do not reach, as through
+B<ssh>, this theme does nothing and h4 has a single underline, the same
+as h5.  Many terminals do not take the sequence: it becomes a background color in Terminal.app and
+rxvt-unicode, and the Linux console and mosh drop the whole sequence
+with its color.
 
 =item C<warm>
 

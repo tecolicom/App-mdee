@@ -500,6 +500,33 @@ subtest 'share theme warm' => sub {
     like($out, qr/Coral/, 'warm theme uses Coral base color');
 };
 
+subtest 'share theme doubleline' => sub {
+    plan skip_all => 'share/theme/doubleline.sh not found' unless -f 'share/theme/doubleline.sh';
+    my @vars = qw(TERM_PROGRAM KITTY_WINDOW_ID ALACRITTY_WINDOW_ID KONSOLE_VERSION WT_SESSION VTE_VERSION);
+    delete local @ENV{@vars};
+    local $ENV{TERM} = 'xterm-256color';
+    my $h4 = sub {
+	my($opt, %env) = @_;
+	local @ENV{keys %env} = values %env;
+	scalar `$mdee -s cat $opt $test_md`;
+    };
+    my @good = (
+	[ TERM_PROGRAM => 'iTerm.app' ], [ TERM_PROGRAM => 'ghostty' ],
+	[ TERM_PROGRAM => 'vscode' ],    [ TERM_PROGRAM => 'WezTerm' ],
+	[ KITTY_WINDOW_ID => 1 ],  [ ALACRITTY_WINDOW_ID => 1 ],
+	[ KONSOLE_VERSION => 230000 ], [ WT_SESSION => 'x' ], [ VTE_VERSION => 5200 ],
+    );
+    my @bad = (
+	[ TERM_PROGRAM => 'Apple_Terminal' ], [ TERM_PROGRAM => 'tmux' ],
+	[ TERM_PROGRAM => 'unknown' ], [ VTE_VERSION => 5199 ],
+    );
+    like($h4->('', @$_), qr/4:2;1m#* ?Heading 4/, "double underline with @$_") for @good;
+    unlike($h4->('', @$_), qr/4:2/, "no double underline with @$_") for @bad;
+    unlike($h4->(''), qr/4:2/, 'no double underline without the variables');
+    unlike($h4->('--no-theme', TERM_PROGRAM => 'iTerm.app'), qr/4:2/, 'no double underline without the theme');
+    unlike($h4->('', TERM => $_, KITTY_WINDOW_ID => 1), qr/4:2/, "no double underline in TERM=$_") for qw(screen-256color tmux-256color);
+};
+
 subtest 'share themes markcell and markwrap' => sub {
     plan skip_all => 'share/theme/markcell.sh not found' unless -f 'share/theme/markcell.sh';
     my $md = File::Spec->rel2abs('t/table_wrap.md');

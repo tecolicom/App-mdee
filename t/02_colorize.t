@@ -93,4 +93,13 @@ SKIP: {
     ok(!$colored->(qr/####### seven/),  "7 '#' is not a heading");
 }
 
+# h4 and h5 are bold with an underline, h6 is bold
+{
+    my $out = run("-Mmd t/test.md")->stdout;
+    like($out, qr/\e\[[\d;]*;4;1m#### /, "h4 has an underline");
+    like($out, qr/\e\[[\d;]*;4;1m##### /, "h5 has an underline");
+    like($out, qr/\e\[[\d;]*;1m###### /, "h6 has none");
+    unlike($out, qr/4:2/, "no double underline without the theme");
+}
+
 done_testing;

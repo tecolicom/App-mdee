@@ -34,12 +34,12 @@ sub blocks {
 
 # The parsers that work here, the fastest first.
 sub available {
-    state @parsers = (
+    state $parsers = [
         (eval { require CommonMark; 1 } ? 'cmark' : ()),
         (mdperl_works() ? 'mdperl' : ()),
         (pandoc_works() ? 'pandoc' : ()),
-    );
-    @parsers;
+    ];
+    @$parsers;
 }
 
 # pandoc with the sourcepos extension (2.11.3 or later): run the reader

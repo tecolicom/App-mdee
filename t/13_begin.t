@@ -81,8 +81,8 @@ close $fh;
     close $short;
     $out = plain(run("-Mmdbeginmain '-Mmd::config(colorize=0)' --begin '&mdtestshort' -- --filter $md")->stdout);
     like($out, qr/^ M │ y $/m, q(main comes first));
-    open $short, q(>), "$dir/App/Greple/md/Mdtestbroken.pm" or die;
-    print $short "package App::Greple::md::Mdtestbroken;\nsub mdtestbroken { \n";
+    open $short, q(>), "$dir/App/Greple/md/mdtestbroken.pm" or die;
+    print $short "package App::Greple::md::mdtestbroken;\nsub mdtestbroken { \n";
     close $short;
     isnt(run("'-Mmd::config(colorize=0)' --begin '&mdtestbroken' -- --filter $md")->status, 0, q(a short name with a broken module is an error));
 

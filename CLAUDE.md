@@ -637,6 +637,7 @@ Bold/italic/strike patterns use `$SKIP_CODE` as first alternative to skip code s
 
 - `(?<![\\\w])` / `(?!\w)`: Word boundaries for `_`/`__` (prevents `foo_bar_baz`)
 - `(?<!\*)` / `(?!\*)`: Distinguishes `*italic*` from `**bold**`
+- `flanking($delim)`: returns the opener and closer patterns of `*` or `**`, left-flanking and right-flanking as in CommonMark (so `L*=50, a*=68` is not italic, while `2*3*4` is), or by the markdown-cjk-friendly rules with `cjk_friendly=1`; see "Flanking Rules and Japanese Text" under Limitations
 - `mark_color($type, $text)`: Uses `${type}_mark` if in colormap, falls back to `emphasis_mark`
 - `/p` flag with `${^MATCH}`: Safe alternative to `$&` (used by `$SKIP_CODE`)
 
@@ -721,6 +722,28 @@ Only HTML comments starting at the beginning of a line are highlighted. Inline c
 Emphasis patterns do not span multiple lines. Multi-line bold or italic text is not supported.
 
 `***bold italic***` and `___bold italic___` are supported as a combined pattern (processed before bold and italic, result is `protect()`ed). Other nested forms (e.g., `**bold _italic_**`) are not supported.
+
+#### Flanking Rules and Japanese Text
+
+[CommonMark 0.31.2](https://spec.commonmark.org/0.31.2/#emphasis-and-strong-emphasis) lets `*` open emphasis only when it is *left-flanking*: not followed by whitespace, and either not followed by punctuation or preceded by whitespace or punctuation; a closer must be *right-flanking*, the mirror image. Its punctuation is Unicode punctuation and symbols (`P` and `S` categories), so `「 」 。 、 （ ）` count as punctuation as much as `=` does.
+
+Japanese has no spaces between words, so a `*` often stands between a kanji and a bracket, or between a full stop and a kana, and the spec then refuses it, as it refuses `L*=50`. pandoc (`-f commonmark` and `-f gfm`) renders these as written (checked 2026-11-06); GitHub follows the same spec (GFM) but was not checked:
+
+| Text | CommonMark (default) | `cjk_friendly=1` |
+|---|---|---|
+| `L*=50, a*=68` | not italic | not italic |
+| `日本語の*強調*です` | italic | italic |
+| `日本語の*「強調」*です` | not italic | italic |
+| `日本語の*強調。*です` | not italic | italic |
+| `日本語の**「強調」**です` | not bold | bold |
+
+mdee follows CommonMark by default because it is also used to check text that pandoc will process: emphasis that mdee shows and pandoc does not would hide the mistake. Before 2026-11-06 mdee had no flanking rules at all; `L*=50, a*=68` in the Term::ANSIColor::Concise manual was shown with `=50, a` in italic and the two `*` hidden.
+
+[markdown-cjk-friendly](https://github.com/tats-u/markdown-cjk-friendly) ([specification](https://github.com/tats-u/markdown-cjk-friendly/blob/main/specification.md), [CommonMark issue #650](https://github.com/commonmark/commonmark-spec/issues/650)) is one person's proposal of amendments, not part of CommonMark. `cjk_friendly=1` (`mdee --config cjk_friendly=1`, or `md_config+=(cjk_friendly=1)` in config.sh) takes its rules for `*` and `**`: CJK punctuation does not count as punctuation, and a CJK character on the other side is as good as whitespace. A CJK character is one whose East Asian Width is W, F or H and that is not an emoji by default (`Emoji_Presentation`; left out on a perl without the property), or Hangul. The variation selector parts of the proposal are not implemented. `flanking()` builds the opener and closer patterns from the config each time the step runs.
+
+The effect on existing text: in the Markdown files under `~/Git/tecolicom` (2026-11-06) 346 `**...**` spans in 132 files (worktree copies included) are bold without the rules and not bold with CommonMark's. In 216 the delimiter is next to CJK punctuation (`。` 135, `「` 28, `）` 23, `」` 22, `、` 6); in 111 it is next to `-`, as in the Chinese README files of greple modules (`使用**--xlate-fold**选项`). With `cjk_friendly=1` these are bold again, the `-` cases because a CJK character is on the other side. Two of them are in Zenn articles not yet published (`gomi-rule-limit.md:216`, `gomi-course-merger-border.md:128`); zenn.dev does not show them in bold either (checked by the author, 2026-11-06). `*` alone is rare in that position (`*（` once).
+
+`***` (`bold_italic`), `_` and `__` do not use `flanking()`; `_` and `__` keep their word-boundary rule.
 
 ### Links
 

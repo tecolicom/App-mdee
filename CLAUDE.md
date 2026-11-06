@@ -745,6 +745,10 @@ The effect on existing text: in the Markdown files under `~/Git/tecolicom` (2026
 
 `***` (`bold_italic`), `_` and `__` do not use `flanking()`; `_` and `__` keep their word-boundary rule.
 
+Links and code spans are `protect()` placeholders when the emphasis steps run, so `flanking()` takes the start of a placeholder (`\e[256m`) and its end (`\e[m`) as punctuation, standing for the `[`, `)` and backticks around them in the text: `**[link](url)**も` is not bold, as in CommonMark. CommonMark pairs a closer with the nearest opener before it (the delimiter stack); the bold pattern does the same by not letting the content contain an opener, so in `**C#**や**F#**は` only `や` is bold, the `**` after `#` being able to open only.
+
+Checked on 2026-11-06 against markdown-it 14 with and without markdown-it-cjk-friendly, on the 139 lines of the proposal's `testcases/*.md` (strong, korean, non-bmp, pseudo-emoji, gfm-non-cjk) and a few of our own: the emphasized spans agree in both modes, except for variation selectors after a CJK character (`葛󠄀**(…)**城市`, 4 lines; not implemented), backslash escapes (`` \` ``, not processed by mdee) and the nesting order of `***x***` (italic inside bold or bold inside italic, same look).
+
 ### Links
 
 Link patterns do not span multiple lines. The link text and URL must be on the same line.

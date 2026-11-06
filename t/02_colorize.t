@@ -99,6 +99,10 @@ SKIP: {
         [ L => 'x **foo** y',                           1, 1, 1, "**foo**" ],
         [ M => "\x{65e5}**\x{300c}foo\x{300d}**\x{3067}", 1, 0, 1, "Japanese: **\x{300c}...\x{300d}** between kanji and kana" ],
         [ N => "\x{65e5}**foo\x{3002}**\x{3067}",       1, 0, 1, "Japanese: ** after a fullwidth period" ],
+        [ O => "x **[link](#u)**\x{3082}",              1, 0, 1, "** after a link and before kana" ],
+        [ P => 'x **`code`**y',                         1, 0, 0, "** after code and before a letter" ],
+        [ Q => 'x **[link](#u)** y',                    1, 1, 1, "** around a link" ],
+        [ R => 'x **a#**b**c',                          1, 1, 1, "** closes the nearest opener" ],
     );
     print $fh map { "$_->[0]: $_->[1]\n\n" } @cases;
     close $fh;
@@ -112,6 +116,9 @@ SKIP: {
             my $got = $l =~ /\e\[${sgr}m/ ? 1 : 0;
             is($got, $want, "$name: $desc" . ($want ? "" : " does not count"));
         }
+        # the ** after "#" can only open, and pairs with the next one
+        my ($r) = map { s/\e\[1m/</gr =~ s/\e\[[\d;]*[mK]//gr } grep { /^R:/ } @lines;
+        like($r, qr/\*\*a#\*\*<b\*\*c/, "$name: only b is bold in **a#**b**c");
     }
 }
 

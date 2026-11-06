@@ -758,8 +758,11 @@ sub flanking {
     my($punct, $tight) = $config->{cjk_friendly}
         ? (qr/(?!$CJK)[\p{P}\p{S}]/, qr/(?!$CJK)[^\s\p{P}\p{S}]/)
         : (qr/[\p{P}\p{S}]/,         qr/[^\s\p{P}\p{S}]/);
-    (qr/(?:(?<!$tight)|(?!$d$punct))$d(?=\S)/,
-     qr/(?<=\S)(?:(?<!$punct)|(?!$d$tight))$d/);
+    # A link or a code span is a protect() placeholder by now; its
+    # ends stand for the punctuation that delimits it in the text.
+    my($ps, $pe) = (qr/\e\[256m/, qr/\e\[m/);
+    (qr/(?:(?<!$tight)|(?<=$pe)|(?!$d(?:$punct|$ps)))$d(?=\S)/,
+     qr/(?<=\S)(?:(?<!$punct)(?<!$pe)|(?!$d(?!$ps)$tight))$d/);
 }
 
 #
@@ -877,7 +880,8 @@ my %colorize = (
 
     bold => Step(bold => sub {
         my($open, $close) = flanking('**');
-        s{$SKIP_CODE|(?<!\\)(?<m>$open)(?<t>.*?)(?<!\\)$close}{
+        # no opener inside, so that a closer pairs with the nearest opener
+        s{$SKIP_CODE|(?<!\\)(?<m>$open)(?<t>(?:(?!$open).)*?)(?<!\\)$close}{
             mark_color('bold', $+{m}) . md_color('bold', $+{t}) . mark_color('bold', $+{m})
         }gep;
         s{$SKIP_CODE|(?<![\\\w])(?<m>__)(?<t>.*?)(?<!\\)\g{m}(?!\w)}{

@@ -418,6 +418,16 @@ ANSI-aware text folding used for line wrapping in list items.
 Finds the paragraphs for C<refill=1> with L<CommonMark>,
 L<Markdown::Perl> or L<pandoc|https://pandoc.org>.
 
+=item L<CommonMark Spec 0.31.2, Emphasis and strong emphasis|https://spec.commonmark.org/0.31.2/#emphasis-and-strong-emphasis>
+
+The rules that C<*> and C<**> follow by default.
+
+=item L<CommonMark CJK-friendly Amendments|https://github.com/tats-u/markdown-cjk-friendly/blob/main/specification.md>
+
+The rules that C<cjk_friendly=1> follows.  The proposal comes from
+L<commonmark-spec issue #650, Emphasis with CJK punctuation|https://github.com/commonmark/commonmark-spec/issues/650>,
+open since 2020.
+
 =back
 
 =head1 AUTHOR

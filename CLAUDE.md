@@ -41,6 +41,7 @@ em·dee (mdee: Markdown, Easy on the Eyes) is a Markdown *text* viewer command i
 - `t/13_begin.t` - the `--begin` option of the md module
 - `t/11_quote_fold.t` - long block quote lines are folded with the quote marker repeated on the continuation lines, with and without color
 - `t/14_escape.t` - control characters and escape sequences of the file are removed, colors stay
+- `t/15_front_matter.t` - front matter is shown as a code block (marks in place of colors), only at the top, not folded; `front_matter=0`
 - `t/10_blocks.t` - `App::Greple::md::Blocks`: both parsers report the same paragraph lines (skipped without one)
 - `t/Util.pm` - Test helper for greple-based tests
 - `t/runner/` - Submodule (p5-script-runner) for finding greple path
@@ -344,7 +345,7 @@ Early-processed regions (code blocks, inline code, comments, links) are replaced
 Steps are organized into three groups:
 
 ```perl
-my @protect_steps = qw(code_blocks comments image_links images links);
+my @protect_steps = qw(front_matter code_blocks comments image_links images links);
 my @inline_steps  = qw(inline_code horizontal_rules bold_italic bold italic strike);
 my @final_steps   = qw(blockquotes);
 ```
@@ -387,6 +388,8 @@ Code-related and emphasis-related theme keys map directly to module labels:
 | `code_block` | `code_block` | Fenced code block body (with `;E`) |
 | `code_inline` | `code_inline` | Inline code body (without `;E`) |
 | `emphasis_mark` | `emphasis_mark` | Emphasis markers (`**`, `*`, `__`, `_`, `~~`) |
+| - | `meta_mark` | Front matter delimiter lines (undefined; falls back to `code_mark`) |
+| - | `meta_block` | Front matter lines (undefined; falls back to `code_block`) |
 
 `emphasis_mark` is the default color for all emphasis markers. Per-type overrides
 (`bold_mark`, `italic_mark`, `strike_mark`) can be defined via `--cm` and take
@@ -426,6 +429,10 @@ The closing fence is the same character as the opening one and at least as long,
 ATX headings ([CommonMark](https://spec.commonmark.org/0.31.2/#atx-headings)), for each level `$hdr` from `######` down to `#`: `^( {0,3}$hdr(?:\h+.*)?)$`.  Up to 3 spaces of indentation are allowed, and a line of `#`s alone is an empty heading; `#foo` (no space) and seven `#`s are not headings.
 
 Inline code ([CommonMark Code Spans](https://spec.commonmark.org/0.31.2/#code-spans)) uses the `$CODE` pattern, which matches both single and multi-backtick spans. For multi-backtick (2+), optional leading/trailing spaces are stripped per CommonMark spec.
+
+### Front Matter
+
+Front matter at the top of the file (`front_matter()`: TOML between `+++` lines, YAML from `---` to `---` or `...`, not with a blank line right after the opening `---`, as pandoc defines it) is shown as a fenced code block: the first step, `front_matter`, colors every line with `meta_block`, the delimiter lines too (their text with `meta_mark` inside, so the background runs over the whole block, unlike a fenced code block); the two labels are undefined by default and fall back to `code_block` and `code_mark` (`fallback_color()`, as `bold_mark` falls back to `emphasis_mark`); they are named `meta_*` because `front_matter` is the config switch and color labels share the config namespace, and protects the whole, so that no other markup applies (a `---` would otherwise be a rule, a `# comment` a heading). It is excluded from folding by `--exclude &__PACKAGE__::front_matter_region`, which finds the region by the line count `$front_lines` that `begin()` sets, because the text is colored by then, and refill leaves it alone. Front matter is not in CommonMark or GFM (checked 2026-11-09); config `front_matter=0` takes the lines as Markdown.
 
 ### Control Characters in the File
 
@@ -595,7 +602,7 @@ Config parameters from mdee:
 - `refill()` takes the `Para`/`Plain` blocks from the bottom up (so the line numbers above stay valid) and replaces their lines with `refill_block(\@lines, $depth)`, which joins as ansifold's `fill_up` does (nothing after fullwidth punctuation or between two `InConcatScript` characters, one space otherwise; the properties are subs in App::ansifold, so the patterns are compiled at run time after `require`), strips `^\h*(?:>\h?){0,$depth}\h*` from the second line on, and keeps the break after a hard break (two spaces or an odd number of `\` at the end of a line; `\\` is an escaped backslash) and before a line that starts with a list marker (`#.` lists are paragraphs to pandoc), is a horizontal rule, looks like a table row (`format_table` takes three such lines as a table, although GFM reads them as paragraph text), or starts a footnote definition (`[^name]:`, also inside a quote; `cmark` and `mdperl` have no footnotes and report consecutive definitions as one paragraph).
 - The final line numbers of the joined blocks go to `@refill_lines`. `format_table` records `[start line, lines added]` in `@table_shift`, because wrapped cells and `table_style=simple` change the line count (colorize keeps it); the shift is applied per line, since a range may contain a table (a paragraph line right above and below it). `refill_regions()` is a function pattern in `--fold-by` (`--cm N --le &__PACKAGE__::refill_regions`; `-E` would take `&name` as a regex; greple takes `&name` as a function only in a lexical expression, `--le`/`-x`) and returns one region per joined line, shifted by the tables above it. `{LIST_ITEM}` and `refill_regions` may return the same line; greple folds it once. Both arrays are reset in `begin()` for each file.
 - `--autoindent` in `--fold-by` decides the prefix of the continuation lines, with `--keepindent=named` (App::ansifold 1.36): the quote markers are in the named group `(?<q>...)`, with the SGR sequences the `blockquotes` step puts around them, and are repeated on every continuation line; everything else in the match (indent, list marker, definition colon) becomes spaces of the same width, so `> - item` continues as `>   ...`, a list item as `  ...`, and a quoted paragraph keeps its `> `. The `blockquotes` step colors the markers only, not the indent before them, so that `^\h*` before the group matches the indent. The pattern is built in `__DATA__` from the defines `{SGR}` and `{LIST_MARKER}` as `{AUTOINDENT}` (a define is expanded inside the quoted tee argument too), and every part of it may be empty, so that every line matches and sets its own prefix: by design, ansifold keeps the prefix of the last matching line for the lines that do not match (its `ps axgw | ansifold --autoindent '.*TIME (?=COMMAND)'` example takes the indent from the header line for the whole table), which here would have indented a paragraph folded after a list item.
-- `refill_block` keeps the break on both sides of a table-row line and treats a CR before the line break (CRLF file) as part of the line break. `refill()` leaves front matter at the top alone (config `front_matter`, default 1; `0` joins its lines as the parser reports them), TOML (`+++` ... `+++`) and YAML (`---` ... `---` or `...`, not with a blank line right after the opening `---`, as in pandoc): pandoc's gfm reader takes TOML as a paragraph, and libcmark takes YAML as paragraphs and list items (the Qiita CLI front matter has a `tags:` list), while pandoc and Markdown::Perl take YAML as metadata. A block that starts inside the front matter is cut at its end, because libcmark runs a paragraph on past a closing `...`.
+- `refill_block` keeps the break on both sides of a table-row line and treats a CR before the line break (CRLF file) as part of the line break. `refill()` leaves front matter at the top alone (config `front_matter`, default 1; `0` joins its lines as the parser reports them); the detection is `front_matter()`, and `begin()` keeps its line count in `$front_lines`, TOML (`+++` ... `+++`) and YAML (`---` ... `---` or `...`, not with a blank line right after the opening `---`, as in pandoc): pandoc's gfm reader takes TOML as a paragraph, and libcmark takes YAML as paragraphs and list items (the Qiita CLI front matter has a `tags:` list), while pandoc and Markdown::Perl take YAML as metadata. A block that starts inside the front matter is cut at its end, because libcmark runs a paragraph on past a closing `...`.
 - When fold is off (filter, raw, `--no-fold`) a joined paragraph is one long line.
 - Tests: `t/08_refill_join.t` (unit tests of `refill_block`, no parser needed), `t/10_blocks.t` (both parsers give the same lines on edge cases) and `t/09_refill.t` (greple runs, repeated for each parser that `available()` returns; `skip_all` without one). `t/01_mdee.t` checks the option with a `pandoc` stub that fails and a `CommonMark.pm` that dies, put ahead in PATH and PERL5LIB.
 

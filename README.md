@@ -111,6 +111,8 @@ Others are always processed for structural integrity.
     always    code_mark        (``` or ~~~)
               code_block
               code_info
+    always    meta_mark        (--- or +++ at the top)
+              meta_block
     always    comment          (<!-- ... -->)
     always    link             ([text](url))
               image            (![text])
@@ -275,8 +277,9 @@ Use [tecolicom/tap](https://github.com/tecolicom/homebrew-tap):
     or later instead.
 
     Front matter at the top of the file, TOML between `+++` lines or
-    YAML between `---` lines (or ended by `...`), is left as it is;
-    `--config front_matter=0` joins its lines as the parser reports them.
+    YAML between `---` lines (or ended by `...`), is left as it is
+    and shown as a code block; `--config front_matter=0` takes its lines
+    as Markdown.
 
 - **--\[no-\]table**
 
@@ -668,6 +671,8 @@ bold text, etc.).
         code_info         Fenced code block info string
         code_block        Fenced code block body
         code_inline       Inline code body
+        meta_mark         Front matter delimiters (default: code_mark)
+        meta_block        Front matter body (default: code_block)
 
     This option can be specified multiple times.  Color labels can
     also be set via `--config`.  When both are
@@ -937,6 +942,8 @@ Supported Markdown elements:
 - Italic text (`*italic*` or `_italic_`)
 - Inline code (`` `code` ``)
 - Code blocks (fenced with ```` ``` ```` or `~~~`)
+- Front matter (TOML between `+++` lines, YAML between `---`
+lines), shown as a code block
 - HTML comments (`<!-- comment -->`)
 
 Code block detection follows the CommonMark specification:
@@ -964,7 +971,8 @@ using [Greple::tee](https://metacpan.org/pod/Greple%3A%3Atee) to pipe matched re
 [ansifold(1)](https://metacpan.org/pod/App%3A%3Aansifold).  It preserves ANSI escape sequences
 and maintains proper indentation for nested lists.  List items,
 definition lists and the paragraphs joined by `--refill` are
-folded; code blocks, HTML comments, and tables are excluded.
+folded; code blocks, front matter, HTML comments, and tables are
+excluded.
 
 Recognized list markers include `*`, `+`, `-`, `1.`, `1)`, `#.`,
 and `#)`.  The `#` marker is the auto-numbered list of Pandoc's Markdown.

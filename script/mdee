@@ -720,6 +720,8 @@ Others are always processed for structural integrity.
     always    code_mark        (``` or ~~~)
               code_block
               code_info
+    always    meta_mark        (--- or +++ at the top)
+              meta_block
     always    comment          (<!-- ... -->)
     always    link             ([text](url))
               image            (![text])
@@ -902,8 +904,9 @@ which is faster.  C<--config refill_parser=pandoc> uses pandoc 2.11.3
 or later instead.
 
 Front matter at the top of the file, TOML between C<+++> lines or
-YAML between C<---> lines (or ended by C<...>), is left as it is;
-C<--config front_matter=0> joins its lines as the parser reports them.
+YAML between C<---> lines (or ended by C<...>), is left as it is
+and shown as a code block; C<--config front_matter=0> takes its lines
+as Markdown.
 
 =item B<--[no-]table>
 
@@ -1323,6 +1326,8 @@ Available labels:
     code_info         Fenced code block info string
     code_block        Fenced code block body
     code_inline       Inline code body
+    meta_mark         Front matter delimiters (default: code_mark)
+    meta_block        Front matter body (default: code_block)
 
 This option can be specified multiple times.  Color labels can
 also be set via C<--config>.  When both are
@@ -1632,6 +1637,9 @@ Supported Markdown elements:
 
 =item * Code blocks (fenced with C<```> or C<~~~>)
 
+=item * Front matter (TOML between C<+++> lines, YAML between C<--->
+lines), shown as a code block
+
 =item * HTML comments (C<< <!-- comment --> >>)
 
 =back
@@ -1667,7 +1675,8 @@ using L<Greple::tee> to pipe matched regions through
 L<ansifold(1)|App::ansifold>.  It preserves ANSI escape sequences
 and maintains proper indentation for nested lists.  List items,
 definition lists and the paragraphs joined by C<--refill> are
-folded; code blocks, HTML comments, and tables are excluded.
+folded; code blocks, front matter, HTML comments, and tables are
+excluded.
 
 Recognized list markers include C<*>, C<+>, C<->, C<1.>, C<1)>, C<#.>,
 and C<#)>.  The C<#> marker is the auto-numbered list of Pandoc's Markdown.

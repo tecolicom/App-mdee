@@ -38,7 +38,7 @@ B<App::Greple::md> is a L<greple|App::Greple> module for viewing
 Markdown files in the terminal with syntax highlighting.
 
 It colorizes headings, bold, italic, strikethrough, inline code,
-fenced code blocks, HTML comments, blockquotes, horizontal rules,
+fenced code blocks, front matter, HTML comments, blockquotes, horizontal rules,
 links, and images.  Tables are formatted with aligned columns and
 optional Unicode box-drawing borders.  Long lines in list items can
 be folded with proper indentation.  Links become clickable via OSC 8
@@ -68,7 +68,7 @@ and the paragraphs joined by C<--refill>.  Long lines are wrapped
 with proper indentation using L<ansifold(1)|App::ansifold> via
 L<Greple::tee>; the continuation lines of a block quote start with
 the quote marker again.
-Code blocks, HTML comments, and tables are
+Code blocks, front matter, HTML comments, and tables are
 excluded from folding.  The fold width is controlled by the
 C<fold_width> config parameter (default: 80), and the run-in and
 run-out widths for line breaking (kinsoku) by C<fold_runin> and
@@ -256,8 +256,8 @@ Available parameters:
     refill_parser   cmark (the CommonMark module), mdperl (Markdown::Perl)
                     or pandoc (default: the first that is there, in
                     that order)
-    front_matter    leave TOML and YAML front matter alone with refill
-                    (default: 1)
+    front_matter    show TOML and YAML front matter as a code block
+                    and leave it alone with refill (default: 1)
     table           table formatting (default: 1)
     table_trim      trim cell whitespace (default: 1)
     table_width     table width in columns; cells of over-wide
@@ -306,15 +306,24 @@ line breaks are kept, and so is the break before a list marker, a
 horizontal rule, a table row or a definition (C<: >).  When folding
 is enabled, the joined lines are folded too.
 
-Front matter at the top of the file is left as it is: TOML between
-C<+++> lines, and YAML from a C<---> line to a C<---> or C<...> line,
-as pandoc takes it (the opening line is not followed by a blank line).
-Front matter is not part of CommonMark, and libcmark reads YAML as
-paragraphs and list items.  C<front_matter=0> joins these lines as the
-parser reports them.
+Front matter (see L</Front Matter>) is left as it is.
 
     greple -Mmd::config(refill=1) file.md
     greple -Mmd::config(refill=1,refill_parser=pandoc) file.md
+
+=head2 Front Matter
+
+Front matter at the top of the file is shown as a code block: every
+line in C<meta_block>, including the delimiter lines, whose text is
+in C<meta_mark>, with no other markup, and it is not folded or joined.
+TOML front matter is between C<+++> lines, and YAML front matter goes
+from a C<---> line to a C<---> or C<...> line, as pandoc takes it (the
+opening line is not followed by a blank line).
+
+Front matter is not part of CommonMark.  pandoc and L<Markdown::Perl>
+take YAML front matter as metadata, while libcmark reads it as a rule,
+paragraphs and list items.  C<front_matter=0> takes the lines as
+Markdown, as libcmark does.
 
 =head2 OSC 8 Hyperlinks
 
@@ -388,12 +397,18 @@ are used instead, and these are emphasis.
     code_info    ${base_name}=y70   L10
     code_block   /L23;E             /L05;E
     code_inline  L00/L23            L25/L05
+    meta_mark    -                  -
+    meta_block   -                  -
 
 Inline code backticks are displayed as C<`contentE<0xb4>> using
 C<code_tick> color.  Multi-backtick delimiters are collapsed to a
 single pair with optional surrounding spaces stripped (per CommonMark).
 The open/close markers can be customized via C<tick_open>/C<tick_close>
 config parameters.
+
+C<meta_mark> and C<meta_block> color the delimiter lines and the
+body of front matter (see L</Front Matter>).  They are undefined by
+default and fall back to C<code_mark> and C<code_block>.
 
 =head2 Block Elements
 
@@ -489,6 +504,7 @@ use App::Greple::md::Blocks qw(blocks);
 
 my @color_labels = qw(
     code_mark code_tick code_info code_block code_inline
+    meta_mark meta_block
     comment link image image_link
     h1 h2 h3 h4 h5 h6
     bold italic strike emphasis_mark
@@ -504,7 +520,7 @@ my $config = Getopt::EX::Config->new(
     fold            => 0,        # text folding
     refill          => 0,        # join the lines of paragraphs
     refill_parser   => '',       # cmark (CommonMark module), mdperl (Markdown::Perl) or pandoc; '' = whichever is there
-    front_matter    => 1,        # leave front matter (+++ TOML, --- YAML) at the top alone with refill
+    front_matter    => 1,        # front matter (+++ TOML, --- YAML) at the top is a code block
     fold_width      => 80,       # fold width
     fold_runin      => 4,        # run-in width in folded lines (ansifold default)
     fold_runout     => 4,        # run-out width in folded lines (ansifold default)
@@ -711,6 +727,14 @@ sub md_color {
     $cm->color($label, $text);
 }
 
+# The color of $label, or of $fallback when $label is not defined
+sub fallback_color {
+    my($label, $fallback, $text) = @_;
+    $label = $fallback unless exists $cm->{HASH}{$label}
+                             && $cm->{HASH}{$label} ne '';
+    md_color($label, $text);
+}
+
 sub mark_color {
     my($type, $text) = @_;
     my $label = "${type}_mark";
@@ -836,6 +860,19 @@ sub Step {
 
 my %colorize = (
 
+    front_matter => Step(sub {
+        my $front = front_matter($_) // return;
+        my($open, @body) = split /(?<=\n)/, $front;
+        my $close = pop @body;
+        chomp $open;
+        my $mark  = sub { fallback_color('meta_mark',  'code_mark',  $_[0]) };
+        my $block = sub { fallback_color('meta_block', 'code_block', $_[0]) };
+        substr($_, 0, length $front) = protect(join '',
+            $block->($mark->($open)), "\n",
+            (map { $block->($_) } @body),
+            $block->($mark->($close)));
+    }),
+
     code_blocks => Step(sub {
         # closing fence: the same character, at least as long (CommonMark)
         s{^( {0,3})((`|~)\3{2,})(.*)\n((?s:.*?))^( {0,3})(\2\3*)(\h*)$}{
@@ -953,7 +990,7 @@ my %colorize = (
 #
 
 # Always before headings (protection + links)
-my @protect_steps = qw(code_blocks comments image_links images links);
+my @protect_steps = qw(front_matter code_blocks comments image_links images links);
 
 # Inline steps controlled by heading_markup
 my @inline_steps  = qw(inline_code horizontal_rules bold_italic bold italic strike);
@@ -1095,6 +1132,39 @@ sub refill_block {
 our @refill_lines;
 our @table_shift;
 
+# Front matter at the top of the text: TOML (+++ ... +++) or YAML
+# (--- ... --- or ...).  It is not part of CommonMark: pandoc takes TOML
+# as a paragraph and YAML as metadata, Markdown::Perl takes YAML as
+# metadata, and libcmark takes YAML as paragraphs and list items.  As
+# in pandoc, a blank line right after the opening --- makes it a rule.
+# Returns the front matter without the line break after its last line,
+# or an empty list.  $front_lines is its number of lines, set by
+# begin() before the text is changed, for refill and the fold regions.
+our $front_lines = 0;
+sub front_matter {
+    $config->{front_matter} or return;
+    $_[0] =~ m{
+        \A (?: \+\+\+ \r?\n (?:[^\n]*\n)*? \+\+\+
+             | ---    \r?\n (?!\r?\n) (?:[^\n]*\n)*? (?:---|\.\.\.) )
+        \h* \r? (?=\n|\z)
+    }px ? ${^MATCH} : ();
+}
+
+# The region of the front matter, used by --fold-by as --exclude.  The
+# text is colored by then, so the region is found by its line count.
+sub front_matter_region {
+    my %arg = @_;
+    delete $arg{&FILELABEL};
+    $front_lines or return ();
+    my $pos = 0;
+    for (1 .. $front_lines) {
+        $pos = index($_, "\n", $pos);
+        $pos < 0 and return [ 0, length ];
+        $pos++;
+    }
+    [ 0, $pos ];
+}
+
 # Join the lines of every paragraph (Para) and tight list item or
 # definition (Plain) in $_, from the bottom up so that the line numbers
 # of the blocks above stay valid, and remember where the joined lines
@@ -1104,15 +1174,7 @@ sub refill {
     my @lines = split /\n/, $_, -1;
     my @done;
     my $limit = @lines + 1;
-    # Front matter is left alone: TOML (+++ ... +++) is a paragraph to
-    # pandoc, and YAML (--- ... --- or ...) is metadata to pandoc and
-    # Markdown::Perl, but paragraphs and list items to libcmark.  As in
-    # pandoc, a blank line right after the opening --- makes it a rule.
-    my $front = !$config->{front_matter} ? 0 : m{
-        \A (?: \+\+\+ \r?\n (?:[^\n]*\n)*? \+\+\+
-             | ---    \r?\n (?!\r?\n) (?:[^\n]*\n)*? (?:---|\.\.\.) )
-        \h* \r? (?:\n|\z)
-    }px ? (${^MATCH} =~ tr/\n//) : 0;
+    my $front = $front_lines;
     for my $b (sort { $b->{first} <=> $a->{first} }
                grep { $_->{type} eq 'Para' or $_->{type} eq 'Plain' }
                blocks($_, parser => $config->{refill_parser})) {
@@ -1233,6 +1295,7 @@ sub begin {
     for my $func (begin_functions()) {
         $func->call(@_);
     }
+    $front_lines = do { my $f = front_matter($_); defined $f ? ($f =~ tr/\n//) + 1 : 0 };
     refill()       if $config->{refill};
     colorize()     if $config->{colorize};
     format_table() if $config->{table};
@@ -1394,6 +1457,7 @@ option --fold-by \
     -- \
     --exclude {CODE_BLOCK} \
     --exclude {COMMENT} \
+    --exclude &__PACKAGE__::front_matter_region \
     --exclude &__PACKAGE__::table_regions \
     --cm N -E {LIST_ITEM} \
     --cm N -E {DEFINITION} \

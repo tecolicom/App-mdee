@@ -247,7 +247,7 @@ Use [tecolicom/tap](https://github.com/tecolicom/homebrew-tap):
     are indented under its text, those of a block quote start with the
     quote marker again.  Default is enabled.
 
-    Supported list markers: `*`, `-`, `1.`, `1)`, `#.`, `#)`.
+    Supported list markers: `*`, `+`, `-`, `1.`, `1)`, `#.`, `#)`.
     The `#.` and `#)` forms are Pandoc's auto-numbered list syntax.
 
 - **-r**, **--\[no-\]refill**
@@ -961,7 +961,7 @@ and maintains proper indentation for nested lists.  List items,
 definition lists and the paragraphs joined by `--refill` are
 folded; code blocks, HTML comments, and tables are excluded.
 
-Recognized list markers include `*`, `-`, `1.`, `1)`, `#.`,
+Recognized list markers include `*`, `+`, `-`, `1.`, `1)`, `#.`,
 and `#)`.  The `#` marker is Pandoc's auto-numbered list syntax.
 
 The folding width is controlled by `--fold-width` option (default: the

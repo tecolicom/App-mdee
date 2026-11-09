@@ -231,6 +231,15 @@ subtest 'list marker patterns' => sub {
 
     # #) should fold
     ok($fold_lines->("    #) $long\n") > 1, '#) list item is folded');
+
+    # + (CommonMark bullet) should fold with the continuation indented
+    # under the text; without the md fold the output is still folded,
+    # but from the start of the line
+    my @plus = map { s/\e\[[\d;]*[mK]//gr }
+        $fold_lines->("+ " . join(' ', ('word') x 30) . "\n");
+    ok(@plus > 1, '+ list item is folded');
+    is(scalar(grep { !/^  \S/ } @plus[1..$#plus]), 0,
+       '+ list item continuation lines are indented');
 };
 
 # Test: md module table formatting (actual execution)

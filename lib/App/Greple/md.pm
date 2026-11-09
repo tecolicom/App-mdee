@@ -77,7 +77,7 @@ C<fold_runout> (default: 4, as in ansifold).
     greple -Mmd -- --fold file.md
     greple -Mmd::config(fold_width=60) -- --fold file.md
 
-Supported list markers: C<*>, C<->, C<1.>, C<1)>, C<#.>, C<#)>.
+Supported list markers: C<*>, C<+>, C<->, C<1.>, C<1)>, C<#.>, C<#)>.
 
 The module option C<--fold> (before C<-->) enables the same folding
 through the config.
@@ -1352,7 +1352,7 @@ define {CODE_BLOCK}  ^ {0,3}(?<bt>(?<fc>[`~])\g{fc}{2,}+)(.*)\n((?s:.*?))^ {0,3}
 define {COMMENT}     ^<!--(?![->])(?s:.+?)-->
 define {SGR}         (?:\e\[[\d:;]*[mK])*
 define {SGR_END}     (?:\e\[[0;]*[mK])*
-define {LIST_MARKER} (?:[*-]|(?:\d+|#)[.)])
+define {LIST_MARKER} (?:[*+-]|(?:\d+|#)[.)])
 define {LIST_ITEM}   ^\h*{LIST_MARKER}\h+.*\n
 define {QUOTE_LINE}  ^ {0,3}(?:{SGR}>\h?)+.*\n
 # The prefix of a folded line's continuation lines: the quote markers

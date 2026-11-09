@@ -274,6 +274,10 @@ Use [tecolicom/tap](https://github.com/tecolicom/homebrew-tap):
     which is faster.  `--config refill_parser=pandoc` uses pandoc 2.11.3
     or later instead.
 
+    Front matter at the top of the file, TOML between `+++` lines or
+    YAML between `---` lines (or ended by `...`), is left as it is;
+    `--config front_matter=0` joins its lines as the parser reports them.
+
 - **--\[no-\]table**
 
     Enable or disable table formatting.  When enabled, Markdown tables

@@ -256,6 +256,8 @@ Available parameters:
     refill_parser   cmark (the CommonMark module), mdperl (Markdown::Perl)
                     or pandoc (default: the first that is there, in
                     that order)
+    front_matter    leave TOML and YAML front matter alone with refill
+                    (default: 1)
     table           table formatting (default: 1)
     table_trim      trim cell whitespace (default: 1)
     table_width     table width in columns; cells of over-wide
@@ -303,6 +305,13 @@ joins the lines of the original text and changes nothing else.  Hard
 line breaks are kept, and so is the break before a list marker, a
 horizontal rule, a table row or a definition (C<: >).  When folding
 is enabled, the joined lines are folded too.
+
+Front matter at the top of the file is left as it is: TOML between
+C<+++> lines, and YAML from a C<---> line to a C<---> or C<...> line,
+as pandoc takes it (the opening line is not followed by a blank line).
+Front matter is not part of CommonMark, and libcmark reads YAML as
+paragraphs and list items.  C<front_matter=0> joins these lines as the
+parser reports them.
 
     greple -Mmd::config(refill=1) file.md
     greple -Mmd::config(refill=1,refill_parser=pandoc) file.md
@@ -495,6 +504,7 @@ my $config = Getopt::EX::Config->new(
     fold            => 0,        # text folding
     refill          => 0,        # join the lines of paragraphs
     refill_parser   => '',       # cmark (CommonMark module), mdperl (Markdown::Perl) or pandoc; '' = whichever is there
+    front_matter    => 1,        # leave front matter (+++ TOML, --- YAML) at the top alone with refill
     fold_width      => 80,       # fold width
     fold_runin      => 4,        # run-in width in folded lines (ansifold default)
     fold_runout     => 4,        # run-out width in folded lines (ansifold default)
@@ -595,7 +605,7 @@ sub finalize {
     no_user_settings(qw(ansicolumn ansifold));
     $config->deal_with($argv,
                        "mode|m=s", "base_color|B=s",
-                       "colorize!", "nofork!", "fold!", "refill!", "refill_parser=s", "fold_width=i", "fold_runin=i", "fold_runout=i",
+                       "colorize!", "nofork!", "fold!", "refill!", "refill_parser=s", "front_matter!", "fold_width=i", "fold_runin=i", "fold_runout=i",
                        "table!", "table_trim!",
                        "table_width=i", "table_cell=s", "table_wrap_mark=s", "table_cell_mark=s", "rule!", "table_style=s",
                        "table_runin=i", "table_runout=i", "table_boundary=s", "table_linebreak=s",
@@ -1094,13 +1104,22 @@ sub refill {
     my @lines = split /\n/, $_, -1;
     my @done;
     my $limit = @lines + 1;
-    # TOML front matter (+++ ... +++) is a paragraph to pandoc
-    my $front = /\A\+\+\+\r?\n(?:[^\n]*\n)*?\+\+\+\r?(?:\n|\z)/p ? (${^MATCH} =~ tr/\n//) : 0;
+    # Front matter is left alone: TOML (+++ ... +++) is a paragraph to
+    # pandoc, and YAML (--- ... --- or ...) is metadata to pandoc and
+    # Markdown::Perl, but paragraphs and list items to libcmark.  As in
+    # pandoc, a blank line right after the opening --- makes it a rule.
+    my $front = !$config->{front_matter} ? 0 : m{
+        \A (?: \+\+\+ \r?\n (?:[^\n]*\n)*? \+\+\+
+             | ---    \r?\n (?!\r?\n) (?:[^\n]*\n)*? (?:---|\.\.\.) )
+        \h* \r? (?:\n|\z)
+    }px ? (${^MATCH} =~ tr/\n//) : 0;
     for my $b (sort { $b->{first} <=> $a->{first} }
                grep { $_->{type} eq 'Para' or $_->{type} eq 'Plain' }
                blocks($_, parser => $config->{refill_parser})) {
         my($first, $last) = @{$b}{qw(first last)};
-        next if $last < $first or $last >= $limit or $first <= $front;
+        # libcmark runs a paragraph on past a closing "..."
+        $first = $front + 1 if $first <= $front;
+        next if $last < $first or $last >= $limit;
         $limit = $first;
         my @joined = refill_block([ @lines[$first-1 .. $last-1] ], $b->{depth});
         splice @lines, $first-1, $last-$first+1, @joined;

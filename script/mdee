@@ -901,6 +901,10 @@ the L<CommonMark> module (an interface to libcmark) when it is there,
 which is faster.  C<--config refill_parser=pandoc> uses pandoc 2.11.3
 or later instead.
 
+Front matter at the top of the file, TOML between C<+++> lines or
+YAML between C<---> lines (or ended by C<...>), is left as it is;
+C<--config front_matter=0> joins its lines as the parser reports them.
+
 =item B<--[no-]table>
 
 Enable or disable table formatting.  When enabled, Markdown tables

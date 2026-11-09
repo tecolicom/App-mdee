@@ -365,8 +365,9 @@ to C<emphasis_mark>.  Define them via C<--cm> to override per type:
 C<*> and C<**> start and end emphasis as in CommonMark: a delimiter
 next to a letter on one side and punctuation on the other does not
 count, so C<L*=50, a*=68> is not italic.  In Japanese text this also
-rejects C<日本語の*「強調」*です> and C<日本語の**強調。**です>, as
-pandoc does.  With C<cjk_friendly=1>, the rules of
+rejects C<日本語の*「強調」*です> and C<日本語の**強調。**です>, as the
+commonmark and gfm readers of pandoc do.  With C<cjk_friendly=1>,
+the rules of
 L<markdown-cjk-friendly|https://github.com/tats-u/markdown-cjk-friendly>
 are used instead, and these are emphasis.
 
@@ -493,7 +494,7 @@ my $config = Getopt::EX::Config->new(
     colorize        => 1,        # syntax highlighting
     fold            => 0,        # text folding
     refill          => 0,        # join the lines of paragraphs
-    refill_parser   => '',       # cmark (CommonMark module) or pandoc; '' = whichever is there
+    refill_parser   => '',       # cmark (CommonMark module), mdperl (Markdown::Perl) or pandoc; '' = whichever is there
     fold_width      => 80,       # fold width
     fold_runin      => 4,        # run-in width in folded lines (ansifold default)
     fold_runout     => 4,        # run-out width in folded lines (ansifold default)

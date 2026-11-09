@@ -84,8 +84,8 @@ not interpreted or reformatted.  Some formatting has been added since
 because it made the text more readable: tables are aligned, long
 list items are folded, the default themes hide markup characters,
 and closing hashes are appended to lower-level headings.  With
-`--refill`, the lines that [pandoc](https://pandoc.org) has found to
-be one paragraph are joined as well.  Everything else is still the
+`--refill`, the lines that a Markdown parser has found to be
+one paragraph are joined as well.  Everything else is still the
 source text.  This is why backslash escapes such as `\*` are shown
 as written, and why `--no-theme` gives back the original file, in
 color.
@@ -248,7 +248,8 @@ Use [tecolicom/tap](https://github.com/tecolicom/homebrew-tap):
     quote marker again.  Default is enabled.
 
     Supported list markers: `*`, `+`, `-`, `1.`, `1)`, `#.`, `#)`.
-    The `#.` and `#)` forms are Pandoc's auto-numbered list syntax.
+    The `#.` and `#)` forms are the auto-numbered lists of Pandoc's
+    Markdown.
 
 - **-r**, **--\[no-\]refill**
 
@@ -838,7 +839,7 @@ To change the text before it is formatted, give a function to the
     mdee --no-nup file.md       # output to stdout without nup
     mdee --no-fold file.md      # disable line folding
     mdee --no-table file.md     # disable table formatting
-    mdee -r file.md             # join paragraph lines (needs pandoc)
+    mdee -r file.md             # join paragraph lines
 
     # Output styles
     mdee -s pager file.md       # fold + table, output to pager
@@ -962,7 +963,7 @@ definition lists and the paragraphs joined by `--refill` are
 folded; code blocks, HTML comments, and tables are excluded.
 
 Recognized list markers include `*`, `+`, `-`, `1.`, `1)`, `#.`,
-and `#)`.  The `#` marker is Pandoc's auto-numbered list syntax.
+and `#)`.  The `#` marker is the auto-numbered list of Pandoc's Markdown.
 
 The folding width is controlled by `--fold-width` option (default: the
 pane width minus 3 and the run-in width, 78 for a pane of 85).
@@ -1065,8 +1066,9 @@ with a letter on one side and punctuation on the other does not
 count, so `L*=50, a*=68` is not italic.  CommonMark counts Unicode
 punctuation, and this rejects some emphasis in Japanese text,
 such as `日本語の*「強調」*です` and `日本語の**強調。**です`.  mdee
-shows them as pandoc and zenn.dev do, with the markers and without
-emphasis, so that such text can be found before it is published.
+shows them as the commonmark and gfm readers of pandoc and zenn.dev
+do, with the markers and without emphasis, so that such text can be
+found before it is published.
 
 With `cjk_friendly=1` (`--config cjk_friendly=1`, or
 `md_config+=(cjk_friendly=1)` in `config.sh`), the rules of
@@ -1098,8 +1100,8 @@ are not supported.
 
 ## Paragraph Refill
 
-`--refill` joins lines by the rules of Markdown, as pandoc reads
-them.  Lines of verse, addresses or lyrics that rely on the line
+`--refill` joins lines by the rules of Markdown, as the parser
+reads them.  Lines of verse, addresses or lyrics that rely on the line
 breaks without a hard line break (two spaces or a backslash at the
 end of the line) are joined as well, and so are the lines of a
 display math block between `$$` lines.  Do not use `--refill`

@@ -671,8 +671,8 @@ bold text, etc.).
         code_info         Fenced code block info string
         code_block        Fenced code block body
         code_inline       Inline code body
-        meta_mark         Front matter delimiters (default: code_mark)
-        meta_block        Front matter body (default: code_block)
+        meta_mark         Front matter delimiter lines
+        meta_block        Front matter body
 
     This option can be specified multiple times.  Color labels can
     also be set via `--config`.  When both are

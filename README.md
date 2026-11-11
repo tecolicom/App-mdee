@@ -200,7 +200,7 @@ size, as a printer does for 4-up.
 [ansi2pdf(1)](https://github.com/tecolicom/App-ansi2pdf) make the
 PDF, so `ansi2pdf` has to be installed, and the output style has to
 be `nup`, which is the default.  See `-T` and `-o` in
-["Layout Options (passed to nup)"](#layout-options-passed-to-nup).
+["Output Options"](#output-options).
 
 # INSTALLATION
 
@@ -814,6 +814,13 @@ bold text, etc.).
     the text.  The label format and color are set by the `FILE_FORMAT`
     and `FILE` theme keys (see `--config`).
 
+## Output Options
+
+- **--\[no-\]pager**\[=_COMMAND_\]
+
+    Set the pager command.  Use `--pager=less` to specify a pager,
+    or `--no-pager` to disable paging.
+
 - **-T** _DEVICE_, **--device**=_DEVICE_
 
     Set the device to show the output on, which is given to
@@ -840,13 +847,6 @@ bold text, etc.).
     file as it is.
 
         mdee -o README.pdf README.md
-
-## Pager Options
-
-- **--\[no-\]pager**\[=_COMMAND_\]
-
-    Set the pager command.  Use `--pager=less` to specify a pager,
-    or `--no-pager` to disable paging.
 
 # CONFIGURATION
 

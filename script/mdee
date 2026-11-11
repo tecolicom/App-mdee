@@ -848,7 +848,7 @@ L<nup(1)|App::nup> and
 L<ansi2pdf(1)|https://github.com/tecolicom/App-ansi2pdf> make the
 PDF, so C<ansi2pdf> has to be installed, and the output style has to
 be C<nup>, which is the default.  See C<-T> and C<-o> in
-L</Layout Options (passed to nup)>.
+L</Output Options>.
 
 =head1 INSTALLATION
 
@@ -1512,6 +1512,17 @@ shown side by side with C<--parallel> and the panes should start with
 the text.  The label format and color are set by the C<FILE_FORMAT>
 and C<FILE> theme keys (see C<--config>).
 
+=back
+
+=head2 Output Options
+
+=over 4
+
+=item B<--[no-]pager>[=I<COMMAND>]
+
+Set the pager command.  Use C<--pager=less> to specify a pager,
+or C<--no-pager> to disable paging.
+
 =item B<-T> I<DEVICE>, B<--device>=I<DEVICE>
 
 Set the device to show the output on, which is given to
@@ -1538,17 +1549,6 @@ well.  Otherwise, what is shown on the terminal is written to the
 file as it is.
 
     mdee -o README.pdf README.md
-
-=back
-
-=head2 Pager Options
-
-=over 4
-
-=item B<--[no-]pager>[=I<COMMAND>]
-
-Set the pager command.  Use C<--pager=less> to specify a pager,
-or C<--no-pager> to disable paging.
 
 =back
 

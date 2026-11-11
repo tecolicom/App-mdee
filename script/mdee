@@ -57,7 +57,7 @@ mdee - em·dee, Markdown Easy on the Eyes
     --cm --colormap=L=SPEC  override color for element (e.g., h1=RD)
     --hm --heading-markup=# enable markup in headings (all/bold/...)
          --show=#           set field visibility (e.g., italic=1)
-     -C  --pane=#           number of columns
+     -C  --pane=#[,#]       number of columns, and rows
      -R  --row=#            number of rows
      -G  --grid=#           grid layout (e.g., 2x3)
      -P  --page=#           page height in lines
@@ -209,7 +209,7 @@ declare -A OPTS=(
     [          pager |    ?!         # pager command         ]=
     [         device | T  :          # output device         ]=
     [         output | o  :          # output file           ]=
-    [           pane | C  : =i       # number of columns     ]=0
+    [           pane | C  : =(^[0-9]+(,[0-9]+)?$) # columns[,rows] ]=0
     [     pane-width | S  : =i       # pane width            ]=85
     [           grid | G  :>pass_nup # grid layout           ]=
     [            row | R  :>pass_nup # number of rows        ]=
@@ -364,7 +364,12 @@ fi
 
 # Apply config defaults for pane/pane-width
 (( pane_width == 85 )) && pane_width=${default[pane_width]:-85}
-(( pane == 0 ))        && pane=${default[pane]:-0}
+[[ $pane == 0 ]]       && pane=${default[pane]:-0}
+# -C C,R gives the number of rows as well, which is for nup; the
+# number of columns is what counts here
+[[ $pane =~ ^([0-9]+)(,([0-9]+))?$ ]] ||
+    die "$pane: invalid number of panes (expected C or C,R)"
+pane=${BASH_REMATCH[1]} _rows=${BASH_REMATCH[3]}
 
 # Output width: explicit option (non-zero) > config default > terminal width
 # On paper, the config default is not used, and the width of the paper
@@ -616,10 +621,10 @@ declare -a column_opts=()
 run_nup() {
     if [[ ${parallel:-} ]]; then
         # one \f separated page per file; ansicolumn -V shows pages side by side
-        invoke nup "${pass_nup[@]}" -V --pane=$_cols - --pages ${column_opts[@]+"${column_opts[@]}"}
+        invoke nup "${pass_nup[@]}" -V --pane=$_cols${_rows:+,$_rows} - --pages ${column_opts[@]+"${column_opts[@]}"}
     elif (( ${#column_opts[@]} > 0 )); then
         # fix the pane count so that nup agrees with the fold width
-        invoke nup "${pass_nup[@]}" --pane=$_cols - "${column_opts[@]}"
+        invoke nup "${pass_nup[@]}" --pane=$_cols${_rows:+,$_rows} - "${column_opts[@]}"
     else
         invoke nup "${pass_nup[@]}"
     fi
@@ -644,7 +649,7 @@ pass_nup+=("--runin=$runin" "--runout=$runout" "--boundary=$boundary")
 
 # Add pane/pane-width to pass_nup
 (( pane_width != 85 )) && pass_nup+=("--pane-width=$pane_width")
-(( pane != 0 ))        && pass_nup+=("--pane=$pane")
+(( pane != 0 ))        && pass_nup+=("--pane=$pane${_rows:+,$_rows}")
 [[ $device ]]          && pass_nup+=(-T "$device")
 [[ $output ]]          && pass_nup+=(-o "$output")
 
@@ -1417,9 +1422,11 @@ Show two or more files side by side, one pane per file, instead of
 one after another.  The number of panes is the number of files
 unless C<--pane> is given.  Ignored with a single file.
 
-=item B<-C> I<N>, B<--pane>=I<N>
+=item B<-C> I<C>[,I<R>], B<--pane>=I<C>[,I<R>]
 
-Set the number of columns (panes).  When not specified (or 0),
+Set the number of columns (panes).  The number of rows may follow
+after a comma: C<-C2,2> is 2 columns and 2 rows on a page, the same
+as C<-C2 -R2>.  When not specified (or 0),
 the number of columns is calculated from the output width
 (C<--width>, default terminal width) and C<--pane-width>.  If only 1 column fits, nup formatting (borders
 etc.) is preserved but pagination is handled by the pager instead.
@@ -1427,11 +1434,13 @@ Use C<--nup> to force nup's native pagination even in single column.
 
 =item B<-R> I<N>, B<--row>=I<N>
 
-Set the number of rows.
+Set the number of rows.  C<-C> takes it as well, as C<-C2,2>.
 
 =item B<-G> I<CxR>, B<--grid>=I<CxR>
 
 Set grid layout. For example, C<-G2x3> creates 2 columns and 3 rows.
+The text is folded for the number of columns of C<-C>, which this
+option does not tell to mdee, so C<-C2,3> is better.
 
 =item B<-P> I<N>, B<--page>=I<N>
 
@@ -1539,7 +1548,7 @@ The C<default> associative array supports the following keys:
 
 =item C<default[pane_width]> - Corresponds to C<--pane-width> (e.g., C<100>)
 
-=item C<default[pane]> - Corresponds to C<--pane> (e.g., C<2>)
+=item C<default[pane]> - Corresponds to C<--pane> (e.g., C<2> or C<2,2>)
 
 =item C<default[base_color]> - Corresponds to C<--base-color> (e.g., C<DarkCyan>)
 
@@ -1584,7 +1593,7 @@ C<--begin> option of the md module:
 
     mdee README.md              # view markdown file
     mdee -C2 document.md        # 2-column view
-    mdee -G2x2 manual.md        # 2x2 grid (4-up)
+    mdee -C2,2 manual.md        # 2x2 grid (4-up)
     mdee -w170 file.md          # two 85-column panes on a wide terminal
     mdee -V -w170 a.md b.md     # two files in 85 columns each
     mdee --fold-width=60 a.md   # narrower text within the pane

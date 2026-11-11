@@ -38,7 +38,7 @@ mdee - em·dee, Markdown Easy on the Eyes
     --cm --colormap=L=SPEC  override color for element (e.g., h1=RD)
     --hm --heading-markup=# enable markup in headings (all/bold/...)
          --show=#           set field visibility (e.g., italic=1)
-     -C  --pane=#           number of columns
+     -C  --pane=#[,#]       number of columns, and rows
      -R  --row=#            number of rows
      -G  --grid=#           grid layout (e.g., 2x3)
      -P  --page=#           page height in lines
@@ -724,9 +724,11 @@ bold text, etc.).
     one after another.  The number of panes is the number of files
     unless `--pane` is given.  Ignored with a single file.
 
-- **-C** _N_, **--pane**=_N_
+- **-C** _C_\[,_R_\], **--pane**=_C_\[,_R_\]
 
-    Set the number of columns (panes).  When not specified (or 0),
+    Set the number of columns (panes).  The number of rows may follow
+    after a comma: `-C2,2` is 2 columns and 2 rows on a page, the same
+    as `-C2 -R2`.  When not specified (or 0),
     the number of columns is calculated from the output width
     (`--width`, default terminal width) and `--pane-width`.  If only 1 column fits, nup formatting (borders
     etc.) is preserved but pagination is handled by the pager instead.
@@ -734,11 +736,13 @@ bold text, etc.).
 
 - **-R** _N_, **--row**=_N_
 
-    Set the number of rows.
+    Set the number of rows.  `-C` takes it as well, as `-C2,2`.
 
 - **-G** _CxR_, **--grid**=_CxR_
 
     Set grid layout. For example, `-G2x3` creates 2 columns and 3 rows.
+    The text is folded for the number of columns of `-C`, which this
+    option does not tell to mdee, so `-C2,3` is better.
 
 - **-P** _N_, **--page**=_N_
 
@@ -831,7 +835,7 @@ The `default` associative array supports the following keys:
 - `default[fold_width]` - Corresponds to `--fold-width` (e.g., `80`)
 - `default[refill]` - Corresponds to `--refill` (`1` to enable)
 - `default[pane_width]` - Corresponds to `--pane-width` (e.g., `100`)
-- `default[pane]` - Corresponds to `--pane` (e.g., `2`)
+- `default[pane]` - Corresponds to `--pane` (e.g., `2` or `2,2`)
 - `default[base_color]` - Corresponds to `--base-color` (e.g., `DarkCyan`)
 
 **Overriding theme colors**
@@ -873,7 +877,7 @@ To change the text before it is formatted, give a function to the
 
     mdee README.md              # view markdown file
     mdee -C2 document.md        # 2-column view
-    mdee -G2x2 manual.md        # 2x2 grid (4-up)
+    mdee -C2,2 manual.md        # 2x2 grid (4-up)
     mdee -w170 file.md          # two 85-column panes on a wide terminal
     mdee -V -w170 a.md b.md     # two files in 85 columns each
     mdee --fold-width=60 a.md   # narrower text within the pane

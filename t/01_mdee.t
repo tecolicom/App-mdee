@@ -768,6 +768,24 @@ subtest q(refill option) => sub {
     like($out, qr/^greple .*refill=1/m, q(other themes leave default[refill]));
 };
 
+subtest q(pane option with rows) => sub {
+    my $run = sub { my $opt = shift; scalar `COLUMNS=200 $mdee -ddn $opt $test_md 2>&1` };
+
+    my $cr = $run->('-C2,2');
+    like($cr, qr/debug: nup .*--pane=2,2/, q(-C2,2 gives nup the columns and the rows));
+    like($cr, qr/fold_width=93\b/, q(-C2,2 folds for two columns));
+
+    like($run->('-C3'), qr/debug: nup .*--pane=3(?: |$)/m, q(-C3 is the columns alone));
+    like($run->('-C2,2 -w 180'), qr/debug: nup .*--pane=2,2 - -w 180/,
+         q(the rows are kept with -w));
+    like($run->('-C2,3 -R1'), qr/debug: nup .*-R 1 .*--pane=2,3/,
+         q(-R is given to nup with -C C,R));
+
+    for my $bad (qw(2x2 a ,2 2,)) {
+        like($run->("-C$bad"), qr/\Q$bad\E: invalid argument/, qq(-C$bad is an error));
+    }
+};
+
 subtest q(output width option) => sub {
     my $help = `$mdee --help 2>&1`;
     like($help, qr/--fold-width/, q(--help shows --fold-width option));

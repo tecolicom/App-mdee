@@ -1701,192 +1701,6 @@ libcmark-dev>) and is only recommended, is used when it is there
 because it is faster; L<pandoc|https://pandoc.org> 2.11.3 or later is
 a third choice.
 
-=head1 IMPLEMENTATION
-
-B<em·dee> is implemented as a Bash script that orchestrates multiple
-specialized tools into a unified pipeline.  The architecture follows
-Unix philosophy: each tool does one thing well, and they communicate
-through standard streams.
-
-The overall data flow is:
-
-    Input File
-        |
-        v
-    [greple -Mmd] --- Syntax Highlighting + Table Formatting + Text Folding
-        |
-        v
-    [nup] --- Paged Output (nup style)
-        |         or
-    [pager] --- Pager Output (pager style)
-        |
-        v
-    Terminal
-
-=head2 Pipeline Architecture
-
-B<em·dee> dynamically constructs a pipeline based on enabled options.
-Each stage is defined as a Bash function (e.g., C<run_greple>,
-C<run_nup>).  The C<--dryrun> option prints the command line of
-each stage without running them, and C<-d> prints the stage names.
-
-=head3 Processing Stages
-
-The pipeline consists of configurable stages.  Processing options
-can be enabled or disabled independently using C<--[no-]refill>,
-C<--[no-]fold>, C<--[no-]table>, and C<--[no-]nup> options.
-
-=head4 Syntax Highlighting
-
-The first stage uses L<greple(1)|App::Greple> with the C<--filter>
-option, which sets C<--all --need=0 --exit=0> to run as a filter
-without requiring pattern arguments.  Syntax highlighting is handled
-entirely by the C<-Mmd> module.
-
-Supported Markdown elements:
-
-=over 4
-
-=item * Headers (C<# h1> through C<###### h6>)
-
-=item * Bold text (C<**bold**> or C<__bold__>)
-
-=item * Italic text (C<*italic*> or C<_italic_>)
-
-=item * Inline code (C<`code`>)
-
-=item * Code blocks (fenced with C<```> or C<~~~>)
-
-=item * Front matter (TOML between C<+++> lines, YAML between C<--->
-lines), shown as a code block
-
-=item * HTML comments (C<< <!-- comment --> >>)
-
-=back
-
-Code block detection follows the CommonMark specification:
-
-=over 4
-
-=item * Opening fence: 0-3 spaces indentation, then 3+ backticks or tildes
-
-=item * Closing fence: 0-3 spaces indentation, same character, same or more count
-
-=item * Backticks and tildes cannot be mixed (C<```> must close with C<```>)
-
-=back
-
-=head4 Paragraph Refill
-
-With C<--refill>, the L<App::Greple::md> module joins the lines of
-each paragraph before anything else.  It asks a Markdown parser
-(L<App::Greple::md::Blocks>: the L<CommonMark> module,
-L<Markdown::Perl>, or L<pandoc|https://pandoc.org> with the
-C<sourcepos> extension) which
-lines of the text form a paragraph, a block quote, a list item or a
-definition, and joins those lines in the original text.  A line that
-starts a footnote definition (C<[^name]:>) stays on its own line.  The
-joined lines are folded like list items.
-
-=head4 Text Folding
-
-Text folding is handled within the L<App::Greple::md> module
-using L<Greple::tee> to pipe matched regions through
-L<ansifold(1)|App::ansifold>.  It preserves ANSI escape sequences
-and maintains proper indentation for nested lists.  List items,
-definition lists and the paragraphs joined by C<--refill> are
-folded; code blocks, front matter, HTML comments, and tables are
-excluded.
-
-Recognized list markers include C<*>, C<+>, C<->, C<1.>, C<1)>, C<#.>,
-and C<#)>.  The C<#> marker is the auto-numbered list of Pandoc's Markdown.
-
-The folding width is controlled by C<--fold-width> option (default: the
-pane width minus 3 and the run-in width, 78 for a pane of 85).
-
-=head4 Table Formatting
-
-Table formatting is handled within the L<App::Greple::md> module
-(after syntax highlighting, before output).  Markdown tables are
-detected by the pattern C<^ {0,3}(\|.+\|\n){3,}> and formatted with
-aligned columns using L<ansicolumn(1)|App::ansicolumn> while
-preserving ANSI colors.
-
-Column alignment is parsed from the separator line: C<:---> (left,
-default), C<:---:> (center), C<---:> (right).  The C<parse_separator()>
-function extracts alignment markers and passes C<--table-right> and
-C<--table-center> options to L<ansicolumn(1)|App::ansicolumn> (requires
-version 1.61 or later).  Colons are stripped from the separator line
-before further processing.
-
-When C<--rule> is enabled (default), ASCII pipe characters are replaced
-with Unicode box-drawing characters (C<│>, C<├>, C<┤>, C<┼>, C<─>).
-
-=head3 Output Stage
-
-The final stage uses L<nup(1)|App::nup> to provide multi-column paged output.
-Layout options (C<--pane>, C<--row>, C<--grid>, C<--page>) are passed
-directly to nup.
-
-=head2 Theme System
-
-B<em·dee> implements a theme system where themes are transformations
-applied to the built-in default theme.  Multiple themes can be
-chained via C<--theme=NAME1,NAME2,...>.
-
-=head3 Theme Structure
-
-Color definitions are managed by the L<App::Greple::md> module.
-The C<theme_light> and C<theme_dark> arrays contain only the base
-color.  Theme files can modify the base color and pass configuration
-to the md module via C<md_config[]>:
-
-    # theme/warm.sh — change base color
-    theme_light[base]='<Coral>=y25'
-    theme_dark[base]='<Coral>=y80'
-
-    # theme/hashed.sh — enable closing hashes
-    md_config+=(hashed.h3=1 hashed.h4=1 hashed.h5=1 hashed.h6=1)
-
-The C<md_config[]> entries are passed as config parameters to the
-L<App::Greple::md> module.  Color labels (C<h1>, C<bold>, etc.)
-can also be set as config parameters:
-
-    # theme file or config.sh — override color label
-    md_config+=(h1='L25D/R;E' bold=RD)
-
-=head4 Base Color Expansion
-
-The C<${base}> placeholder in color values is expanded by the md
-module.  The base color is determined by C<--base-color> option
-(default: RoyalBlue) with automatic luminance adjustment based on
-mode (C<=y25> for light, C<=y80> for dark).
-
-=head3 Color Specifications
-
-Colors are specified using L<Term::ANSIColor::Concise> format.
-The C<--colormap> (C<--cm>) option maps colors to captured groups.  For example,
-C<L00D/${base};E> specifies gray foreground on base-colored background.
-
-The color specification supports modifiers:
-
-=over 4
-
-=item * C<+y10> / C<-y10>: Adjust luminance by percentage
-
-=item * C<=y50>: Set absolute luminance
-
-=item * C<D>: Bold, C<U>: Underline, C<E>: Erase line
-
-=back
-
-=head3 Terminal Mode Detection
-
-B<em·dee> uses L<Getopt::EX::termcolor> to detect terminal background
-luminance.  If luminance is below 50%, dark mode is automatically
-selected.  The environment variable C<TERM_LUMINANCE> gives the
-luminance without the detection (see L</Terminal Luminance>).
-
 =head1 LIMITATIONS
 
 =head2 HTML Comments
@@ -2019,6 +1833,10 @@ does not override them.
 
 =over 4
 
+=item L<Implementation of em·dee|https://github.com/tecolicom/App-mdee/blob/main/docs/IMPLEMENTATION.md>
+
+How the pipeline, the themes and the colors work inside.
+
 =item L<App::Greple::md>
 
 Greple module for Markdown syntax highlighting, table formatting,
@@ -2031,6 +1849,10 @@ General-purpose extensible grep tool used for pattern matching.
 =item L<nup>
 
 Multi-column paged output formatter.
+
+=item L<ansi2pdf|https://github.com/tecolicom/App-ansi2pdf>
+
+Renders the output to PDF.
 
 =item L<ansifold|https://metacpan.org/dist/App-ansifold/view/script/ansifold>
 

@@ -1845,7 +1845,7 @@ does not override them.
 
 =over 4
 
-=item L<Implementation of em·dee|https://github.com/tecolicom/App-mdee/blob/main/docs/IMPLEMENTATION.md>
+=item L<Implementation of em·dee|https://github.com/tecolicom/App-mdee/blob/main/IMPLEMENTATION.md>
 
 How the pipeline, the themes and the colors work inside.
 

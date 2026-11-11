@@ -1,7 +1,7 @@
 # Implementation of em·dee
 
 This describes how `mdee` works inside.  For the usage, see the
-[manual](../README.md).
+[manual](README.md).
 
 **em·dee** is implemented as a Bash script that orchestrates multiple
 specialized tools into a unified pipeline.  The architecture follows
@@ -177,4 +177,4 @@ The color specification supports modifiers:
 **em·dee** uses [Getopt::EX::termcolor](https://metacpan.org/pod/Getopt%3A%3AEX%3A%3Atermcolor) to detect terminal background
 luminance.  If luminance is below 50%, dark mode is automatically
 selected.  The environment variable `TERM_LUMINANCE` gives the
-luminance without the detection (see "Terminal Luminance" in the [manual](../README.md#terminal-luminance)).
+luminance without the detection (see "Terminal Luminance" in the [manual](README.md#terminal-luminance)).

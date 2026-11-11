@@ -1106,7 +1106,7 @@ does not override them.
 
 # SEE ALSO
 
-- [Implementation of em·dee](https://github.com/tecolicom/App-mdee/blob/main/docs/IMPLEMENTATION.md)
+- [Implementation of em·dee](https://github.com/tecolicom/App-mdee/blob/main/IMPLEMENTATION.md)
 
     How the pipeline, the themes and the colors work inside.
 

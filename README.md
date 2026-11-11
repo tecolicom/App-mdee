@@ -487,99 +487,8 @@ bold text, etc.).
     Use `--no-theme` to clear the default theme.  It can be combined
     with `--theme` to start fresh.
 
-    Theme files are searched in the following order:
-
-    - 1. User theme directory: `${XDG_CONFIG_HOME:-~/.config}/mdee/theme/NAME.sh`
-    - 2. Share theme directory: installed with the distribution under `auto/share/dist/App-mdee/theme/`
-
-    Theme files are Bash scripts that can modify `theme_light[]`,
-    `theme_dark[]`, `md_config[]`, and/or `pass_md[]`:
-
-        # theme/warm.sh — change base color
-        theme_light[base]='<Coral>=y25'
-        theme_dark[base]='<Coral>=y80'
-
-        # theme/hashed.sh — enable closing hashes on h3-h6
-        md_config+=(hashed.h3=1 hashed.h4=1 hashed.h5=1 hashed.h6=1)
-
-        # theme/nomark.sh — hide markers and brackets
-        pass_md+=(--cm 'emphasis_mark=sub{""}')
-        pass_md+=(--cm 'code_tick=sub{""}')
-        pass_md+=(--cm 'link_mark=sub{""}')
-
-    Built-in themes:
-
-    - `hashed` (default)
-
-        Append closing hashes to h3-h6 headers.
-
-    - `nomark` (default)
-
-        Hide emphasis markers (`**`, `*`, `__`, `_`, `~~`),
-        inline code backticks, and link brackets (`[`, `]`).
-        Content text keeps its formatting (bold, italic,
-        strikethrough, code, clickable links) but the surrounding
-        markers are not displayed.  Table marks (`markcell`,
-        `markwrap`) are independent of this theme.
-
-    - `doubleline` (default)
-
-        Give h4 headers a double underline, which is `ESC[4:2m`, in the
-        terminals known to take it, decided by environment variables: iTerm2,
-        Ghostty, cmux, VS Code, WezTerm, kitty, Alacritty, Konsole, Windows
-        Terminal and terminals based on VTE 0.52 or later.  Elsewhere, inside
-        **tmux** and **screen**, and where the variables do not reach, as through
-        **ssh**, this theme does nothing and h4 has a single underline, the same
-        as h5.  Many terminals do not take the sequence: it becomes a background color in Terminal.app and
-        rxvt-unicode, and the Linux console and mosh drop the whole sequence
-        with its color.
-
-    - `warm`
-
-        Change base color to Coral.
-
-    - `fatchap`
-
-        Add decorative border lines (`#`) above and below h1 headings,
-        using `=+` to append a text transformation while preserving the
-        original heading color.
-
-        With `--refill`, the added lines are not counted, so paragraphs below
-        the h1 headings may not be folded properly by this module.  The text
-        itself does not change.  For this reason, this theme turns off
-        `default[refill]` in the configuration file; `--refill` given on the
-        command line still works.
-
-    - `widen`
-
-        Give circled digits and the wastebasket (U+1F5D1) a column of their
-        own, by adding a no-break space after them, for terminals that draw
-        them over two columns on top of the next character, as on macOS.
-        This gives the function of [App::Greple::md::widen](https://metacpan.org/pod/App%3A%3AGreple%3A%3Amd%3A%3Awiden) to the `--begin`
-        option of the md module.
-
-        The characters are listed in the array `widen_chars` of the theme, as
-        code points and ranges in hexadecimal.  Add more in `config.sh`:
-
-            widen_chars+=(3248-324F)   # circled numbers on black squares
-
-    - `markcell` (default)
-
-        In a table that has wrapped cells, mark the first line of every
-        body cell in the wrapped columns with `‣` (U+2023), so that the
-        rows read like a bulleted list and the continuation lines stand
-        apart.  The header row, columns that fit, and tables that fit are
-        not marked.  Sets `table_cell_mark`; `nomark` does not affect it.
-        To use another character, set it in the configuration file or in a
-        theme of your own:
-
-            md_config+=(table_cell_mark=∙)    # U+2219
-
-    - `markwrap`
-
-        Mark the second and later lines of a wrapped table cell with `›`
-        (U+203A).  Sets `table_wrap_mark`.  It can be combined with
-        `markcell`.
+    See ["THEMES"](#themes) for the themes that come with **mdee** and how to
+    write one.
 
     Use `-d` to dump current theme values in sourceable format.
 
@@ -847,6 +756,109 @@ bold text, etc.).
     file as it is.
 
         mdee -o README.pdf README.md
+
+# THEMES
+
+A theme changes how the document looks: the colors, the marks that
+are shown or hidden, and the decoration of headings and tables.
+Themes are chosen with `--theme` (see ["Theme Options"](#theme-options)), and each
+is applied in order as a transformation of the default.
+
+## Built-in Themes
+
+- `hashed` (default)
+
+    Append closing hashes to h3-h6 headers.
+
+- `nomark` (default)
+
+    Hide emphasis markers (`**`, `*`, `__`, `_`, `~~`),
+    inline code backticks, and link brackets (`[`, `]`).
+    Content text keeps its formatting (bold, italic,
+    strikethrough, code, clickable links) but the surrounding
+    markers are not displayed.  Table marks (`markcell`,
+    `markwrap`) are independent of this theme.
+
+- `doubleline` (default)
+
+    Give h4 headers a double underline, which is `ESC[4:2m`, in the
+    terminals known to take it, decided by environment variables: iTerm2,
+    Ghostty, cmux, VS Code, WezTerm, kitty, Alacritty, Konsole, Windows
+    Terminal and terminals based on VTE 0.52 or later.  Elsewhere, inside
+    **tmux** and **screen**, and where the variables do not reach, as through
+    **ssh**, this theme does nothing and h4 has a single underline, the same
+    as h5.  Many terminals do not take the sequence: it becomes a background color in Terminal.app and
+    rxvt-unicode, and the Linux console and mosh drop the whole sequence
+    with its color.
+
+- `warm`
+
+    Change base color to Coral.
+
+- `fatchap`
+
+    Add decorative border lines (`#`) above and below h1 headings,
+    using `=+` to append a text transformation while preserving the
+    original heading color.
+
+    With `--refill`, the added lines are not counted, so paragraphs below
+    the h1 headings may not be folded properly by this module.  The text
+    itself does not change.  For this reason, this theme turns off
+    `default[refill]` in the configuration file; `--refill` given on the
+    command line still works.
+
+- `widen`
+
+    Give circled digits and the wastebasket (U+1F5D1) a column of their
+    own, by adding a no-break space after them, for terminals that draw
+    them over two columns on top of the next character, as on macOS.
+    This gives the function of [App::Greple::md::widen](https://metacpan.org/pod/App%3A%3AGreple%3A%3Amd%3A%3Awiden) to the `--begin`
+    option of the md module.
+
+    The characters are listed in the array `widen_chars` of the theme, as
+    code points and ranges in hexadecimal.  Add more in `config.sh`:
+
+        widen_chars+=(3248-324F)   # circled numbers on black squares
+
+- `markcell` (default)
+
+    In a table that has wrapped cells, mark the first line of every
+    body cell in the wrapped columns with `‣` (U+2023), so that the
+    rows read like a bulleted list and the continuation lines stand
+    apart.  The header row, columns that fit, and tables that fit are
+    not marked.  Sets `table_cell_mark`; `nomark` does not affect it.
+    To use another character, set it in the configuration file or in a
+    theme of your own:
+
+        md_config+=(table_cell_mark=∙)    # U+2219
+
+- `markwrap`
+
+    Mark the second and later lines of a wrapped table cell with `›`
+    (U+203A).  Sets `table_wrap_mark`.  It can be combined with
+    `markcell`.
+
+## Theme Files
+
+Theme files are searched in the following order:
+
+- 1. User theme directory: `${XDG_CONFIG_HOME:-~/.config}/mdee/theme/NAME.sh`
+- 2. Share theme directory: installed with the distribution under `auto/share/dist/App-mdee/theme/`
+
+Theme files are Bash scripts that can modify `theme_light[]`,
+`theme_dark[]`, `md_config[]`, and/or `pass_md[]`:
+
+    # theme/warm.sh — change base color
+    theme_light[base]='<Coral>=y25'
+    theme_dark[base]='<Coral>=y80'
+
+    # theme/hashed.sh — enable closing hashes on h3-h6
+    md_config+=(hashed.h3=1 hashed.h4=1 hashed.h5=1 hashed.h6=1)
+
+    # theme/nomark.sh — hide markers and brackets
+    pass_md+=(--cm 'emphasis_mark=sub{""}')
+    pass_md+=(--cm 'code_tick=sub{""}')
+    pass_md+=(--cm 'link_mark=sub{""}')
 
 # CONFIGURATION
 

@@ -78,6 +78,9 @@ remain clickable.
 Use `--no-theme` to display the original Markdown source with
 markup characters intact.
 
+The same view is printed to PDF with `-o file.pdf`.  See
+["Printing to PDF"](#printing-to-pdf).
+
 ## Concept
 
 **em·dee** began as a viewer for Markdown _text_, not as a Markdown
@@ -159,6 +162,45 @@ formatting — highlighted output is piped directly through a
 pager.  Use `-f` (`--style=filter`) to write highlighted
 output to stdout without a pager, suitable for piping into
 other commands.
+
+## Printing to PDF
+
+**mdee** prints the document to PDF when the output file ends with
+`.pdf`, or when a paper is given as the device with `-T`.
+
+    mdee -o README.pdf README.md           # A4 in landscape
+    mdee -T a4p -o README.pdf README.md    # A4 in portrait
+    mdee -T a3 README.md > README.pdf      # A3, to the standard output
+
+The paper takes the place of the terminal.  The number of columns is
+the width of the paper in characters divided by the pane width, and
+the text is folded for it, in the same way as on the terminal: A4 in
+landscape is 206 characters wide and has two panes, and A4 in
+portrait is 100 characters wide and has one.  `-C` and `-S` work
+as on the terminal.  The mode is `light` unless `--mode` is given,
+because the paper is white.
+
+A paper is given by its name, with the letter `p` or `l` for
+portrait or landscape, and the margin in millimeters after `:m`.
+The default is landscape with a margin of 5 mm.
+
+    mdee -T a4p:m10 -o README.pdf README.md
+
+A sheet has 60 lines.  The rows of `-C` divide the sheet, and the
+size of the characters is kept: `-C2,2` gives four pages of 30
+lines on a sheet.  `-P` sets the lines of a page instead, and the
+characters become smaller or larger to put the pages on the sheet:
+`-C2,2 -P60` prints four pages of 60 lines on a sheet in half the
+size, as a printer does for 4-up.
+
+    mdee -C2,2 -o README.pdf README.md
+    mdee -C2,2 -P60 -o README.pdf README.md
+
+[nup(1)](https://metacpan.org/pod/App%3A%3Anup) and
+[ansi2pdf(1)](https://github.com/tecolicom/App-ansi2pdf) make the
+PDF, so `ansi2pdf` has to be installed, and the output style has to
+be `nup`, which is the default.  See `-T` and `-o` in
+["Layout Options (passed to nup)"](#layout-options-passed-to-nup).
 
 # INSTALLATION
 
@@ -784,14 +826,11 @@ bold text, etc.).
         mdee -T a4 README.md > README.pdf
         mdee -T a4p -o README.pdf README.md
 
-    The paper takes the place of the terminal: the number of columns and
-    the fold width come from the width of the paper in characters, which
-    is asked to `nup`, and `-P` sets the lines of a page.  The
-    mode is `light` unless `--mode` is given, because the paper is
-    white.  The pager is not used.
+    The paper takes the place of the terminal, as described in
+    ["Printing to PDF"](#printing-to-pdf), and the pager is not used.
 
     This requires the nup style, `nup` 1.13 or later, and `ansi2pdf`
-    0.1.3 or later for PDF.
+    0.1.3 or later for PDF (0.1.4 or later for the margin).
 
 - **-o** _FILE_, **--output**=_FILE_
 
@@ -886,6 +925,11 @@ To change the text before it is formatted, give a function to the
     mdee --no-fold file.md      # disable line folding
     mdee --no-table file.md     # disable table formatting
     mdee -r file.md             # join paragraph lines
+
+    # PDF
+    mdee -o file.pdf file.md             # A4 in landscape
+    mdee -T a4p -o file.pdf file.md      # A4 in portrait
+    mdee -T a4p -C1,2 -o file.pdf file.md  # two pages on a sheet
 
     # Output styles
     mdee -s pager file.md       # fold + table, output to pager

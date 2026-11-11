@@ -47,6 +47,9 @@ mdee - em·dee, Markdown Easy on the Eyes
          --[no-]page-number page number on border (default: on)
          --[no-]filename    file name label (default: on)
          --[no-]pager[=#]   pager command
+     -T  --device=#         output device: tty, pdf, or a paper for PDF
+                            (e.g., a4, a4p, a3l)
+     -o  --output=FILE      output file (PDF when it ends with .pdf)
 
 # VERSION
 
@@ -764,6 +767,36 @@ bold text, etc.).
     shown side by side with `--parallel` and the panes should start with
     the text.  The label format and color are set by the `FILE_FORMAT`
     and `FILE` theme keys (see `--config`).
+
+- **-T** _DEVICE_, **--device**=_DEVICE_
+
+    Set the device to show the output on, which is given to
+    [nup(1)](https://metacpan.org/pod/App%3A%3Anup).  The default is `tty`, the terminal.  Any other
+    device is a paper, and the output is printed to PDF by
+    [ansi2pdf(1)](https://github.com/tecolicom/App-ansi2pdf): `a4` is A4
+    in landscape, `a4p` is A4 in portrait and `a3l` is A3 in landscape.
+    The device `pdf` is the default paper, A4.
+
+        mdee -T a4 README.md > README.pdf
+        mdee -T a4p -o README.pdf README.md
+
+    The paper takes the place of the terminal: the number of columns and
+    the fold width come from the width of the paper in characters, which
+    is asked to `nup`, and `-P` sets the lines of a page.  The
+    mode is `light` unless `--mode` is given, because the paper is
+    white.  The pager is not used.
+
+    This requires the nup style, `nup` 1.13 or later, and `ansi2pdf`
+    0.1.3 or later for PDF.
+
+- **-o** _FILE_, **--output**=_FILE_
+
+    Write the output to _FILE_, which is given to [nup(1)](https://metacpan.org/pod/App%3A%3Anup).
+    When the name ends with `.pdf`, the output is PDF without `-T` as
+    well.  Otherwise, what is shown on the terminal is written to the
+    file as it is.
+
+        mdee -o README.pdf README.md
 
 ## Pager Options
 

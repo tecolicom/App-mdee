@@ -66,6 +66,9 @@ mdee - em·dee, Markdown Easy on the Eyes
          --[no-]page-number page number on border (default: on)
          --[no-]filename    file name label (default: on)
          --[no-]pager[=#]   pager command
+     -T  --device=#         output device: tty, pdf, or a paper for PDF
+                            (e.g., a4, a4p, a3l)
+     -o  --output=FILE      output file (PDF when it ends with .pdf)
 
 =head1 VERSION
 
@@ -204,6 +207,8 @@ declare -A OPTS=(
     [ heading-markup | hm :          # markup in headings    ]=
     [           show |    %!         # field visibility      ]=
     [          pager |    ?!         # pager command         ]=
+    [         device | T  :          # output device         ]=
+    [         output | o  :          # output file           ]=
     [           pane | C  : =i       # number of columns     ]=0
     [     pane-width | S  : =i       # pane width            ]=85
     [           grid | G  :>pass_nup # grid layout           ]=
@@ -338,7 +343,22 @@ if [[ ! $_theme_specified ]] && [[ ${default[theme]:-} ]]; then
     IFS=, read -ra theme <<< "${default[theme]}"
 fi
 
-# Set mode: explicit option > config default > terminal detection > "light"
+# Output device and file (see nup(1)): a paper, as a4 or a4p, takes the
+# place of the terminal, and a file name ending with .pdf is enough to
+# choose it.  nup knows which it is and how many columns a sheet has
+# (-P and the rows give the lines of a sheet, which decide the font).
+: ${device:=} ${output:=}
+_paper= _paper_cols=
+if [[ $device || $output ]]; then
+    _geom=$(nup "${pass_nup[@]}" ${device:+-T} ${device:+"$device"} \
+                ${output:+-o} ${output:+"$output"} --geometry) &&
+        [[ $_geom =~ ^([0-9]+)\ [0-9]+\ (tty|pdf)$ ]] ||
+        die "failed to get the size of the device from nup (App::nup 1.13 or later is required)"
+    [[ ${BASH_REMATCH[2]} == pdf ]] && _paper=1 _paper_cols=${BASH_REMATCH[1]}
+fi
+
+# Set mode: explicit option > light on paper > config default > terminal detection > "light"
+[[ $_paper ]] && : ${mode:=light}
 : ${mode:=${default[mode]:-$(detect_terminal_mode)}}
 : ${mode:=light}
 
@@ -347,13 +367,21 @@ fi
 (( pane == 0 ))        && pane=${default[pane]:-0}
 
 # Output width: explicit option (non-zero) > config default > terminal width
-(( width == 0 )) && width=${default[width]:-0}
+# On paper, the config default is not used, and the width of the paper
+# takes the place of the terminal width.
+(( width == 0 )) && [[ ! $_paper ]] && width=${default[width]:-0}
 (( fold_width == 0 )) && fold_width=${default[fold_width]:-0}
 # tput reads the size from stderr when stdout is captured, so do not
 # redirect it; without TERM (docker run without a tty) tput only
 # complains, so skip it and fall back to 80 below
-(( width > 0 )) || [[ ! ${TERM:-} ]] || : ${COLUMNS:=$(tput cols)}
-(( width > 0 )) && _total=$width || _total=${COLUMNS:-}
+(( width > 0 )) || [[ $_paper ]] || [[ ! ${TERM:-} ]] || : ${COLUMNS:=$(tput cols)}
+if (( width > 0 )); then
+    _total=$width
+elif [[ $_paper ]]; then
+    _total=$_paper_cols
+else
+    _total=${COLUMNS:-}
+fi
 (( debug > 0 )) && echo "debug: COLUMNS=${COLUMNS:-unset} width=$width pane=$pane pane_width=$pane_width" >&2
 # Calculate columns from output width and pane width
 # --parallel with two or more files: one pane per file unless --pane is given
@@ -387,6 +415,10 @@ esac
 [[ $table == _ ]] && table=${style_defaults[table]}
 [[ $nup   != _ ]] && _nup_explicit=1
 [[ $nup   == _ ]] && nup=${style_defaults[nup]}
+# nup writes the PDF and the output file
+if [[ ! $nup ]] && [[ $_paper || $output ]]; then
+    die "-T and -o need nup: they do not work with --style=$style or --no-nup"
+fi
 [[ $rule  == _ ]] && rule=${style_defaults[rule]}
 [[ ${rule:-} ]] && rule='│'
 case $table_style in
@@ -613,6 +645,8 @@ pass_nup+=("--runin=$runin" "--runout=$runout" "--boundary=$boundary")
 # Add pane/pane-width to pass_nup
 (( pane_width != 85 )) && pass_nup+=("--pane-width=$pane_width")
 (( pane != 0 ))        && pass_nup+=("--pane=$pane")
+[[ $device ]]          && pass_nup+=(-T "$device")
+[[ $output ]]          && pass_nup+=(-o "$output")
 
 # Make sure pandoc works before anything runs (also in dryrun mode)
 [[ $refill ]] && check_refill
@@ -621,7 +655,10 @@ pass_nup+=("--runin=$runin" "--runout=$runout" "--boundary=$boundary")
 declare -a stages=(run_greple)
 [[ ${cat_v:-} ]] && stages+=(run_cat_v)
 if [[ $nup ]]; then
-    if (( _cols == 1 )) && [[ ! ${_nup_explicit:-} ]] && [[ ! ${parallel:-} ]]; then
+    # a single pane goes to the pager, unless nup has to write the
+    # output to PDF or to a file
+    if (( _cols == 1 )) && [[ ! ${_nup_explicit:-} ]] && [[ ! ${parallel:-} ]] \
+        && [[ ! $_paper && ! $output ]]; then
         stages+=(run_column run_pager)
     else
         stages+=(run_nup)
@@ -1423,6 +1460,36 @@ default.  Use C<--no-filename> to hide it, for example when files are
 shown side by side with C<--parallel> and the panes should start with
 the text.  The label format and color are set by the C<FILE_FORMAT>
 and C<FILE> theme keys (see C<--config>).
+
+=item B<-T> I<DEVICE>, B<--device>=I<DEVICE>
+
+Set the device to show the output on, which is given to
+L<nup(1)|App::nup>.  The default is C<tty>, the terminal.  Any other
+device is a paper, and the output is printed to PDF by
+L<ansi2pdf(1)|https://github.com/tecolicom/App-ansi2pdf>: C<a4> is A4
+in landscape, C<a4p> is A4 in portrait and C<a3l> is A3 in landscape.
+The device C<pdf> is the default paper, A4.
+
+    mdee -T a4 README.md > README.pdf
+    mdee -T a4p -o README.pdf README.md
+
+The paper takes the place of the terminal: the number of columns and
+the fold width come from the width of the paper in characters, which
+is asked to C<nup>, and C<-P> sets the lines of a page.  The
+mode is C<light> unless C<--mode> is given, because the paper is
+white.  The pager is not used.
+
+This requires the nup style, C<nup> 1.13 or later, and C<ansi2pdf>
+0.1.3 or later for PDF.
+
+=item B<-o> I<FILE>, B<--output>=I<FILE>
+
+Write the output to I<FILE>, which is given to L<nup(1)|App::nup>.
+When the name ends with C<.pdf>, the output is PDF without C<-T> as
+well.  Otherwise, what is shown on the terminal is written to the
+file as it is.
+
+    mdee -o README.pdf README.md
 
 =back
 

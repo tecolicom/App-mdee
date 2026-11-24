@@ -13,7 +13,7 @@ requires 'Term::ANSIColor::Concise', '3.03';
 
 requires 'App::nup', '1.22';
 requires 'Text::ANSI::Highlight', '0.04';
-requires 'Getopt::Long::Bash', '1.2.0';
+requires 'Getopt::Long::Bash', '1.5.0';
 
 requires 'App::Greple', '10.05';
 requires 'App::Greple::tee', '1.04';

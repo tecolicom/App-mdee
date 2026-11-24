@@ -19,7 +19,7 @@ requires 'App::Greple', '10.05';
 requires 'App::Greple::tee', '1.04';
 requires 'Getopt::EX', '3.05';
 requires 'Getopt::EX::Config', '1.0202';
-requires 'Command::Run', '1.04';
+requires 'Command::Run', '1.06';
 
 requires 'Getopt::EX::termcolor', '1.10';
 

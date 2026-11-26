@@ -7,7 +7,7 @@ requires 'Text::VisualWidth::PP', '0.09';
 requires 'URI::Escape';
 
 requires 'App::ansiecho';
-requires 'App::ansifold', '1.38';
+requires 'App::ansifold', '1.39';
 requires 'App::ansicolumn', '1.72';
 requires 'Term::ANSIColor::Concise', '3.03';
 

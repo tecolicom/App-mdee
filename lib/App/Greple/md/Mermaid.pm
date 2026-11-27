@@ -1,7 +1,7 @@
 package App::Greple::md::Mermaid;
 
 # The images of the Mermaid diagrams of a Markdown file.  They are
-# drawn by mmdr of mermaid-rs-renderer into PNG files in a cache
+# drawn by mmdr of mermaid-rs-renderer into PNG files in a temporary
 # directory, and are shown by Text::ANSI::Image as the other images
 # are.
 
@@ -12,9 +12,6 @@ use utf8;
 use Exporter 'import';
 our @EXPORT_OK = qw(diagram_files);
 
-use Encode qw(encode_utf8);
-use Digest::SHA qw(sha1_hex);
-use File::Path qw(make_path);
 use File::Spec;
 use File::Temp ();
 use JSON::PP ();
@@ -24,24 +21,16 @@ use Text::ParseWords qw(shellwords);
 # the command which draws, when none is given
 our $COMMAND = 'mmdr';
 
-# The directory of the drawn diagrams, or undef when there is no place
-# for it: a real directory of the user, not a symbolic link, which
-# nobody else can read.  A diagram is kept by the digest of the
-# command, its options and the code, so that it is drawn once.  The
-# files stay after mdee ends, which they must on paper, where ansi2pdf
-# reads them after greple.
-sub cache_dir {
-    my $base = $ENV{XDG_CACHE_HOME}
-	|| (defined $ENV{HOME} && File::Spec->catdir($ENV{HOME}, '.cache'))
-	|| return;
-    my $dir = File::Spec->catdir($base, 'mdee', 'mermaid');
-    -e $dir or make_path($dir, { mode => 0700, error => \my $err });
-    my @st = lstat $dir or return;
-    -d _ && $st[4] == $> or return;
-    if ($st[2] & 077) {
-	chmod $st[2] & 0700, $dir or return;
-    }
-    $dir;
+# The directory of the drawn diagrams, made for each run, which nobody
+# else can read, or undef when it cannot be made.  It is removed when
+# mdee ends, unless it is to be kept: on paper, ansi2pdf reads the
+# files after greple.
+sub diagram_dir {
+    my $keep = shift;
+    eval {
+	File::Temp::tempdir('mdee-mermaid-XXXXXXXX',
+			    TMPDIR => 1, CLEANUP => !$keep);
+    };
 }
 
 # The PNG files of the diagrams, in the order of the codes; undef for
@@ -53,41 +42,34 @@ sub cache_dir {
 #   background => 'transparent'  the background, a color of CSS
 #   scale   => 3               the scale of the image: the larger, the
 #                              more cells it takes, up to the width
+#   keep    => 1               the files stay after mdee ends
 #
-# Each diagram is drawn in a run of its own.  mmdr has no options for
-# the background and the scale: the background goes in a file of -c,
-# unless the command has its own, and the size is asked for first and
-# given multiplied (see draw).  A diagram that cannot be drawn is not
-# shown, and is tried again the next time.
+# Each diagram is drawn in a run of its own, each time.  mmdr has no
+# options for the background and the scale: the background goes in a
+# file of -c, unless the command has its own, and the size is asked
+# for first and given multiplied (see draw).  A diagram that cannot be
+# drawn is not shown.
 sub diagram_files {
     my %opt = @_;
     my @codes = @{$opt{codes} // []} or return ();
-    my $dir = cache_dir() // return (undef) x @codes;
     my @cmd = shellwords($opt{command} || $COMMAND);
     @cmd or return (undef) x @codes;
+    my $dir = diagram_dir($opt{keep}) // return (undef) x @codes;
     my $background = $opt{background} || 'transparent';
     my $scale = $opt{scale} || 3;
     my $theme = $opt{theme} || 'default';
-    # what the digest is made of
-    my @look = ('-t', $theme, '-b', $background, '-s', $scale);
     my $r = { dir => $dir, cmd => \@cmd, opt => [ '-e', 'png', '-t', $theme ],
 	      scale => $scale };
-    my($conf, %seen);
+    my $conf;
+    if (not grep { /^(?:-c|--configFile(?:=|$))/ } @cmd) {
+	$conf = config_file($dir,
+	    { themeVariables => { background => "$background" } });
+	push @{$r->{opt}}, '-c', "$conf" if $conf;
+    }
+    my $n = 0;
     map {
-	my $code = s/\n?\z/\n/r;
-	my $path = File::Spec->catfile($dir,
-	    sha1_hex(encode_utf8(join "\0", @cmd, @look, $code)) . '.png');
-	# without a place to write, the diagrams drawn before are shown
-	if (!-e $path and !$seen{$path}++ and -w $dir) {
-	    # the background in a file of -c, after the digest, which
-	    # must not depend on the name of the file
-	    if (!$conf and not grep { /^(?:-c|--configFile(?:=|$))/ } @cmd) {
-		$conf = config_file($dir,
-		    { themeVariables => { background => "$background" } });
-		push @{$r->{opt}}, '-c', "$conf" if $conf;
-	    }
-	    draw($r, $code, $path);
-	}
+	my $path = File::Spec->catfile($dir, ++$n . '.png');
+	draw($r, s/\n?\z/\n/r, $path);
 	-s $path ? $path : undef;
     } @codes;
 }
@@ -175,19 +157,16 @@ L<Text::ANSI::Image>.
 
 =over 4
 
-=item B<diagram_files>(B<codes> => [I<CODE>, ...], B<command> => I<COMMAND>, B<theme> => I<THEME>, B<background> => I<COLOR>, B<scale> => I<N>)
+=item B<diagram_files>(B<codes> => [I<CODE>, ...], B<command> => I<COMMAND>, B<theme> => I<THEME>, B<background> => I<COLOR>, B<scale> => I<N>, B<keep> => I<BOOL>)
 
 Returns the PNG files of the diagrams, in the order of the codes, and
 C<undef> for one that could not be drawn.  They are drawn by
 I<COMMAND> (split into words as a shell does; default C<mmdr> of
 L<mermaid-rs-renderer|https://github.com/1jehuang/mermaid-rs-renderer>),
-into F<${XDG_CACHE_HOME:-~/.cache}/mdee/mermaid>, a directory only the
-user can read, and are drawn again only when the code, the command or
-the theme, the background (default C<transparent>) or the scale
-(default 3) changes.  Nothing is drawn without C<XDG_CACHE_HOME> or
-C<HOME>, or when that directory is a symbolic link or belongs to
-someone else.  Diagrams drawn before are shown even when the directory
-cannot be written.
+with the theme, the background (default C<transparent>) and the scale
+(default 3), each time, into a temporary directory that only the user
+can read.  The directory is removed when the program ends, unless
+B<keep> is true: on paper, ansi2pdf reads the files after greple.
 
 Each diagram is drawn in a run of its own.  mmdr has no options for
 the background and the scale: the background is given as
@@ -197,8 +176,7 @@ asked for the size of the diagram (C<--size>) and then given that size
 multiplied (C<-w>, C<-H>), unless I<COMMAND> has a width or a height
 of its own.
 
-A diagram that cannot be drawn is not shown, and is tried again the
-next time.
+A diagram that cannot be drawn is not shown.
 
 =back
 

@@ -1782,10 +1782,9 @@ L<mermaid-rs-renderer|https://github.com/1jehuang/mermaid-rs-renderer>,
 which needs no browser, is quick, and draws the diagrams in its own
 way.  They are drawn on the background GitHub shows them on: the
 C<default> theme on white, or the C<dark> theme on C<#0d1117> in the
-dark mode.  The images are kept in
-F<${XDG_CACHE_HOME:-~/.cache}/mdee/mermaid>, which only the user can
-read, and drawn again only when the code changes.  A diagram that
-cannot be drawn is not shown, and is tried again the next time.
+dark mode.  The diagrams are drawn each time mdee shows the file,
+into a temporary directory which only the user can read.  A diagram
+that cannot be drawn is not shown.
 B<mmdr> does not fetch anything from the network.
 
 The look is set by C<--config>: C<mermaid_theme=NAME> (C<default>,

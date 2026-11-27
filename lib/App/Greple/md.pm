@@ -1087,6 +1087,8 @@ my %colorize = (
                     background => $config->{mermaid_background}
                         || (($config->{mode} // '') eq 'dark' ? '#0d1117' : 'white'),
                     scale   => $config->{mermaid_scale},
+                    # on paper, ansi2pdf reads the files after greple
+                    keep    => $config->{image_osc},
                 );
                 $img = image_object(['png']) if grep { defined } @diagram;
             }

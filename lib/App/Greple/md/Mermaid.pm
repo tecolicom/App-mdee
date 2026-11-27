@@ -1,9 +1,9 @@
 package App::Greple::md::Mermaid;
 
 # The images of the Mermaid diagrams of a Markdown file.  They are
-# drawn by a command (mmdc of mermaid-cli by default) into PNG files
-# in a cache directory, and are shown by Text::ANSI::Image as the
-# other images are.
+# drawn by a command (mmdr of mermaid-rs-renderer, or mmdc of
+# mermaid-cli) into PNG files in a cache directory, and are
+# shown by Text::ANSI::Image as the other images are.
 
 use v5.26;
 use warnings;
@@ -18,10 +18,25 @@ use Fcntl qw(O_WRONLY O_CREAT O_EXCL);
 use File::Path qw(make_path);
 use File::Spec;
 use File::Temp ();
+use JSON::PP ();
 use POSIX ();
 use Text::ParseWords qw(shellwords);
 
-our $COMMAND = 'mmdc';
+# The commands which draw, in the order they are looked for in PATH
+# when none is given; the first when none is found.  $COMMAND, when
+# set, is used in place of them.
+our @COMMANDS = qw(mmdr mmdc);
+our $COMMAND;
+
+sub default_command {
+    for my $name (@COMMANDS) {
+	for my $dir (File::Spec->path) {
+	    my $file = File::Spec->catfile($dir, $name);
+	    return $name if -f $file and -x _;
+	}
+    }
+    $COMMANDS[0];
+}
 
 # seconds that one run of the command may take
 our $TIMEOUT = 60;
@@ -63,6 +78,14 @@ sub cache_dir {
     $dir;
 }
 
+# Whether the command is mmdr, by its name: mmdr has other options
+# than mmdc (no -b, -s, -q or -p), draws without a browser, and is
+# quick enough to be run for each diagram.
+sub is_mmdr {
+    my $name = (File::Spec->splitpath($_[0] // ''))[2];
+    $name =~ /^mmdr/i;
+}
+
 # A body which mmdc would cut in a Markdown file: its pattern (in
 # JavaScript, where $ is also before CR, U+2028 and U+2029, and \s has
 # U+FEFF) takes a line which ends with ``` or ::: as the end of the
@@ -75,7 +98,8 @@ sub ambiguous {
 # one that could not be drawn.
 #
 #   codes   => [ CODE, ... ]   the text of each diagram
-#   command => 'mmdc ...'      the command, split as a shell does
+#   command => 'mmdc ...'      the command, split as a shell does; one
+#                              whose name starts with mmdr is run as mmdr
 #   theme   => 'default'       the theme of Mermaid (dark in the dark mode)
 #   background => 'transparent'  the background, a color of CSS
 #   scale   => 3               the scale of the image: the larger, the
@@ -91,19 +115,24 @@ sub ambiguous {
 # is kept, so that the diagrams are drawn once it works.  A run that
 # takes too long is treated as one that fails, but nothing more is
 # tried after one diagram alone takes too long.
+#
+# mmdr draws each diagram in a run of its own, from the beginning.
 sub diagram_files {
     my %opt = @_;
     my @codes = @{$opt{codes} // []} or return ();
     my $dir = cache_dir() // return (undef) x @codes;
-    my @cmd = shellwords($opt{command} || $COMMAND);
+    my @cmd = shellwords($opt{command} || $COMMAND || default_command());
     @cmd or return (undef) x @codes;
-    my @draw = ('-e', 'png',
-		'-b', $opt{background} || 'transparent',
-		'-s', $opt{scale} || 3,
-		'-t', $opt{theme} || 'default');
+    my $mmdr = is_mmdr($cmd[0]);
+    my $background = $opt{background} || 'transparent';
+    my $scale = $opt{scale} || 3;
+    my $theme = $opt{theme} || 'default';
+    # what the digest is made of, which are also the options of mmdc
+    my @look = ('-e', 'png', '-b', $background, '-s', $scale, '-t', $theme);
+    my @draw = $mmdr ? ('-e', 'png', '-t', $theme) : ('-q', @look);
     my $file = sub {
 	my $code = $_[0] =~ s/\n?\z/\n/r;
-	File::Spec->catfile($dir, sha1_hex(encode_utf8(join "\0", @cmd, @draw, $code)) . '.png');
+	File::Spec->catfile($dir, sha1_hex(encode_utf8(join "\0", @cmd, @look, $code)) . '.png');
     };
     my @path = map { $file->($_) } @codes;
     # the empty file of a diagram that failed long ago is forgotten
@@ -112,16 +141,25 @@ sub diagram_files {
     }
     my %seen;
     my @todo = grep { !-e $path[$_] and !$seen{$path[$_]}++ } 0 .. $#codes;
-    # the options of puppeteer, unless the command has its own; after
-    # the digest, which must not depend on the name of the file
-    my $pp;
-    if (@todo and -w $dir and not grep { /^(?:-p|--puppeteerConfigFile(?:=|$))/ } @cmd) {
-	if ($pp = puppeteer_config($dir)) {
-	    push @draw, '-p', "$pp";
+    # A file of options, unless the command has its own: those of
+    # puppeteer for mmdc, the background for mmdr, which has no option
+    # for it.  After the digest, which must not depend on the name of
+    # the file.
+    my $conf;
+    my($flag, $own, $text) = $mmdr
+	? ('-c', qr/^(?:-c|--configFile(?:=|$))/,
+	   { themeVariables => { background => "$background" } })
+	: ('-p', qr/^(?:-p|--puppeteerConfigFile(?:=|$))/, \%PUPPETEER);
+    if (@todo and -w $dir and not grep { /$own/ } @cmd) {
+	if ($conf = config_file($dir, $text)) {
+	    push @draw, $flag, "$conf";
 	} else {
 	    @todo = ();
 	}
     }
+    # mmdr has no scale: the size is asked first, and given multiplied
+    my $r = { dir => $dir, cmd => \@cmd, opt => \@draw,
+	      $mmdr ? (scale => $scale) : () };
     # without a place to write, the diagrams drawn before are shown
     if (@todo and -w $dir) {
 	my @batch = grep { !ambiguous($codes[$_]) } @todo;
@@ -131,20 +169,20 @@ sub diagram_files {
 	# browser may be gone, or its place not set in this shell).
 	my $works = 0;
 	my %failed;
-	if (@batch > 1) {
-	    my $status = draw_md($dir, \@cmd, \@draw, [ @codes[@batch] ], [ @path[@batch] ]);
+	if (!$mmdr and @batch > 1) {
+	    my $status = draw_md($r, [ @codes[@batch] ], [ @path[@batch] ]);
 	    $works ||= grep { -e $path[$_] } @batch;
 	    @batch = @alone = () if $status eq 'error';
 	}
 	for my $i (@batch, @alone) {
 	    next if -e $path[$i];
-	    my $status = draw_one($dir, \@cmd, \@draw, $codes[$i], $path[$i]);
+	    my $status = draw_one($r, $codes[$i], $path[$i]);
 	    if (-e $path[$i]) {
 		$works = 1;
 		next;
 	    }
 	    last if $status eq 'error';
-	    $works ||= probe($dir, \@cmd, \@draw) or last;
+	    $works ||= probe($r) or last;
 	    $failed{$i} = 1;
 	    last if $status eq 'timeout';
 	}
@@ -157,12 +195,11 @@ sub diagram_files {
     map { -s $_ ? $_ : undef } @path;
 }
 
-# A file of the options of puppeteer, removed with the object
-sub puppeteer_config {
-    my $dir = shift;
+# A file of options in JSON, removed with the object
+sub config_file {
+    my($dir, $data) = @_;
     my $fh = eval { File::Temp->new(DIR => $dir, SUFFIX => '.json') } or return;
-    my $args = join ', ', map { qq("$_") } @{$PUPPETEER{args}};
-    print $fh qq({ "args": [ $args ] }\n);
+    print $fh JSON::PP->new->utf8->canonical->encode($data), "\n";
     close $fh;
     $fh;
 }
@@ -170,16 +207,16 @@ sub puppeteer_config {
 # Draw the diagrams by one run of the command, with a Markdown file of
 # them all: mmdc writes the image of the Nth diagram to out-N.png.
 sub draw_md {
-    my($dir, $cmd, $opt, $codes, $paths) = @_;
+    my($r, $codes, $paths) = @_;
     # in the cache directory, so that rename() does not cross devices
-    my $tmp = eval { File::Temp->newdir(DIR => $dir) } or return 'error';
+    my $tmp = eval { File::Temp->newdir(DIR => $r->{dir}) } or return 'error';
     my $in  = File::Spec->catfile($tmp, 'in.md');
     my $out = File::Spec->catfile($tmp, 'out.md');
     open my $fh, '>:encoding(utf8)', $in or return 'error';
     print $fh "```mermaid\n", s/\n?\z/\n/r, "```\n\n" for @$codes;
     close $fh;
     # the diagrams before one that fails are drawn
-    my $status = run(@$cmd, '-q', @$opt, '-i', $in, '-o', $out);
+    my $status = run(@{$r->{cmd}}, @{$r->{opt}}, '-i', $in, '-o', $out);
     for my $i (0 .. $#$codes) {
 	my $png = File::Spec->catfile($tmp, sprintf 'out-%d.png', $i + 1);
 	-s $png and rename $png, $paths->[$i];
@@ -189,28 +226,52 @@ sub draw_md {
 
 # Whether the command draws the diagram $PROBE
 sub probe {
-    my($dir, $cmd, $opt) = @_;
-    my $png = eval { File::Temp->new(DIR => $dir, SUFFIX => '.png') } or return 0;
-    draw_one($dir, $cmd, $opt, $PROBE, "$png");
+    my $r = shift;
+    my $png = eval { File::Temp->new(DIR => $r->{dir}, SUFFIX => '.png') } or return 0;
+    draw_one($r, $PROBE, "$png");
     -s "$png" ? 1 : 0;
 }
 
-# Draw one diagram from a file of its own, as it is
+# Draw one diagram from a file of its own, as it is.  With a scale
+# (mmdr), the command is first asked for the size of the diagram
+# (--size prints it in JSON), and is given that size multiplied: it
+# takes a width and a height and draws the diagram as large; with only
+# one of them it takes 1200 or 800 for the other.  A diagram whose
+# size is not told is drawn in its own size, and so is any diagram
+# when the command has a width or a height of its own.
 sub draw_one {
-    my($dir, $cmd, $opt, $code, $path) = @_;
-    my $tmp = eval { File::Temp->newdir(DIR => $dir) } or return 'error';
+    my($r, $code, $path) = @_;
+    my($cmd, $opt) = @{$r}{qw(cmd opt)};
+    my $tmp = eval { File::Temp->newdir(DIR => $r->{dir}) } or return 'error';
     my $in  = File::Spec->catfile($tmp, 'in.mmd');
     my $out = File::Spec->catfile($tmp, 'out.png');
     open my $fh, '>:encoding(utf8)', $in or return 'error';
     print $fh $code;
     close $fh;
-    my $status = run(@$cmd, '-q', @$opt, '-i', $in, '-o', $out);
+    my @size;
+    if ($r->{scale} and $r->{scale} != 1
+	and not grep { /^(?:-w|-H|--(?:width|height)(?:=|$))/ } @$cmd) {
+	my $json = File::Spec->catfile($tmp, 'size.json');
+	my $status = run({ out => $json }, @$cmd, @$opt, '-i', $in, '--size');
+	$status =~ /^(?:ok|fail)$/ or return $status;
+	my $size = $status eq 'ok' && eval {
+	    open my $fh, '<:raw', $json or die;
+	    JSON::PP->new->utf8->decode(do { local $/; <$fh> });
+	};
+	my($w, $h) = map { $_ * $r->{scale} }
+	    grep { defined and !ref and /^[\d.]+$/ and $_ > 0 }
+	    ref $size eq 'HASH' ? @{$size}{qw(width height)} : ();
+	@size = ('-w', POSIX::ceil($w), '-H', POSIX::ceil($h)) if defined $h;
+    }
+    my $status = run(@$cmd, @$opt, @size, '-i', $in, '-o', $out);
     -s $out and rename $out, $path;
     $status;
 }
 
-# Run a command, without a shell, its output thrown away.  Returns
-# 'ok', 'fail', 'timeout', or 'error' when it could not be started.
+# Run a command, without a shell, its output thrown away, or its
+# standard output written to the file of { out => FILE } given first.
+# Returns 'ok', 'fail', 'timeout', or 'error' when it could not be
+# started.
 #
 # The command is in a process group of its own, which is sent TERM
 # when it takes longer than $TIMEOUT, and KILL five seconds later.
@@ -220,12 +281,13 @@ sub draw_one {
 # group is sent TERM here and the program exits, which removes the
 # temporary files.
 sub run {
+    my $to = ref $_[0] eq 'HASH' ? shift : {};
     my @cmd = @_;
     my $pid = fork // return 'error';
     if ($pid == 0) {
 	setpgrp(0, 0);
 	open STDIN,  '<', File::Spec->devnull;
-	open STDOUT, '>', File::Spec->devnull;
+	open STDOUT, '>', $to->{out} // File::Spec->devnull or POSIX::_exit(127);
 	open STDERR, '>', File::Spec->devnull;
 	exec { $cmd[0] } @cmd or POSIX::_exit(127);
     }
@@ -286,8 +348,7 @@ L<Text::ANSI::Image>.
 
 Returns the PNG files of the diagrams, in the order of the codes, and
 C<undef> for one that could not be drawn.  They are drawn by
-I<COMMAND> (default C<mmdc>, of L<mermaid-cli|https://github.com/mermaid-js/mermaid-cli>;
-split into words as a shell does), all in one run, into
+I<COMMAND> (split into words as a shell does), into
 F<${XDG_CACHE_HOME:-~/.cache}/mdee/mermaid>, a directory only the user
 can read, and are drawn again only when the code, the command or the
 theme, the background (default C<transparent>) or the scale (default
@@ -301,6 +362,23 @@ see.  When the command does not work (it is not found, or has no
 browser), nothing is kept, and the diagrams are tried again the next
 time.  Diagrams drawn before are shown even when the directory cannot
 be written.
+
+I<COMMAND> is C<mmdc> of
+L<mermaid-cli|https://github.com/mermaid-js/mermaid-cli> or C<mmdr> of
+L<mermaid-rs-renderer|https://github.com/1jehuang/mermaid-rs-renderer>,
+and a command whose name (that of its first word, so not with
+C<nice> or C<env> before it) starts with C<mmdr> is run as the latter.
+Without I<COMMAND>, it is mmdr, or mmdc when only that is found in
+C<PATH>.
+
+mmdc draws all the diagrams in one run, and those left by a diagram
+that fails one by one.  mmdr has no browser to start and draws each
+diagram in a run of its own.  It has no options for the background
+and the scale: the background is given as C<themeVariables> in a file
+of C<-c>, unless I<COMMAND> has its own C<-c> (C<--configFile>), and
+for a scale other than 1 it is first asked for the size of the diagram
+(C<--size>) and then given that size multiplied (C<-w>, C<-H>), unless
+I<COMMAND> has a width or a height of its own.
 
 mmdc draws in a browser started by puppeteer.  When it does not find
 one (the mermaid-cli of Homebrew has none), set

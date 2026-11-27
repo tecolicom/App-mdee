@@ -304,8 +304,11 @@ Available parameters:
     image_osc       1: each row of an image tells its file by a private
                     OSC, for ansi2pdf, which draws the image itself
                     (default: 0)
-    mermaid_command command which draws Mermaid diagrams, with the
-                    options of mmdc (default: mmdc)
+    mermaid_command command which draws Mermaid diagrams: mmdc of
+                    mermaid-cli, or mmdr of mermaid-rs-renderer, by
+                    which a command whose name starts with mmdr is
+                    taken (default: mmdr, or mmdc when only that
+                    is found in PATH)
     mermaid_theme   theme of Mermaid: default, dark, forest or neutral
                     (default: dark in the dark mode, or default)
     mermaid_background  background of the diagrams, a color of CSS or
@@ -651,7 +654,7 @@ my $config = Getopt::EX::Config->new(
     image_term      => '',       # size of the terminal, COLSxROWS:WxH (default: of /dev/tty)
     image_tty       => '',       # where the data of the images goes (default: /dev/tty)
     image_osc       => 0,        # tell the file of each image in its rows, for ansi2pdf
-    mermaid_command => '',       # command which draws Mermaid diagrams (default: mmdc)
+    mermaid_command => '',       # command which draws Mermaid diagrams (default: mmdr, or mmdc when only that is found)
     mermaid_theme   => '',       # theme of Mermaid (default: dark in the dark mode, or default)
     mermaid_background => '',    # background of the diagrams, a color of CSS (default: #0d1117 in the dark mode, or white)
     mermaid_scale   => 0,        # scale of the diagrams (default: 3)

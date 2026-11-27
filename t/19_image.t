@@ -203,6 +203,20 @@ SKIP: {
     is(scalar(grep { /$PH/ && !/^(?:$PH.{2}){4}$/ } @l), 0, 'refill: the rows are not folded');
 }
 
+# a paragraph between a code block and an image stays where it is:
+# the line of the image is counted in the text before the code block
+# is made one line
+SKIP: {
+    App::Greple::md::Blocks::available() or skip 'no parser for refill', 1;
+    png("$dir/three.png", 64, 102);
+    my $md = md('code.md', "```\n1\n2\n3\n4\n5\n6\n```\n\naaaa bbbb cccc\ndddd eeee ffff\n\n![logo](three.png)\n\nend\n");
+    my $out = mdee_out("$base,$img,refill=1,fold=1,fold_width=10", $md);
+    (my $plain = $out) =~ s/\e\[[0-9;]*m//g;
+    my @text = grep { /[a-f]{4}/ } split /\n/, $plain;
+    is_deeply([ map { s/\h+$//r } @text ], [ 'aaaa bbbb', 'cccc dddd', 'eeee ffff' ],
+	      'refill: the paragraph after a code block and above an image is folded');
+}
+
 # an image on GitHub of the repository of the file is the file in it
 {
     my $repo = "$dir/repo";

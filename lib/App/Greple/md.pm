@@ -1068,8 +1068,11 @@ my %colorize = (
                 (?:\h*</(?:p|div|a|center)>)*
             )\h*+)\n
         }{
-            # the line number, before any other match is made
-            my $at = 1 + (substr($_, 0, $-[0]) =~ tr/\n//);
+            # the line number, before any other match is made, in the
+            # text before protect(), which made a code block one line;
+            # it is for the lines joined by refill() below the image
+            my $at = @App::Greple::md::refill_lines
+                ? 1 + (restore(substr($_, 0, $-[0])) =~ tr/\n//) : 0;
             my($line, $url, $attr) = @+{qw(line url attr)};
             if (defined $attr) {
                 ($url) = $attr =~ m{\bsrc\h*=\h*(?|"([^"]*)"|'([^']*)'|([^\s"'>]+))}i;

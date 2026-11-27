@@ -807,8 +807,8 @@ if [[ -v image ]]; then
     _image_types=${image:-png,jpeg,gif}
     for _t in ${_image_types//,/ }; do
         case $_t in
-            png|jpeg|gif) ;;
-            *) die "--image: unknown type: $_t (png, jpeg or gif)" ;;
+            png|jpeg|gif|mermaid) ;;
+            *) die "--image: unknown type: $_t (png, jpeg, gif or mermaid)" ;;
         esac
     done
 fi
@@ -1339,7 +1339,9 @@ visualization is disabled by default.
 
 Show images in the terminal (default: on).  I<TYPES> is a list of
 the types of images to show, separated by commas: C<png>, C<jpeg> and
-C<gif> (default: all of them).  B<--image=png> shows PNG only, and
+C<gif> (default: all of them), and C<mermaid>, which is not in the
+default: B<--image=png,jpeg,gif,mermaid> also draws the Mermaid
+diagrams (see L</Mermaid Diagrams>).  B<--image=png> shows PNG only, and
 B<--no-image> none.  They are shown only in the terminals that
 support them; see L</IMAGES>.
 
@@ -1767,6 +1769,50 @@ is written in C<=begin html> in POD and copied into README.
 =back
 
 Images inside a paragraph or a code block are not shown.
+
+=head2 Mermaid Diagrams
+
+With C<mermaid> in B<--image>, a fenced code block whose info string
+is C<mermaid> is followed by the image of its diagram.  The code is
+shown as it is, as the line of an image is, so the output with
+B<--no-image> is the same text without the images.
+
+The diagrams are drawn by B<mmdc> of
+L<mermaid-cli|https://github.com/mermaid-js/mermaid-cli>, all of a
+file in one run, in the colors GitHub shows them in: the C<default>
+theme of Mermaid on white, or the C<dark> theme on C<#0d1117> in the
+dark mode.
+B<mmdc> starts a browser and takes a few seconds, so the images are
+kept in F<${XDG_CACHE_HOME:-~/.cache}/mdee/mermaid>, which only the
+user can read, and drawn again only when the code changes.  A diagram
+that cannot be drawn, or takes more than 60 seconds, is not shown, and
+is not tried again for a day.  When B<mmdc> itself does not work (it
+or its browser is not found), the diagrams are tried again the next
+time.
+
+Nothing is fetched from the network for a diagram either: the browser
+of B<mmdc> is given a proxy that is not there, so that a remote image
+in a diagram is not shown.
+
+B<mmdc> uses the browser of puppeteer.  The mermaid-cli of Homebrew
+comes without one; set C<PUPPETEER_EXECUTABLE_PATH> to Google Chrome
+or Chromium:
+
+    export PUPPETEER_EXECUTABLE_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+
+The look is set by C<--config>: C<mermaid_theme=NAME> (C<default>,
+C<dark>, C<forest> or C<neutral>), C<mermaid_background=COLOR> (a color
+of CSS, or C<transparent>, with which the background of the terminal
+shows through) and C<mermaid_scale=N> (3 by default).  A diagram is
+shown at its size, in the cells of the terminal, and reduced to the
+fold width when it is wider; a larger scale makes a small diagram take
+more cells, and fewer panes (C<-C1>, or C<-p>) leave more width for a
+wide one.
+
+Another command which takes the options of B<mmdc> can be given by
+C<--config mermaid_command=COMMAND>, split into words as a shell does.
+A command with its own C<-p> (the options of puppeteer) is not given
+the proxy.
 
 =head2 Image Files
 

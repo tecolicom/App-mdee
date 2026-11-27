@@ -9,13 +9,16 @@ use File::Temp qw(tempdir);
 use lib '.';
 use t::Util;
 
-# image_types with mermaid: a fenced code block of mermaid is followed
-# by the rows of the image of its diagram, below the closing fence.
-# The diagrams are drawn by mermaid_command, a stub here which takes
-# the options of mmdc, writes a PNG of 64x102 (4 cells wide, 3 rows
-# high in 16x34 cells) for each diagram of its input, and logs its
-# arguments.  A diagram with BAD in it stops the run, as mmdc does, and
-# FAIL in the environment makes it fail with no diagram drawn.
+# image_types with mermaid: the diagrams of the fenced code blocks of
+# mermaid are drawn by mermaid_command, a stub of mmdr here, and the
+# rows of their images go below the closing fences.  mmdr has no
+# options for the background and the scale, so the background is given
+# in a file of -c, and the size of the diagram multiplied by the scale,
+# which it is asked for first with --size.  Each diagram is drawn in a
+# run of its own, from a .mmd file.  The stub fails on an option that
+# mmdr does not have, tells 64x33.5 as the size of a diagram, writes a
+# PNG of the size it is given (64x34 without), and logs its arguments
+# and the file of -c.
 
 $ENV{HOME} = my $dir = tempdir(CLEANUP => 1);
 delete $ENV{XDG_CACHE_HOME};
@@ -24,46 +27,43 @@ my $cache = "$dir/.cache/mdee/mermaid";
 my $PH = "\x{10EEEE}";
 
 my $log  = "$dir/log";
-my $stub = "$dir/mmdc-stub";
+my $stub = "$dir/mmdr-stub";
 $ENV{STUB_LOG} = $log;
 {
     open my $fh, '>', $stub or die;
     print $fh "#!$^X\n", <<'STUB';
 use strict;
 use warnings;
-# A stub of mmdc: -i IN -o OUT.  A Markdown input is split as mmdc
-# does, at any line which ends with ``` or :::.  A PNG of 64x102 (3
-# rows) is written for each diagram, of 64x170 (5 rows) for one which
-# has TALL in it.  A diagram with BAD stops the run, FAIL makes it fail
-# at once, SLEEP makes it sleep.
-my %opt;
-for (my $i = 0; $i < @ARGV; $i++) {
-    $opt{$ARGV[$i]} = $ARGV[$i + 1] if $ARGV[$i] =~ /^-[iotp]$/;
+my(%opt, $size);
+while (@ARGV) {
+    my $o = shift;
+    if    ($o eq '--size')         { $size = 1 }
+    elsif ($o =~ /^-[ioetcwH]$/)   { $opt{$o} = shift }
+    else                           { exit 2 }
+}
+my $conf = '';
+if (defined $opt{-c}) {
+    open my $c, '<', $opt{-c} or exit 2;
+    chomp($conf = do { local $/; <$c> });
 }
 open my $log, '>>', $ENV{STUB_LOG} or die;
-print $log "@ARGV\n";
+print $log join(' ', map { "$_ $opt{$_}" } grep { defined $opt{$_} } qw(-i -o -e -t -w -H)),
+    $size ? ' --size' : '', " conf=$conf\n";
 close $log;
-sleep $ENV{SLEEP} if $ENV{SLEEP};
 exit 1 if $ENV{FAIL};
+$opt{-i} =~ /\.mmd$/ or exit 2;
 open my $in, '<', $opt{-i} or die;
 my $text = do { local $/; <$in> };
-my(@code, @out);
-if ($opt{-i} =~ /\.mmd$/) {
-    @code = ($text);
-    @out = ($opt{-o});
-} else {
-    @code = $text =~ /^[^\S\n]*[`:]{3}mermaid[^\S\n]*\n([\s\S]*?)[`:]{3}[^\S\n]*$/mg;
-    (my $base = $opt{-o}) =~ s/\.md$//;
-    @out = map { "$base-$_.png" } 1 .. @code;
+exit 1 if $text =~ /BAD/;
+if ($size) {
+    print $ENV{NOSIZE} ? "?\n" : qq({\n  "width": 64.0,\n  "height": 33.5\n}\n);
+    exit 0;
 }
-for my $n (0 .. $#code) {
-    exit 1 if $code[$n] =~ /BAD/;
-    my $h = $code[$n] =~ /TALL/ ? 170 : 102;
-    open my $png, '>:raw', $out[$n] or die;
-    print $png "\x89PNG\r\n\x1a\n", pack('N', 13), 'IHDR',
-        pack('NNCCCCC', 64, $h, 8, 6, 0, 0, 0), "\0\0\0\0",
-        pack('N', 0), 'IEND', "\xae\x42\x60\x82";
-}
+my($w, $h) = ($opt{-w} // 64, $opt{-H} // 34);
+open my $png, '>:raw', $opt{-o} or die;
+print $png "\x89PNG\r\n\x1a\n", pack('N', 13), 'IHDR',
+    pack('NNCCCCC', $w, $h, 8, 6, 0, 0, 0), "\0\0\0\0",
+    pack('N', 0), 'IEND', "\xae\x42\x60\x82";
 STUB
     close $fh;
     chmod 0755, $stub;
@@ -80,7 +80,8 @@ sub md {
 
 my $tty = "$dir/tty";
 my $base = 'mode=light';
-my $img  = "image_term=80x24:16x34,image_tty=$tty,mermaid_command=$stub";
+my $term = "image_term=80x24:16x34,image_tty=$tty";
+my $img  = "$term,mermaid_command=$stub";
 
 sub mdee_out {
     my($cfg, $md) = @_;
@@ -104,22 +105,30 @@ my $doc = md('doc.md', join '',
     is(scalar(runs()), 0, 'off: the command is not run');
 }
 
-# the rows of the images below the closing fences
+# the rows of the images below the closing fences; each diagram in two
+# runs, for its size and for the image, which is 192x101 (64x33.5 by
+# the scale 3): 12 cells wide, 3 rows high
 {
     my $out = mdee_out("$base,image_types=mermaid,$img", $doc);
     my @l = split /\n/, plain($out);
     my @fence = grep { $l[$_] eq '```' } keys @l;
     is(scalar @fence, 4, 'the code blocks are kept');
     for my $i (@fence[0, 2, 3]) {
-        is(scalar(grep { /$PH/ } @l[$i + 1 .. $i + 3]), 3, "three rows below the fence at line $i");
-        unlike($l[$i + 4], qr/$PH/, "no more rows below the fence at line $i");
+	is(scalar(grep { /$PH/ } @l[$i + 1 .. $i + 3]), 3, "three rows below the fence at line $i");
+	unlike($l[$i + 4], qr/$PH/, "no more rows below the fence at line $i");
     }
     unlike($l[$fence[1] + 1], qr/$PH/, 'no rows below a code block of perl');
     ok(-s $tty, 'the data of the images is sent');
     my @runs = runs();
-    is(scalar @runs, 1, 'the diagrams are drawn in one run');
-    like($runs[0], qr/-b white -s 3 -t default\b/, 'the default theme on white in the light mode, scale 3');
-    is(scalar(() = glob "$cache/*.png"), 2, 'two diagrams are kept, the same one once');
+    is(scalar @runs, 4, 'two runs for each diagram, the same one once');
+    is(scalar(grep { /-i \S+\.mmd / } @runs), 4, 'from a .mmd file each');
+    is(scalar(grep { / --size / } @runs), 2, 'the size is asked for');
+    my($draw) = grep { !/ --size / } @runs;
+    like($draw, qr/-e png -t default -w 192 -H 101 /, 'the default theme, and the size by the scale 3');
+    like($draw, qr/conf=\{"themeVariables":\{"background":"white"\}\}$/, 'the background in the file of -c');
+    is(scalar(() = glob "$cache/*.png"), 2, 'two diagrams are kept');
+    is(scalar(grep { !/\.png$/ } glob "$cache/*"), 0, 'no temporary file is left');
+    is((stat $cache)[2] & 0777, 0700, 'the cache is private to the user');
 }
 
 # drawn once: the second time comes from the cache
@@ -130,107 +139,101 @@ my $doc = md('doc.md', join '',
     is(scalar(runs()), 0, 'cache: the command is not run');
 }
 
-# the dark theme in the dark mode
+# the dark mode, and the look by the config: drawn again
 {
     unlink $log;
     mdee_out("mode=dark,image_types=mermaid,$img", $doc);
-    my @runs = runs();
-    like($runs[0] // '', qr/-b #0d1117 .*-t dark\b/, 'the dark theme on the dark background of GitHub in the dark mode');
+    my($draw) = grep { !/ --size / } runs();
+    like($draw // '', qr/-t dark .*"background":"#0d1117"/, 'the dark theme on the dark background');
+    unlink $log;
+    mdee_out("$base,image_types=mermaid,$img,mermaid_theme=forest,mermaid_background=#fff,mermaid_scale=2", $doc);
+    ($draw) = grep { !/ --size / } runs();
+    like($draw // '', qr/-t forest -w 128 -H 67 .*"background":"#fff"/, 'mermaid_theme, mermaid_background, mermaid_scale');
 }
 
-# the theme, the background and the scale are given to the command
+# with the scale 1 the size is not asked for
 {
     unlink $log;
-    my $md = md('look.md', "```mermaid\ngraph TD\n  L1 --> L2\n```\n");
-    mdee_out("mode=dark,image_types=mermaid,$img,mermaid_theme=neutral,mermaid_background=white,mermaid_scale=3", $md);
-    my($run) = runs();
-    like($run // '', qr/-b white -s 3 -t neutral\b/, 'mermaid_theme, mermaid_background, mermaid_scale');
+    mdee_out("$base,image_types=mermaid,$img,mermaid_scale=1", $doc);
+    my @runs = runs();
+    is(scalar @runs, 2, 'scale 1: one run for each diagram');
+    unlike($runs[0], qr/ -w | --size /, 'scale 1: no size');
 }
 
-# a diagram that fails is not shown, and the others are
+# a size that is not told: the diagram is drawn in its own size
+{
+    unlink $log;
+    local $ENV{NOSIZE} = 1;
+    my $md = md('nosize.md', "```mermaid\ngraph TD\n  N1 --> N2\n```\n");
+    my $out = mdee_out("$base,image_types=mermaid,$img", $md);
+    like($out, qr/$PH/, 'no size: drawn');
+    my($draw) = grep { !/ --size / } runs();
+    unlike($draw, qr/ -w /, 'no size: no -w');
+}
+
+# the command with -c of its own is given no other
+{
+    unlink $log;
+    my $own = md('own.json', qq({"themeVariables":{"background":"#123456"}}\n));
+    my $md = md('own.md', "```mermaid\ngraph TD\n  O1 --> O2\n```\n");
+    my $out = mdee_out("$base,image_types=mermaid,$term,mermaid_command=$stub -c $own", $md);
+    like($out, qr/$PH/, 'own -c: drawn');
+    is(scalar(grep { !/#123456/ } runs()), 0, 'own -c: the file of the command is used');
+}
+
+# the command with a width of its own is not asked for the size
+{
+    unlink $log;
+    my $md = md('width.md', "```mermaid\ngraph TD\n  W1 --> W2\n```\n");
+    mdee_out("$base,image_types=mermaid,$term,mermaid_command=$stub -w 320", $md);
+    my @runs = runs();
+    is(scalar @runs, 1, 'own -w: one run');
+    like($runs[0], qr/ -w 320 conf=/, 'own -w: the width of the command, and no -H');
+}
+
+# a command with a space in its path, quoted
+{
+    mkdir "$dir/with space";
+    symlink $stub, "$dir/with space/mmdr" or die;
+    my $md = md('space.md', "```mermaid\ngraph TD\n  S --> T\n```\n");
+    my $out = mdee_out("$base,image_types=mermaid,$term,mermaid_command=\"$dir/with space/mmdr\"", $md);
+    like($out, qr/$PH/, 'a quoted path with a space');
+}
+
+# a diagram that fails is not shown, the other is, and it is tried
+# again the next time
 {
     unlink $log;
     my $md = md('bad.md', join '',
-        "```mermaid\ngraph TD\n  X --> Y\n```\n\n",
-        "```mermaid\nBAD\n```\n\n",
-        "```mermaid\ngraph TD\n  Y --> Z\n```\n");
+	"```mermaid\nBAD\n```\n\n",
+	"```mermaid\ngraph TD\n  G1 --> G2\n```\n");
     my $out = mdee_out("$base,image_types=mermaid,$img", $md);
-    is(scalar(() = plain($out) =~ /^$PH/mg), 6, 'bad: the other two are shown');
-    is(scalar(runs()), 3, 'bad: the run fails and the other two are drawn one by one');
-    is(scalar(grep { -z } glob "$cache/*.png"), 1, 'bad: an empty file is kept for it');
+    is(scalar(() = plain($out) =~ /^$PH/mg), 3, 'bad: the other diagram is shown');
+    is(scalar(grep { -z } glob "$cache/*.png"), 0, 'bad: nothing is kept for it');
     unlink $log;
     mdee_out("$base,image_types=mermaid,$img", $md);
-    is(scalar(runs()), 0, 'bad: it is not tried again');
+    ok(scalar(runs()) > 0, 'bad: tried again');
 }
 
-# a diagram that fails first stops the run before any is drawn
+# a block of mermaid inside an HTML comment is not drawn
 {
     unlink $log;
-    my $md = md('badfirst.md', join '',
-        "```mermaid\nBAD first\n```\n\n",
-        "```mermaid\ngraph TD\n  Z --> W\n```\n");
+    my $md = md('comment.md', "<!--\n```mermaid\ngraph TD\n  E --> F\n```\n-->\n\ntext\n");
     my $out = mdee_out("$base,image_types=mermaid,$img", $md);
-    is(scalar(() = plain($out) =~ /^$PH/mg), 3, 'bad first: the other one is shown');
-    unlink $log;
-    mdee_out("$base,image_types=mermaid,$img", $md);
-    is(scalar(runs()), 0, 'bad first: it is not tried again');
-}
-
-# two diagrams that fail do not stop the third
-{
-    unlink $log;
-    my $md = md('badtwo.md', join '',
-        "```mermaid\nBAD one\n```\n\n",
-        "```mermaid\nBAD two\n```\n\n",
-        "```mermaid\ngraph TD\n  V --> W\n```\n");
-    my $out = mdee_out("$base,image_types=mermaid,$img", $md);
-    is(scalar(() = plain($out) =~ /^$PH/mg), 3, 'bad two: the third is shown');
-    unlink $log;
-    mdee_out("$base,image_types=mermaid,$img", $md);
-    is(scalar(runs()), 0, 'bad two: they are not tried again');
-}
-
-# a diagram that fails, when the others were drawn before, is kept as
-# failed too, and is tried again when its empty file is old
-{
-    unlink $log;
-    my $md = md('later.md', join '',
-        "```mermaid\ngraph TD\n  V --> W\n```\n\n",
-        "```mermaid\nBAD later\n```\n");
-    mdee_out("$base,image_types=mermaid,$img", $md);
-    is(scalar(runs()), 2, 'later: the diagram and a probe');
-    unlink $log;
-    mdee_out("$base,image_types=mermaid,$img", $md);
-    is(scalar(runs()), 0, 'later: not tried again');
-    # all the empty files, whichever is the one of this diagram
-    my $old = time - 2 * 24 * 60 * 60;
-    utime $old, $old, grep { -z } glob "$cache/*.png" or die;
-    mdee_out("$base,image_types=mermaid,$img", $md);
-    is(scalar(runs()), 2, 'later: tried again after a day');
+    unlike($out, qr/$PH/, 'comment: not drawn');
+    is(scalar(runs()), 0, 'comment: the command is not run');
 }
 
 # a <!-- inside a code block starts no comment
 {
     my $md = md('incode.md', join '',
-        "```html\n<!-- start\n```\n\n",
-        "```mermaid\ngraph TD\n  I --> J\n```\n\n",
-        "<!-- real -->\n");
+	"```html\n<!-- start\n```\n\n",
+	"```mermaid\ngraph TD\n  I --> J\n```\n\n",
+	"<!-- real -->\n");
     like(mdee_out("$base,image_types=mermaid,$img", $md), qr/$PH/, 'a <!-- in a code block hides no diagram');
 }
 
-# when the command draws none, nothing is kept, so that they are drawn
-# once it works
-{
-    unlink $log;
-    my $md = md('fail.md', "```mermaid\ngraph TD\n  P --> Q\n```\n");
-    local $ENV{FAIL} = 1;
-    unlike(mdee_out("$base,image_types=mermaid,$img", $md), qr/$PH/, 'fail: not shown');
-    delete $ENV{FAIL};
-    like(mdee_out("$base,image_types=mermaid,$img", $md), qr/$PH/, 'fail: shown when the command works');
-    is(scalar(runs()), 3, 'fail: the diagram and a probe, then tried again');
-}
-
-# intact=image: the closing fence and the rows are joined by GS
+# intact=image: the rows are joined by GS, below the closing fence
 {
     my $out = mdee_out("$base,image_types=mermaid,$img,intact=image", $doc);
     my @l = split /\n/, plain($out);
@@ -247,14 +250,15 @@ SKIP: {
     require App::Greple::md::Blocks;
     App::Greple::md::Blocks::available() or skip 'no parser for refill', 2;
     my $md = md('refill.md', join '',
-        "```mermaid\nflowchart LR\n  A[入力] --> B\n```\n\n",
-        "aaaa bbbb cccc\ndddd eeee ffff\n\nend\n");
+	"```mermaid\nflowchart LR\n  A[入力] --> B\n```\n\n",
+	"aaaa bbbb cccc\ndddd eeee ffff\n\nend\n");
     my $out = mdee_out("$base,image_types=mermaid,$img,refill=1,fold=1,fold_width=10", $md);
     my @l = split /\n/, plain($out);
     my @text = grep { /[a-f]{4}/ } @l;
     is_deeply([ map { s/\h+$//r } @text ], [ 'aaaa bbbb', 'cccc dddd', 'eeee ffff' ],
-              'refill: the paragraph below the diagram is joined and folded');
-    is(scalar(grep { /$PH/ && !/^(?:$PH.{2}){4}$/ } @l), 0, 'refill: the rows are not folded');
+	      'refill: the paragraph below the diagram is joined and folded');
+    # 12 cells reduced to the fold width
+    is(scalar(grep { /$PH/ && !/^(?:$PH.{2}){10}$/ } @l), 0, 'refill: the rows are not folded');
 }
 
 # a paragraph above a diagram stays where it is: the rows are counted
@@ -262,77 +266,13 @@ SKIP: {
 SKIP: {
     App::Greple::md::Blocks::available() or skip 'no parser for refill', 1;
     my $md = md('above.md', join '',
-        "# Title\n\n",
-        "aaaa bbbb cccc\ndddd eeee ffff\n\n",
-        "```mermaid\nflowchart LR\n  A[入力] --> B\n```\n\nend\n");
+	"# Title\n\n",
+	"aaaa bbbb cccc\ndddd eeee ffff\n\n",
+	"```mermaid\nflowchart LR\n  A[入力] --> B\n```\n\nend\n");
     my $out = mdee_out("$base,image_types=mermaid,$img,refill=1,fold=1,fold_width=10", $md);
     my @text = grep { /[a-f]{4}/ } split /\n/, plain($out);
     is_deeply([ map { s/\h+$//r } @text ], [ 'aaaa bbbb', 'cccc dddd', 'eeee ffff' ],
-              'refill: the paragraph above the diagram is joined and folded');
-}
-
-# a body with a line which ends with ``` or ::: is drawn from a file
-# of its own: in the Markdown file for mmdc it would end the diagram
-{
-    unlink $log;
-    my $md = md('ambiguous.md', join '',
-        "````mermaid\ngraph TD\n  A --> B\n  %% not the end :::\n  TALL\n````\n\n",
-        "```mermaid\ngraph TD\n  C --> D\n```\n\n",
-        "```mermaid\ngraph TD\n  C --> E\n```\n");
-    my $out = mdee_out("$base,image_types=mermaid,$img", $md);
-    is(scalar(() = plain($out) =~ /^$PH/mg), 11, 'ambiguous: five rows, and three rows twice');
-    my @runs = runs();
-    is(scalar(grep { /\.mmd\b/ } @runs), 1, 'ambiguous: drawn alone from a .mmd file');
-    is(scalar(grep { /\.md\b/ } @runs), 1, 'ambiguous: the others in one run');
-    require App::Greple::md::Mermaid;
-    ok(App::Greple::md::Mermaid::ambiguous("A:::\rmore\n"), 'ambiguous: ::: before CR');
-    ok(App::Greple::md::Mermaid::ambiguous("A```\x{2028}more\n"), 'ambiguous: ``` before U+2028');
-    ok(!App::Greple::md::Mermaid::ambiguous("A:::B\n  C --> D\n"), 'ambiguous: not ::: inside a line');
-}
-
-# a block of mermaid inside an HTML comment is not drawn
-{
-    unlink $log;
-    my $md = md('comment.md', "<!--\n```mermaid\ngraph TD\n  E --> F\n```\n-->\n\ntext\n");
-    my $out = mdee_out("$base,image_types=mermaid,$img", $md);
-    unlike($out, qr/$PH/, 'comment: not drawn');
-    is(scalar(runs()), 0, 'comment: the command is not run');
-}
-
-# when the command does not work, it is not run for every diagram
-{
-    unlink $log;
-    my $md = md('broken.md', join '', map { "```mermaid\ngraph TD\n  G$_ --> H\n```\n\n" } 1 .. 5);
-    local $ENV{FAIL} = 1;
-    mdee_out("$base,image_types=mermaid,$img", $md);
-    is(scalar(runs()), 3, 'broken: one run for all, one alone and a probe, not one for each');
-}
-
-# the browser goes to the network through a proxy that is not there,
-# unless the command has its own options of puppeteer
-{
-    unlink $log;
-    my $md = md('proxy.md', "```mermaid\ngraph TD\n  P1 --> Q1\n```\n");
-    mdee_out("$base,image_types=mermaid,$img", $md);
-    my($run) = runs();
-    my($json) = ($run // '') =~ /-p (\S+)/;
-    ok($json, 'proxy: -p is given');
-    unlink $log;
-    $md = md('proxy2.md', "```mermaid\ngraph TD\n  P2 --> Q2\n```\n");
-    mdee_out("$base,image_types=mermaid,image_term=80x24:16x34,image_tty=$tty,mermaid_command=$stub -p /my/config.json", $md);
-    ($run) = runs();
-    is(scalar(() = ($run // '') =~ /-p /g), 1, 'proxy: not given with -p of the command');
-    is((stat $cache)[2] & 0777, 0700, 'the cache is private to the user');
-}
-
-# a command with a space in its path, quoted
-{
-    unlink $log;
-    mkdir "$dir/with space";
-    symlink $stub, "$dir/with space/mmdc" or die;
-    my $md = md('space.md', "```mermaid\ngraph TD\n  S --> T\n```\n");
-    my $out = mdee_out("$base,image_types=mermaid,image_term=80x24:16x34,image_tty=$tty,mermaid_command=\"$dir/with space/mmdc\"", $md);
-    like($out, qr/$PH/, 'a quoted path with a space');
+	      'refill: the paragraph above the diagram is joined and folded');
 }
 
 # an unwritable cache: the text is shown, without the diagram
@@ -346,46 +286,6 @@ SKIP: {
     like($out, qr/after/, 'unwritable cache: the text is shown');
     unlike($out, qr/$PH/, 'unwritable cache: no diagram');
     chmod 0700, "$dir/ro/mdee/mermaid";
-}
-
-# a run that takes too long is killed, and nothing is kept
-{
-    require App::Greple::md::Mermaid;
-    no warnings 'once';
-    local $App::Greple::md::Mermaid::TIMEOUT = 1;
-    local $ENV{SLEEP} = 30;
-    unlink $log;
-    my $t = time;
-    my @f = App::Greple::md::Mermaid::diagram_files(
-        codes => [ "graph TD\n  T1 --> T2\n", "graph TD\n  T3 --> T4\n" ],
-        command => $stub);
-    ok(time - $t < 15, 'timeout: the run is killed');
-    ok(!defined $f[0] && !defined $f[1], 'timeout: not drawn');
-    is(scalar(runs()), 3, 'timeout: one run for all, one alone and a probe, no more');
-    delete $ENV{SLEEP};
-    @f = App::Greple::md::Mermaid::diagram_files(
-        codes => [ "graph TD\n  T1 --> T2\n" ], command => $stub);
-    ok(defined $f[0], 'timeout: nothing kept, drawn the next time');
-}
-
-# an interrupt stops the command and leaves no temporary file
-SKIP: {
-    require App::Greple::md::Mermaid;
-    local $ENV{SLEEP} = 30;
-    unlink $log;
-    my $pid = fork // skip 'no fork', 2;
-    if ($pid == 0) {
-        App::Greple::md::Mermaid::diagram_files(
-            codes => [ "graph TD\n  I1 --> I2\n" ], command => $stub);
-        exit 0;
-    }
-    for (1 .. 50) { last if runs(); select undef, undef, undef, 0.1 }
-    kill INT => $pid;
-    waitpid $pid, 0;
-    is($? >> 8, 130, 'interrupt: exits as by INT');
-    select undef, undef, undef, 0.5;
-    my @left = grep { !/\.png$/ } glob "$cache/*";
-    is(scalar @left, 0, 'interrupt: no temporary file is left');
 }
 
 done_testing;

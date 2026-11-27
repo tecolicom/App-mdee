@@ -15,16 +15,14 @@ use t::Util;
 # options for the background and the scale, so the background is given
 # in a file of -c, and the size of the diagram multiplied by the scale,
 # which it is asked for first with --size.  Each diagram is drawn in a
-# run of its own, from a .mmd file, each time, in a temporary
-# directory.  The stub fails on an option that
+# run of its own, from a .mmd file.  The stub fails on an option that
 # mmdr does not have, tells 64x33.5 as the size of a diagram, writes a
 # PNG of the size it is given (64x34 without), and logs its arguments
 # and the file of -c.
 
 $ENV{HOME} = my $dir = tempdir(CLEANUP => 1);
-$ENV{TMPDIR} = my $tmp = "$dir/tmp";
-mkdir $tmp;
-sub left { my @l = glob "$tmp/*"; @l }
+delete $ENV{XDG_CACHE_HOME};
+my $cache = "$dir/.cache/mdee/mermaid";
 
 my $PH = "\x{10EEEE}";
 
@@ -122,25 +120,23 @@ my $doc = md('doc.md', join '',
     unlike($l[$fence[1] + 1], qr/$PH/, 'no rows below a code block of perl');
     ok(-s $tty, 'the data of the images is sent');
     my @runs = runs();
-    is(scalar @runs, 6, 'two runs for each diagram');
-    is(scalar(grep { /-i \S+\.mmd / } @runs), 6, 'from a .mmd file each');
-    is(scalar(grep { / --size / } @runs), 3, 'the size is asked for');
+    is(scalar @runs, 4, 'two runs for each diagram, the same one once');
+    is(scalar(grep { /-i \S+\.mmd / } @runs), 4, 'from a .mmd file each');
+    is(scalar(grep { / --size / } @runs), 2, 'the size is asked for');
     my($draw) = grep { !/ --size / } @runs;
     like($draw, qr/-e png -t default -w 192 -H 101 /, 'the default theme, and the size by the scale 3');
     like($draw, qr/conf=\{"themeVariables":\{"background":"white"\}\}$/, 'the background in the file of -c');
-    is(scalar(left()), 0, 'nothing is left');
+    is(scalar(() = glob "$cache/*.png"), 2, 'two diagrams are kept');
+    is(scalar(grep { !/\.png$/ } glob "$cache/*"), 0, 'no temporary file is left');
+    is((stat $cache)[2] & 0777, 0700, 'the cache is private to the user');
 }
 
-# on paper (image_osc), the files stay for ansi2pdf, which reads them
-# after greple, and the rows tell them
+# drawn once: the second time comes from the cache
 {
-    my $out = mdee_out("$base,image_types=mermaid,$img,image_osc=1", $doc);
-    my @kept = left();
-    is(scalar @kept, 1, 'image_osc: the directory stays');
-    is(scalar(() = glob "$kept[0]/*.png"), 3, 'image_osc: the files stay');
-    like($out, qr/\Q$kept[0]\E\/1\.png/, 'image_osc: the rows tell the file');
-    is((stat $kept[0])[2] & 0777, 0700, 'image_osc: the directory is private to the user');
-    system 'rm', '-rf', @kept;
+    unlink $log;
+    my $out = mdee_out("$base,image_types=mermaid,$img", $doc);
+    is(scalar(() = plain($out) =~ /^$PH/mg), 9, 'cache: the rows are there');
+    is(scalar(runs()), 0, 'cache: the command is not run');
 }
 
 # the dark mode, and the look by the config: drawn again
@@ -160,7 +156,7 @@ my $doc = md('doc.md', join '',
     unlink $log;
     mdee_out("$base,image_types=mermaid,$img,mermaid_scale=1", $doc);
     my @runs = runs();
-    is(scalar @runs, 3, 'scale 1: one run for each diagram');
+    is(scalar @runs, 2, 'scale 1: one run for each diagram');
     unlike($runs[0], qr/ -w | --size /, 'scale 1: no size');
 }
 
@@ -204,7 +200,8 @@ my $doc = md('doc.md', join '',
     like($out, qr/$PH/, 'a quoted path with a space');
 }
 
-# a diagram that fails is not shown, the other is
+# a diagram that fails is not shown, the other is, and it is tried
+# again the next time
 {
     unlink $log;
     my $md = md('bad.md', join '',
@@ -212,6 +209,10 @@ my $doc = md('doc.md', join '',
 	"```mermaid\ngraph TD\n  G1 --> G2\n```\n");
     my $out = mdee_out("$base,image_types=mermaid,$img", $md);
     is(scalar(() = plain($out) =~ /^$PH/mg), 3, 'bad: the other diagram is shown');
+    is(scalar(grep { -z } glob "$cache/*.png"), 0, 'bad: nothing is kept for it');
+    unlink $log;
+    mdee_out("$base,image_types=mermaid,$img", $md);
+    ok(scalar(runs()) > 0, 'bad: tried again');
 }
 
 # a block of mermaid inside an HTML comment is not drawn
@@ -272,6 +273,19 @@ SKIP: {
     my @text = grep { /[a-f]{4}/ } split /\n/, plain($out);
     is_deeply([ map { s/\h+$//r } @text ], [ 'aaaa bbbb', 'cccc dddd', 'eeee ffff' ],
 	      'refill: the paragraph above the diagram is joined and folded');
+}
+
+# an unwritable cache: the text is shown, without the diagram
+SKIP: {
+    skip 'root can write anywhere', 2 if $> == 0;
+    local $ENV{XDG_CACHE_HOME} = "$dir/ro";
+    mkdir "$dir/ro"; mkdir "$dir/ro/mdee"; mkdir "$dir/ro/mdee/mermaid";
+    chmod 0500, "$dir/ro/mdee/mermaid";
+    my $md = md('ro.md', "```mermaid\ngraph TD\n  R --> O\n```\n\nafter\n");
+    my $out = mdee_out("$base,image_types=mermaid,$img", $md);
+    like($out, qr/after/, 'unwritable cache: the text is shown');
+    unlike($out, qr/$PH/, 'unwritable cache: no diagram');
+    chmod 0700, "$dir/ro/mdee/mermaid";
 }
 
 done_testing;

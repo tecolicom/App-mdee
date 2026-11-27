@@ -292,7 +292,9 @@ Available parameters:
                     png, jpeg and gif; the rows of an image are put
                     below a line which is an image, and its data is
                     sent to the terminal (default: none, no images);
-                    see Text::ANSI::Image
+                    see Text::ANSI::Image; mermaid draws the diagrams
+                    of fenced code blocks of mermaid below them
+                    (App::Greple::md::Mermaid)
     image_rows      maximum rows of an image (default: 0, the
                     terminal height minus four lines)
     image_term      size of the terminal as COLSxROWS:WxH, the
@@ -302,6 +304,15 @@ Available parameters:
     image_osc       1: each row of an image tells its file by a private
                     OSC, for ansi2pdf, which draws the image itself
                     (default: 0)
+    mermaid_command command which draws Mermaid diagrams, with the
+                    options of mmdc (default: mmdc)
+    mermaid_theme   theme of Mermaid: default, dark, forest or neutral
+                    (default: dark in the dark mode, or default)
+    mermaid_background  background of the diagrams, a color of CSS or
+                    transparent (default: #0d1117 in the dark mode,
+                    or white, as GitHub shows them)
+    mermaid_scale   scale of the diagrams; a larger one takes more
+                    cells, up to the fold width (default: 3)
     table_style     lattice: column separators (default; pipe is
                     another name); 3line: columns separated by spaces,
                     a rule above and below the table and per column
@@ -597,6 +608,7 @@ use App::Greple::Common qw(FILELABEL);
 use App::Greple::Regions qw(match_regions);
 use App::Greple::md::Blocks qw(blocks);
 use App::Greple::md::Image qw(local_path);
+use App::Greple::md::Mermaid qw(diagram_files);
 use Text::ANSI::Image;
 
 my @color_labels = qw(
@@ -639,6 +651,10 @@ my $config = Getopt::EX::Config->new(
     image_term      => '',       # size of the terminal, COLSxROWS:WxH (default: of /dev/tty)
     image_tty       => '',       # where the data of the images goes (default: /dev/tty)
     image_osc       => 0,        # tell the file of each image in its rows, for ansi2pdf
+    mermaid_command => '',       # command which draws Mermaid diagrams (default: mmdc)
+    mermaid_theme   => '',       # theme of Mermaid (default: dark in the dark mode, or default)
+    mermaid_background => '',    # background of the diagrams, a color of CSS (default: #0d1117 in the dark mode, or white)
+    mermaid_scale   => 0,        # scale of the diagrams (default: 3)
     rule            => 1,        # box-drawing characters for tables
     table_style     => 'lattice', # lattice (or pipe): column separators; 3line, simple: spaces and rules only
     table_gap       => 1,        # columns from a cell to the mark place of the next column
@@ -739,7 +755,7 @@ sub finalize {
                        "colorize!", "nofork!", "fold!", "refill!", "refill_parser=s", "front_matter!", "fold_width=i", "fold_runin=i", "fold_runout=i",
                        "table!", "table_trim!",
                        "table_width=i", "table_cell=s", "table_wrap_mark=s", "table_cell_mark=s", "rule!", "table_style=s", "table_gap=i",
-                       "table_runin=i", "table_runout=i", "table_boundary=s", "table_linebreak=s", "intact=s", "keep=s%", "image_types=s", "image_rows=i", "image_term=s", "image_tty=s", "image_osc=i",
+                       "table_runin=i", "table_runout=i", "table_boundary=s", "table_linebreak=s", "intact=s", "keep=s%", "image_types=s", "image_rows=i", "image_term=s", "image_tty=s", "image_osc=i", "mermaid_command=s", "mermaid_theme=s", "mermaid_background=s", "mermaid_scale=f",
                        "heading_markup|hm:s", "cjk_friendly!", "tick_open=s", "tick_close=s",
                        "hashed=s%",
                        "colormap|cm=s" => \@opt_cm,
@@ -980,6 +996,30 @@ sub Step {
 # the file being shown, for the paths of its images (begin)
 our $current_file;
 
+# The object which makes the rows of images of the types, and sends
+# their data to the terminal by flush
+sub image_object {
+    my $types = shift;
+    Text::ANSI::Image->new(
+        method => 'kitty',
+        types  => $types,
+        term   => $config->{image_term},
+        tty    => $config->{image_tty} || '/dev/tty',
+        osc    => $config->{image_osc},
+    );
+}
+
+# The lines joined by refill() below the rows of an image go down by
+# the rows: [ the line above the rows, the number of rows ], ...
+sub shift_refill_lines {
+    my @added = @_;
+    for my $r (@App::Greple::md::refill_lines) {
+        my $shift = 0;
+        $_->[0] < $r->[0] and $shift += $_->[1] for @added;
+        $_ += $shift for @$r;
+    }
+}
+
 my %colorize = (
 
     front_matter => Step(sub {
@@ -1013,8 +1053,60 @@ my %colorize = (
             }
             @highlight = highlight_code(@code);
         }
+        # the images of the Mermaid diagrams (image_types has mermaid),
+        # all drawn at once
+        my(@diagram, $img, @added, $diagram);
+        if (grep { $_ eq 'mermaid' } split /:/, $config->{image_types} // '') {
+            # A block of mermaid, not inside an HTML comment, which the
+            # comments step takes later.  The comments are looked for
+            # as that step sees them, with the code blocks out of the
+            # way: a <!-- inside a code block starts no comment.
+            my @comment;
+            my $text = s{$block}{ ' ' x length ${^MATCH} }gepr;
+            while ($text =~ /^<!--(?![->])(?s:.*?)-->/mg) {
+                push @comment, [ $-[0], $+[0] ];
+            }
+            $diagram = sub {
+                my($info, $pos) = @_;
+                $info =~ /^\h*mermaid(?:\h|$)/i
+                    and not grep { $_->[0] <= $pos and $pos < $_->[1] } @comment;
+            };
+            my @code;
+            while (/$block/g) {
+                my($info, $body, $pos) = ($4, $5, $-[0]);
+                push @code, $body if $diagram->($info, $pos);
+            }
+            if (@code) {
+                @diagram = diagram_files(
+                    codes   => \@code,
+                    command => $config->{mermaid_command},
+                    # as GitHub shows them: the default theme on white,
+                    # and the dark theme on its dark background
+                    theme   => $config->{mermaid_theme}
+                        || (($config->{mode} // '') eq 'dark' ? 'dark' : 'default'),
+                    background => $config->{mermaid_background}
+                        || (($config->{mode} // '') eq 'dark' ? '#0d1117' : 'white'),
+                    scale   => $config->{mermaid_scale},
+                );
+                $img = image_object(['png']) if grep { defined } @diagram;
+            }
+        }
+        my $width = $config->{fold} ? $config->{fold_width} : 0;
         s{$block}{
             my($oi, $fence, $lang, $body, $ci, $close, $trail) = ($1, $2, $4, $5, $6, $7, $8);
+            # the place of the block, before any other match is made
+            my($start, $end) = ($-[0], $+[0]);
+            # the rows of the image of a diagram go below the closing fence
+            my @rows;
+            if (@diagram and $diagram->($lang, $start)) {
+                my $file = shift @diagram;
+                @rows = $img->rows($file, width => $width, rows => $config->{image_rows})
+                    if $img and $file;
+            }
+            # the line of the closing fence, in the text before protect(),
+            # for the lines joined by refill() below it
+            my $at = @rows && @App::Greple::md::refill_lines
+                ? restore(substr($_, 0, $end)) =~ tr/\n// + 1 : 0;
             my @label = $config->{highlight} ? code_labels($lang, $body) : ();
             $body = shift(@highlight) // $body;
             my $result = md_color('code_mark', "$oi$fence");
@@ -1029,8 +1121,23 @@ my %colorize = (
                 } split /(?<=\n)/, $body;
             }
             $result .= md_color('code_mark', "$ci$close") . $trail;
-            protect($result)
+            if (@rows) {
+                # Kept in one pane, the rows are one line, joined by GS.
+                # They start on the next line, so that the closing
+                # fence stays a line of its own, which ends the code
+                # block for the --exclude of --fold-by.
+                my $keep = intact("image");
+                push @added, [ $at, $keep ? 1 : scalar @rows ];
+                my $sep = $keep ? "\x1D" : "\n";
+                protect($result) . "\n" . protect(join $sep, @rows);
+            } else {
+                protect($result)
+            }
         }mge;
+        if ($img) {
+            $img->flush;
+            shift_refill_lines(@added);
+        }
     }),
 
     comments => Step(sub {
@@ -1052,15 +1159,9 @@ my %colorize = (
     # the line by GS when they are to be kept in one pane (intact=image),
     # as the rows of a table are joined by US.
     image_blocks => Step(sub {
-        my @types = split /:/, $config->{image_types} // '';
+        my @types = grep { $_ ne 'mermaid' } split /:/, $config->{image_types} // '';
         @types or return;
-        my $img = Text::ANSI::Image->new(
-            method => 'kitty',
-            types  => \@types,
-            term   => $config->{image_term},
-            tty    => $config->{image_tty} || '/dev/tty',
-            osc    => $config->{image_osc},
-        );
+        my $img = image_object(\@types);
         my @added;
         my $dir = defined $current_file && $current_file =~ m{^(.*)/} ? $1 : ".";
         my $width = $config->{fold} ? $config->{fold_width} : 0;
@@ -1075,8 +1176,7 @@ my %colorize = (
             )\h*+)\n
         }{
             # the line number, before any other match is made, in the
-            # text before protect(), which made a code block one line;
-            # it is for the lines joined by refill() below the image
+            # text before protect(), which made a code block one line
             my $at = @App::Greple::md::refill_lines
                 ? 1 + (restore(substr($_, 0, $-[0])) =~ tr/\n//) : 0;
             my($line, $url, $attr) = @+{qw(line url attr)};
@@ -1104,12 +1204,7 @@ my %colorize = (
             }
         }mgex;
         $img->flush;
-        # the lines joined by refill() below an image go down
-        for my $r (@App::Greple::md::refill_lines) {
-            my $shift = 0;
-            $_->[0] < $r->[0] and $shift += $_->[1] for @added;
-            $_ += $shift for @$r;
-        }
+        shift_refill_lines(@added);
     }),
 
     images => Step(sub {

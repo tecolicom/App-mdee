@@ -19,7 +19,7 @@ requires 'Getopt::Long::Bash', '2.0.0';
 requires 'App::Greple', '10.05';
 requires 'App::Greple::tee', '1.05';
 requires 'Getopt::EX', '3.05';
-requires 'Getopt::EX::Config', '1.0202';
+requires 'Getopt::EX::Config', '1.03';
 requires 'Command::Run', '1.06';
 
 requires 'Getopt::EX::termcolor', '1.10';

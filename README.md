@@ -910,7 +910,7 @@ cannot be drawn is not shown, and is tried again the next time.
 The look is set by `--config`: `mermaid_theme=NAME` (`default`,
 `dark`, `forest` or `neutral`), `mermaid_background=COLOR` (a color
 of CSS, or `transparent`, with which the background of the terminal
-shows through) and `mermaid_scale=N` (3 by default).  A diagram is
+shows through) and `mermaid_scale=N` (1.5 by default).  A diagram is
 shown at its size, in the cells of the terminal, and reduced to the
 fold width when it is wider; a larger scale makes a small diagram take
 more cells, and fewer panes (`-C1`, or `-p`) leave more width for a
@@ -948,6 +948,9 @@ width and within the terminal height minus four lines.  With nup, an
 image is not split across panes: if it does not fit in the rest of a
 pane, it starts in the next one (requires
 [ansicolumn(1)](https://metacpan.org/pod/App%3A%3Aansicolumn) 1.71 or later).
+
+An image is put in the middle of the fold width.  With
+`--config image_align=left` it is put at the left end.
 
 ## Conditions
 

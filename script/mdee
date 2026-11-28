@@ -1796,7 +1796,9 @@ which needs no browser, is quick, and draws the diagrams in its own
 way, or by B<mmdc> of
 L<mermaid-cli|https://github.com/mermaid-js/mermaid-cli>, which is
 Mermaid itself in a browser and takes a second or more, for all the
-new diagrams of the file at once (one by one when one has an error);
+new diagrams of the file at once (one by one when one has an error),
+while lines on the terminal tell that they are being drawn, how
+many are drawn, and the seconds gone by;
 B<mmdr> is used when it is found in C<PATH>, and B<mmdc> when only
 that is.  They are drawn on the background GitHub shows them on: the
 C<default> theme on white, or the C<dark> theme on C<#0d1117> in the

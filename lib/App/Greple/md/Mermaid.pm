@@ -155,12 +155,18 @@ sub diagram_files {
 	    $conf = config_file($dir, $data);
 	    push @{$r->{opt}}, $flag, "$conf" if $conf;
 	}
+	my $progress = progress(basename($cmd[0]));
+	my $diagrams = sub { "$_[0] Mermaid diagram" . ($_[0] > 1 ? 's' : '') };
+	$progress->('drawing ' . $diagrams->(scalar @todo) . '...');
 	# mmdc starts a browser for each run: all in one run first
-	draw_all($r, @todo) if !$mmdr and @todo > 1;
-	for (@todo) {
-	    my($path, $code) = @$_;
-	    $error{$path} = draw($r, $code, $path) unless -s $path;
+	draw_all($r, $progress, @todo) if !$mmdr and @todo > 1;
+	my @left = grep { !-s $_->[0] } @todo;
+	for my $n (1 .. @left) {
+	    my($path, $code) = @{$left[$n - 1]};
+	    $progress->("drawing Mermaid diagram $n of " . @left . '...') if @left > 1;
+	    $error{$path} = draw($r, $code, $path);
 	}
+	$progress->();
     }
     map {
 	my $path = $path[$_];
@@ -172,22 +178,73 @@ sub diagram_files {
     } 0 .. $#codes;
 }
 
+# Lines on the terminal while the diagrams are drawn, which may take
+# seconds with mmdc, so that one knows that something is going on:
+# shown on the standard error when it is a terminal, a line for each
+# step, with the seconds gone by on the line of the last.  Returns a
+# function to call with the text that follows the name of the command,
+# and with nothing at the end.  run() calls $TICK every tenth of a
+# second while it waits, which puts the seconds again when they have
+# changed.
+our $TICK;
+sub progress {
+    my $name = shift;
+    -t STDERR or return sub {};
+    my $start = time;
+    my($text, $sec) = ('', 0);
+    my $line = sub {
+	print STDERR "\r\e[K$name: $text", $sec ? " (${sec}s)" : '';
+    };
+    $TICK = sub {
+	my $s = time - $start;
+	$line->() if length $text and $s != $sec and ($sec = $s);
+    };
+    sub {
+	if (@_) {
+	    return if $_[0] eq $text;
+	    print STDERR "\n" if length $text;
+	    $text = shift;
+	    $line->();
+	} else {
+	    undef $TICK;
+	    print STDERR "\n" if length $text;
+	}
+    };
+}
+
 # Draw the diagrams in one run of mmdc, from a Markdown file of their
 # code blocks, which it draws into OUT-1.png, OUT-2.png and so on.  It
 # draws none when one has an error, and the diagrams are then drawn
 # one by one, which tells the error of each.  A code with a fence of
 # its own is not put in the file.
+#
+# Without -q, it writes a line with OUT-N.png when it has drawn one,
+# which the line on the terminal counts.
 sub draw_all {
-    my($r, @todo) = @_;
+    my($r, $progress, @todo) = @_;
     return if grep { $_->[1] =~ /^\h*(?:```|~~~)/m } @todo;
     my($cmd, $opt) = @{$r}{qw(cmd opt)};
     my $tmp = eval { File::Temp->newdir(DIR => $r->{dir}) } or return;
     my $in  = File::Spec->catfile($tmp, 'in.md');
     my $out = File::Spec->catfile($tmp, 'out.md');
+    my $log = File::Spec->catfile($tmp, 'log.txt');
     open my $fh, '>:encoding(utf8)', $in or return;
     print $fh map { "```mermaid\n$_->[1]```\n\n" } @todo;
     close $fh;
-    run(@$cmd, @$opt, '-i', $in, '-o', $out) or return;
+    my $count = @todo;
+    local $TICK = $TICK && do {
+	my $tick = $TICK;
+	sub {
+	    my $done = 0;
+	    if (open my $l, '<:raw', $log) {
+		$done = grep { /out-\d+\.png\s*$/ } <$l>;
+	    }
+	    $progress->("$done of $count drawn") if $done;
+	    $tick->();
+	};
+    };
+    run({ out => $log }, @$cmd, grep({ $_ ne '-q' } @$opt), '-i', $in, '-o', $out)
+	or return;
     for my $n (1 .. @todo) {
 	my $png = File::Spec->catfile($tmp, "out-$n.png");
 	rename $png, $todo[$n - 1][0] if -s $png;
@@ -271,7 +328,14 @@ sub run {
 	no warnings 'exec';
 	exec { $cmd[0] } @cmd or POSIX::_exit(127);
     }
-    waitpid $pid, 0;
+    if ($TICK) {
+	until (waitpid($pid, POSIX::WNOHANG()) == $pid) {
+	    select undef, undef, undef, 0.1;
+	    $TICK->();
+	}
+    } else {
+	waitpid $pid, 0;
+    }
     $? == 0;
 }
 

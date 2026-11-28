@@ -95,7 +95,8 @@ my $doc = md('doc.md', join '',
     my @runs = runs();
     is(scalar @runs, 1, 'one run for the diagrams');
     like($runs[0], qr/-i \S+\.md -o \S+\.md$/, 'from a Markdown file of them');
-    like($runs[0], qr/-e png -q -t default -b white -s 1.5 -p \S+\.json\b/, 'the look by the options, and -p');
+    like($runs[0], qr/-e png -t default -b white -s 1.5 -p \S+\.json\b/, 'the look by the options, and -p');
+    unlike($runs[0], qr/ -q /, 'not -q, for the lines of the diagrams drawn');
     unlike($runs[0], qr/ -c | --size/, 'no option of mmdr');
     is(scalar(() = glob "$cache/*.png"), 2, 'two diagrams are kept');
 }
@@ -146,6 +147,7 @@ my $doc = md('doc.md', join '',
     my @runs = runs();
     is(scalar @runs, 1, 'single: one run');
     like($runs[0] // '', qr/-i \S+\.mmd /, 'single: from a .mmd file');
+    like($runs[0] // '', qr/ -q /, 'single: -q');
 }
 
 # the message of mmdc, without the stack of JavaScript after it

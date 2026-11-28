@@ -491,7 +491,9 @@ Use [tecolicom/tap](https://github.com/tecolicom/homebrew-tap):
 
     Show images in the terminal (default: on).  _TYPES_ is a list of
     the types of images to show, separated by commas: `png`, `jpeg` and
-    `gif` (default: all of them).  **--image=png** shows PNG only, and
+    `gif` (default: all of them), and `mermaid`, which is not in the
+    default: **--image=png,jpeg,gif,mermaid** also draws the Mermaid
+    diagrams (see ["Mermaid Diagrams"](#mermaid-diagrams)).  **--image=png** shows PNG only, and
     **--no-image** none.  They are shown only in the terminals that
     support them; see ["IMAGES"](#images).
 
@@ -885,6 +887,36 @@ one of:
 is written in `=begin html` in POD and copied into README.
 
 Images inside a paragraph or a code block are not shown.
+
+## Mermaid Diagrams
+
+With `mermaid` in **--image**, a fenced code block whose info string
+is `mermaid` is followed by the image of its diagram.  The code is
+shown as it is, as the line of an image is, so the output with
+**--no-image** is the same text without the images.
+
+The diagrams are drawn by **mmdr** of
+[mermaid-rs-renderer](https://github.com/1jehuang/mermaid-rs-renderer),
+which needs no browser, is quick, and draws the diagrams in its own
+way.  They are drawn on the background GitHub shows them on: the
+`default` theme on white, or the `dark` theme on `#0d1117` in the
+dark mode.  The diagrams are drawn each time mdee shows the file,
+into a temporary directory which only the user can read.  A diagram
+that cannot be drawn is not shown.
+**mmdr** does not fetch anything from the network.
+
+The look is set by `--config`: `mermaid_theme=NAME` (`default`,
+`dark`, `forest` or `neutral`), `mermaid_background=COLOR` (a color
+of CSS, or `transparent`, with which the background of the terminal
+shows through) and `mermaid_scale=N` (3 by default).  A diagram is
+shown at its size, in the cells of the terminal, and reduced to the
+fold width when it is wider; a larger scale makes a small diagram take
+more cells, and fewer panes (`-C1`, or `-p`) leave more width for a
+wide one.
+
+The command is given by `--config mermaid_command=COMMAND`, split
+into words as a shell does: a path, or **mmdr** with options.  With
+its own `-c`, it is not given the background.
 
 ## Image Files
 

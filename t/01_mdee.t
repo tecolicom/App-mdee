@@ -779,19 +779,37 @@ subtest q(image option) => sub {
     $out = do { open my $fh, '<', $file or die; local $/; <$fh> };
     unlike($out, qr/image_types=/, q(images are not shown to a file));
 
-    # -X for less, with images, in Ghostty and kitty, which keep the
-    # images for each screen; not in iTerm2: a stub of less tells LESS
+    # In Ghostty and kitty, which keep the images for each screen, the
+    # images are sent again by less after it switches to the alternate
+    # screen, in LESS_TERMCAP_ti; not in iTerm2, nor without images.
+    # A stub of less tells LESS and the string.  Text::ANSI::Image 0.03
+    # writes the sequences (resend).
     my $less = "$empty_config/less";
     open my $fh, '>', $less or die;
     print $fh qq(#!/bin/sh\n[ "\$1" = --version ] && { echo "less 700"; exit; }\n),
-	qq(cat >/dev/null; echo "LESS=[\$LESS]"\n);
+	qq(cat >/dev/null; echo "LESS=[\$LESS]"; printf 'ti=[%s]\\n' "\$LESS_TERMCAP_ti" | tr '\\033' '~'\n);
     close $fh;
     chmod 0755, $less;
-    my $pager = sub { my $env = shift; `env $env LESS=-R PAGER=$less $mdee -p @_ $test_md 2>&1` };
-    like($pager->('TERM_PROGRAM=ghostty'), qr/^LESS=\[-R -X\]$/m, q(-X in Ghostty));
-    like($pager->('TERM=xterm-kitty'), qr/^LESS=\[-R -X\]$/m, q(-X in kitty));
-    like($pager->('TERM_PROGRAM=iTerm.app TERM_PROGRAM_VERSION=3.7.3'), qr/^LESS=\[-R\]$/m, q(no -X in iTerm2));
-    like($pager->('TERM_PROGRAM=ghostty', '--no-image'), qr/^LESS=\[-R\]$/m, q(no -X without images));
+    my $md = "$empty_config/img.md";
+    symlink File::Spec->rel2abs('images'), "$empty_config/images" or die;
+    open $fh, '>', $md or die;
+    print $fh "![logo](images/3-column.png)\n";
+    close $fh;
+    my $pager = sub {
+	my $env = shift;
+	`env COLUMNS=80 $env LESS=-R PAGER=$less $mdee -p --config image_term=80x24:16x34,image_tty=/dev/null @_ $md 2>&1`;
+    };
+    for my $t ('TERM_PROGRAM=ghostty', 'TERM=xterm-kitty') {
+	my $out = $pager->($t);
+	like($out, qr/^LESS=\[-R\]$/m, qq(no -X: $t));
+      SKIP: {
+	    require Text::ANSI::Image;
+	    Text::ANSI::Image->VERSION >= 0.03 or skip 'Text::ANSI::Image 0.03', 1;
+	    like($out, qr/^ti=\[~\[\?1049h~_Ga=T,U=1,i=\d+,f=100,t=f,/m, qq(sent again by less: $t));
+	}
+    }
+    like($pager->('TERM_PROGRAM=iTerm.app TERM_PROGRAM_VERSION=3.7.3'), qr/^ti=\[\]$/m, q(not sent again in iTerm2));
+    like($pager->('TERM_PROGRAM=ghostty', '--no-image'), qr/^ti=\[\]$/m, q(not sent again without images));
 };
 
 # Test: output width option (-w) and --fold-width

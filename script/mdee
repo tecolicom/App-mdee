@@ -812,17 +812,25 @@ fi
 # where the system has one, which is the pipe itself on Linux but a
 # device of its own on BSD and Solaris, so perl looks at the fd
 stdout_pipe() { perl -e 'exit !-p STDOUT'; }
-_image= _image_params=()
+_image= _image_params=() _resend=
 if [[ $_image_types && ! $output && ! $_paper && ! ${cat_v:-} ]] \
     && { [[ -t 1 ]] || stdout_pipe; } && image_terminal && image_pagers; then
     _image=${_image_types//,/:}
     export LESSUTFCHARDEF="${LESSUTFCHARDEF:+$LESSUTFCHARDEF,}10EEEE:p"
     # Ghostty and kitty keep the images for each screen, so those sent
     # to the screen that they show are not on the alternate screen of
-    # less: -X keeps less on that screen.  iTerm2 shows them on the
-    # alternate screen.  -+X in the pager command takes it back.
-    if [[ ${TERM_PROGRAM:-} != iTerm.app ]]; then
-        export LESS="$LESS -X"
+    # less.  They are sent again by less, after it switches to it, in
+    # its initialization string (LESS_TERMCAP_ti): the md module writes
+    # the sequences which send them by their files to a file
+    # (image_resend), and greple is run before the pager, so that the
+    # string is known when it starts (see the end).  They are sent to
+    # the screen shown as well, for less -F, which sends no such string
+    # when the text fits in the screen.  iTerm2 shows them on the
+    # alternate screen.
+    if [[ ${TERM_PROGRAM:-} != iTerm.app ]] && [[ $nup || $style == pager ]]; then
+        _resend=$(mktemp -d "${TMPDIR:-/tmp}/mdee.XXXXXX") || die "mktemp failed"
+        trap 'rm -rf "$_resend"' EXIT
+        _image_params+=("image_resend=$_resend/resend")
     fi
 elif [[ $_image_types && $_paper && ! ${cat_v:-} ]]; then
     # On paper, ansi2pdf draws the images, told of their files by the
@@ -879,6 +887,19 @@ if [[ ${dryrun:-} ]]; then
         _cmd+=$' \\\n    | '"$(eval "$_call")"
     done
     echo "$_cmd"
+elif [[ $_resend ]]; then
+    # greple first, for the images it sends again in the string with
+    # which less switches to the alternate screen (see image_resend).
+    # ansicolumn of nup reads all the text before it shows any, so nup
+    # shows nothing later; less of -p starts when greple has ended.
+    eval "${calls[0]}" > "$_resend/text"
+    if [[ -s $_resend/resend ]]; then
+        # after the string of the user, or of the terminal
+        _ti=${LESS_TERMCAP_ti:-$(tput smcup 2>/dev/null || :)}
+        export LESS_TERMCAP_ti="${_ti:-$'\e[?1049h'}$(< "$_resend/resend")"
+    fi
+    pipeline=$(IFS='|'; echo "${calls[*]:1}")
+    eval "$pipeline" < "$_resend/text"
 else
     pipeline=$(IFS='|'; echo "${calls[*]}")
     eval "$pipeline"
@@ -2319,15 +2340,19 @@ B<mdee> sets defaults for these when they are not already defined:
 Default: C<-R>.  The C<-R> option is required for ANSI color
 sequences to be displayed correctly.
 
-When images are shown in Ghostty or kitty (see L</IMAGES>), B<mdee>
-adds C<-X>, whether C<LESS> is defined or not.  With it, C<less> does
-not use the alternate screen, and the images are shown on the same
-screen that their data is sent to: Ghostty and kitty keep the images
-for each screen.  The last page then stays on the screen after C<less> ends.
-iTerm2 shows the images on the alternate screen, and is not given
-C<-X>.  To use the alternate screen, give C<-+X> in the pager
-command, such as C<NUP_PAGE_PAGER="less -+X"> (C<NUP_PAGER> when nup
-is not in page mode).
+=item C<LESS_TERMCAP_ti>
+
+When images are shown with C<less> in Ghostty or kitty (see
+L</IMAGES>), B<mdee> sets C<LESS_TERMCAP_ti>, the string with which
+C<less> switches to the alternate screen, to that string (the one
+given in C<LESS_TERMCAP_ti>, or C<tput smcup>) followed by the
+sequences which send the images again by their files.  Ghostty and kitty keep the images for each
+screen, and those sent to the screen shown before are not on the
+alternate screen.  The text is made before the pager starts, so
+that the string is known then.  iTerm2 shows the images on the
+alternate screen, and is not given it.  The images are sent to the
+screen shown as well, for C<less -F>, which does not switch the
+screen when the text fits in it.
 
 =item C<LESSUTFCHARDEF>
 

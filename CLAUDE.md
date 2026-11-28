@@ -687,6 +687,10 @@ URL encoding: `uri_escape_utf8($url, "^\\x20-\\x7e")` — escapes only non-ASCII
 
 `$LT = qr/(?:`[^`\n]*+`|\\.|[^`\\\n\]]++)+/` — three branches: backtick-span (allows `]` inside), backslash-escape (`\]`), any other char. Possessive quantifiers prevent backtracking.
 
+### Images on the Alternate Screen of less
+
+Ghostty and kitty keep the images of the kitty graphics protocol for each screen (kitty: `main_grman` and `alt_grman` in `kitty/screen.c`; Ghostty: `kitty_images` of `Screen`), and a command goes to the screen shown, with no key for the other: the images that greple sends before less switches to the alternate screen are not seen there. The spec says only that the images of the alternate screen are cleared when it is switched to. iTerm2 shows them on the alternate screen. mdee used to give less `-X` instead; now, with images in a terminal other than iTerm2 and a pager (nup or `-p`), the md module gets `image_resend=FILE`, and `Text::ANSI::Image` (0.03, `resend`) appends to it the sequences which send the images again by the paths of their files (`t=f`, or `t=t` for a PNG made by sips or ImageMagick, kept for the terminal to remove). mdee runs greple first, into a file, and sets `LESS_TERMCAP_ti` to the string of the user or `tput smcup`, followed by those sequences, before the rest of the pipeline reads that file: less sends it when it switches to the alternate screen (less 713; `LESS_TERMCAP_xx` overrides any termcap capability). The images are still sent to the screen shown, for `less -F`, which sends no `ti` when the text fits in the screen. ansicolumn of nup reads all its input before it shows any, so nothing is shown later; with `-p`, less starts when greple has ended. `-n` shows the pipeline without this. Checked in kitty, Ghostty and cmux with a script (`LESS_TERMCAP_ti` with an APC of `t=f`).
+
 ### Mode Detection with [Getopt::EX::termcolor](https://metacpan.org/pod/Getopt::EX::termcolor)
 
 Terminal background luminance (0-100) is detected via OSC 11 query. Luminance < 50 → dark mode, ≥ 50 → light mode.

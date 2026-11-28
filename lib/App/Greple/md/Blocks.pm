@@ -4,7 +4,7 @@ use 5.026;
 use warnings;
 use utf8;
 
-our $VERSION = "1.31";
+our $VERSION = "1.32";
 
 use Exporter 'import';
 our @EXPORT_OK = qw(blocks available);

@@ -4,7 +4,7 @@ package App::mdee;
 # POD documentation is appended from script/mdee at release time.
 # See minil.toml for details.
 
-our $VERSION = "1.31";
+our $VERSION = "1.32";
 
 1;
 =encoding utf-8
@@ -67,7 +67,7 @@ mdee - em·dee, Markdown Easy on the Eyes
 
 =head1 VERSION
 
-Version 1.31
+Version 1.32
 
 =cut
 =head1 DESCRIPTION
@@ -526,7 +526,9 @@ visualization is disabled by default.
 
 Show images in the terminal (default: on).  I<TYPES> is a list of
 the types of images to show, separated by commas: C<png>, C<jpeg> and
-C<gif> (default: all of them).  B<--image=png> shows PNG only, and
+C<gif> (default: all of them), and C<mermaid>, which is not in the
+default: B<--image=png,jpeg,gif,mermaid> also draws the Mermaid
+diagrams (see L</Mermaid Diagrams>).  B<--image=png> shows PNG only, and
 B<--no-image> none.  They are shown only in the terminals that
 support them; see L</IMAGES>.
 
@@ -955,6 +957,38 @@ is written in C<=begin html> in POD and copied into README.
 
 Images inside a paragraph or a code block are not shown.
 
+=head2 Mermaid Diagrams
+
+With C<mermaid> in B<--image>, a fenced code block whose info string
+is C<mermaid> is followed by the image of its diagram.  The code is
+shown as it is, as the line of an image is, so the output with
+B<--no-image> is the same text without the images.
+
+The diagrams are drawn by B<mmdr> of
+L<mermaid-rs-renderer|https://github.com/1jehuang/mermaid-rs-renderer>,
+which needs no browser, is quick, and draws the diagrams in its own
+way.  They are drawn on the background GitHub shows them on: the
+C<default> theme on white, or the C<dark> theme on C<#0d1117> in the
+dark mode.  The images are kept in
+F<mdee-mermaid-I<UID>> of the temporary directory (C<TMPDIR>, or
+F</tmp>), which only the user can read, and drawn again only when the
+code changes or the system has cleaned them up.  A diagram that
+cannot be drawn is not shown, and is tried again the next time.
+B<mmdr> does not fetch anything from the network.
+
+The look is set by C<--config>: C<mermaid_theme=NAME> (C<default>,
+C<dark>, C<forest> or C<neutral>), C<mermaid_background=COLOR> (a color
+of CSS, or C<transparent>, with which the background of the terminal
+shows through) and C<mermaid_scale=N> (1.5 by default).  A diagram is
+shown at its size, in the cells of the terminal, and reduced to the
+fold width when it is wider; a larger scale makes a small diagram take
+more cells, and fewer panes (C<-C1>, or C<-p>) leave more width for a
+wide one.
+
+The command is given by C<--config mermaid_command=COMMAND>, split
+into words as a shell does: a path, or B<mmdr> with options.  With
+its own C<-c>, it is not given the background.
+
 =head2 Image Files
 
 The file is read from the local disk, by a path relative to the
@@ -983,6 +1017,9 @@ width and within the terminal height minus four lines.  With nup, an
 image is not split across panes: if it does not fit in the rest of a
 pane, it starts in the next one (requires
 L<ansicolumn(1)|App::ansicolumn> 1.71 or later).
+
+An image is put in the middle of the fold width.  With
+C<--config image_align=left> it is put at the left end.
 
 =head2 Conditions
 

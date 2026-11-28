@@ -1386,12 +1386,15 @@ through `nup`), the following environment variables affect behavior.
     Default: `-R`.  The `-R` option is required for ANSI color
     sequences to be displayed correctly.
 
-    **mdee** always adds `-X`, whether `LESS` is defined or not.  With
-    it, `less` does not use the alternate screen: the last page stays on
-    the screen after `less` ends, and images (see ["IMAGES"](#images)) are shown
-    on the same screen that their data is sent to.  To use the alternate
-    screen, give `-+X` in the pager command, such as
-    `NUP_PAGER="less -+X"`.
+    When images are shown in Ghostty or kitty (see ["IMAGES"](#images)), **mdee**
+    adds `-X`, whether `LESS` is defined or not.  With it, `less` does
+    not use the alternate screen, and the images are shown on the same
+    screen that their data is sent to: Ghostty and kitty keep the images
+    for each screen.  The last page then stays on the screen after `less` ends.
+    iTerm2 shows the images on the alternate screen, and is not given
+    `-X`.  To use the alternate screen, give `-+X` in the pager
+    command, such as `NUP_PAGE_PAGER="less -+X"` (`NUP_PAGER` when nup
+    is not in page mode).
 
 - `LESSUTFCHARDEF`
 

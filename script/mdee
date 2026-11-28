@@ -716,12 +716,8 @@ run_column() {
 run_cat_v()  { invoke cat-v --nl=0; }
 run_pager()  { invoke ${PAGER:-less}; }
 
-# Set defaults for less environment.  -X is always added: less does
-# not switch to the alternate screen, so that the last screen stays
-# after it ends, and the images, sent to the screen that the terminal
-# shows (Ghostty keeps them for each screen), are on the screen of less.
-# -+X in the pager command takes it back.
-export LESS="${LESS:--R} -X"
+# Set defaults for less environment (-X is added below for images)
+export LESS="${LESS:--R}"
 export LESSANSIENDCHARS="${LESSANSIENDCHARS:-mK}"
 
 # The fold width leaves room for the run-in width, so give nup the
@@ -821,6 +817,13 @@ if [[ $_image_types && ! $output && ! $_paper && ! ${cat_v:-} ]] \
     && { [[ -t 1 ]] || stdout_pipe; } && image_terminal && image_pagers; then
     _image=${_image_types//,/:}
     export LESSUTFCHARDEF="${LESSUTFCHARDEF:+$LESSUTFCHARDEF,}10EEEE:p"
+    # Ghostty and kitty keep the images for each screen, so those sent
+    # to the screen that they show are not on the alternate screen of
+    # less: -X keeps less on that screen.  iTerm2 shows them on the
+    # alternate screen.  -+X in the pager command takes it back.
+    if [[ ${TERM_PROGRAM:-} != iTerm.app ]]; then
+        export LESS="$LESS -X"
+    fi
 elif [[ $_image_types && $_paper && ! ${cat_v:-} ]]; then
     # On paper, ansi2pdf draws the images, told of their files by the
     # rows (image_osc); nothing goes to the terminal.  A cell of
@@ -2316,12 +2319,15 @@ B<mdee> sets defaults for these when they are not already defined:
 Default: C<-R>.  The C<-R> option is required for ANSI color
 sequences to be displayed correctly.
 
-B<mdee> always adds C<-X>, whether C<LESS> is defined or not.  With
-it, C<less> does not use the alternate screen: the last page stays on
-the screen after C<less> ends, and images (see L</IMAGES>) are shown
-on the same screen that their data is sent to.  To use the alternate
-screen, give C<-+X> in the pager command, such as
-C<NUP_PAGER="less -+X">.
+When images are shown in Ghostty or kitty (see L</IMAGES>), B<mdee>
+adds C<-X>, whether C<LESS> is defined or not.  With it, C<less> does
+not use the alternate screen, and the images are shown on the same
+screen that their data is sent to: Ghostty and kitty keep the images
+for each screen.  The last page then stays on the screen after C<less> ends.
+iTerm2 shows the images on the alternate screen, and is not given
+C<-X>.  To use the alternate screen, give C<-+X> in the pager
+command, such as C<NUP_PAGE_PAGER="less -+X"> (C<NUP_PAGER> when nup
+is not in page mode).
 
 =item C<LESSUTFCHARDEF>
 

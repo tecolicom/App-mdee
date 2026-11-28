@@ -63,7 +63,7 @@
             "Text::ANSI::Fold" : "2.38",
             "Text::ANSI::Fold::Util" : "0",
             "Text::ANSI::Highlight" : "0.04",
-            "Text::ANSI::Image" : "0.02",
+            "Text::ANSI::Image" : "0.03",
             "Text::VisualWidth::PP" : "0.09",
             "URI::Escape" : "0",
             "perl" : "5.026"
@@ -87,7 +87,7 @@
          "web" : "https://github.com/tecolicom/App-mdee"
       }
    },
-   "version" : "1.32",
+   "version" : "1.33",
    "x_contributors" : [
       "AIKAWA Shigechika <shige@aikawa.jp>",
       "Kazumasa Utashiro <kaz@utashiro.com>",

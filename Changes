@@ -2,6 +2,29 @@ Revision history for Perl extension App-mdee
 
 {{$NEXT}}
 
+1.33 2026-11-28T12:33:38Z
+
+    - mdee is a previewer for the author of a document, not a renderer
+      for its readers, as the manual says now
+    - Mermaid diagrams are drawn by default (mermaid is in the default
+      of --image), by mmdc of mermaid-cli, which is Mermaid itself; mmdr
+      when only that is found, and mermaidx of PyPI by
+      --config mermaid_command=mermaidx
+    - mmdc: the new diagrams are drawn in one run, the browser (Chrome
+      or Chromium) is found for it, and a diagram is drawn in its own
+      size, not made narrow by the page of the browser
+    - Lines on the terminal tell that diagrams are being drawn, how
+      many are drawn, and the seconds gone by
+    - A code block with the class .mermaid of pandoc ({.mermaid ...}),
+      as pandoc-plot takes it, is a Mermaid diagram as well
+    - What a command which draws the diagrams says when it fails is
+      shown in a box below the code block (color label message)
+    - An image whose file is not found is in red (image_missing)
+    - less is not given -X: in kitty and Ghostty, which keep the images
+      for each screen, the images are sent again by less after it
+      switches to the alternate screen (LESS_TERMCAP_ti); requires
+      Text::ANSI::Image 0.03
+
 1.32 2026-11-28T01:14:25Z
 
     - Mermaid diagrams: with mermaid in --image (not in the default,

@@ -4,7 +4,7 @@ package App::mdee;
 # POD documentation is appended from script/mdee at release time.
 # See minil.toml for details.
 
-our $VERSION = "1.32";
+our $VERSION = "1.33";
 
 1;
 =encoding utf-8
@@ -37,7 +37,7 @@ mdee - em·dee, Markdown Easy on the Eyes
     --ts --table-style=#    table style: lattice, 3line or simple (default: lattice)
          --keep TYPE=WHAT   kept in one pane: table=none|row|head|all (default: table=head)
          --cat-v            visualize whitespace via cat-v
-         --[no-]image[=#]   image types to show (default: png,jpeg,gif)
+         --[no-]image[=#]   image types to show (default: png,jpeg,gif,mermaid)
      -w  --width=#          output width (default: terminal width)
          --fold-width=#     fold width (default: pane width - 3 - run-in)
          --runin=#          run-in width for line breaking (default: 4)
@@ -67,7 +67,7 @@ mdee - em·dee, Markdown Easy on the Eyes
 
 =head1 VERSION
 
-Version 1.32
+Version 1.33
 
 =cut
 =head1 DESCRIPTION
@@ -94,6 +94,14 @@ remain clickable.
 
 Use C<--no-theme> to display the original Markdown source with
 markup characters intact.
+
+mdee is a previewer for the author of a document, not a renderer for
+its readers.  The text is shown as it is written, and read as the
+renderers read it, so that what they will not show as intended is
+seen before it is published: emphasis follows the rules of
+CommonMark, the paragraphs of B<--refill> are those of a Markdown
+parser, and an image whose file is not found is marked.  Images and
+Mermaid diagrams are shown below their lines, which stay as written.
 
 The same view is printed to PDF with C<-o file.pdf>.  See
 L</Printing to PDF>.
@@ -140,6 +148,8 @@ Others are always processed for structural integrity.
     always    link             ([text](url))
               image            (![text])
               image_link       (![text](url))
+              image_missing    (an image whose file is not found)
+              message          (a message from a command, below its part)
 
 Tables and list item folding are controlled by C<--table> and
 C<--fold> options, not by C<--show>.
@@ -525,11 +535,10 @@ visualization is disabled by default.
 =item B<-->[B<no->]B<image>[=I<TYPES>]
 
 Show images in the terminal (default: on).  I<TYPES> is a list of
-the types of images to show, separated by commas: C<png>, C<jpeg> and
-C<gif> (default: all of them), and C<mermaid>, which is not in the
-default: B<--image=png,jpeg,gif,mermaid> also draws the Mermaid
-diagrams (see L</Mermaid Diagrams>).  B<--image=png> shows PNG only, and
-B<--no-image> none.  They are shown only in the terminals that
+the types of images to show, separated by commas: C<png>, C<jpeg>,
+C<gif> and C<mermaid> (default: all of them); C<mermaid> draws the
+Mermaid diagrams (see L</Mermaid Diagrams>).  B<--image=png> shows
+PNG only, and B<--no-image> none.  They are shown only in the terminals that
 support them; see L</IMAGES>.
 
 =item B<-w> I<N>, B<--width>=I<N>
@@ -755,6 +764,8 @@ Available labels:
     link              Inline links [text](url)
     image             Images ![alt](url)
     image_link        Image links [![alt](img)](url)
+    image_missing     Images whose file is not found
+    message           Messages of the commands run (mmdr), not of the text
     link_mark         Link/image brackets (overrides emphasis_mark)
     br_mark           <br> breaking a table cell (overrides emphasis_mark)
     blockquote        Blockquote marker (>)
@@ -959,22 +970,50 @@ Images inside a paragraph or a code block are not shown.
 
 =head2 Mermaid Diagrams
 
-With C<mermaid> in B<--image>, a fenced code block whose info string
-is C<mermaid> is followed by the image of its diagram.  The code is
-shown as it is, as the line of an image is, so the output with
-B<--no-image> is the same text without the images.
+With C<mermaid> in B<--image> (the default), a fenced code block
+whose info string is C<mermaid>, or has the class C<.mermaid> in the
+attributes of pandoc, as pandoc-plot takes it
+(C<{.mermaid caption="..." #fig:x}>), is followed by the image of its
+diagram, when B<mmdc> or B<mmdr> is installed; without them, the
+code is shown alone.  The code is shown as it is, as the line of an
+image is, so the output with B<--no-image> is the same text without
+the images.
 
 The diagrams are drawn by B<mmdr> of
 L<mermaid-rs-renderer|https://github.com/1jehuang/mermaid-rs-renderer>,
 which needs no browser, is quick, and draws the diagrams in its own
-way.  They are drawn on the background GitHub shows them on: the
+way, or by B<mmdc> of
+L<mermaid-cli|https://github.com/mermaid-js/mermaid-cli>, which is
+Mermaid itself in a browser and takes a second or more, for all the
+new diagrams of the file at once (one by one when one has an error),
+while lines on the terminal tell that they are being drawn, how
+many are drawn, and the seconds gone by;
+B<mmdc> is used when it is found in C<PATH>, for it draws the
+diagrams as GitHub does, and B<mmdr> when only that is.  They are drawn on the background GitHub shows them on: the
 C<default> theme on white, or the C<dark> theme on C<#0d1117> in the
 dark mode.  The images are kept in
 F<mdee-mermaid-I<UID>> of the temporary directory (C<TMPDIR>, or
 F</tmp>), which only the user can read, and drawn again only when the
 code changes or the system has cleaned them up.  A diagram that
-cannot be drawn is not shown, and is tried again the next time.
-B<mmdr> does not fetch anything from the network.
+cannot be drawn is not shown, and is tried again the next time; what
+the command says then is shown below the closing fence, in a box
+with the name of the command on its top, in the color of C<message>,
+so that it is not taken for the text; the stack of JavaScript that
+B<mmdc> writes after its error is left out.
+B<mmdr> reads the code in its own way, and draws a diagram even with
+an error such as a C<[> not closed: that a diagram is drawn does not
+mean that the code is right.  B<mmdc> reads it as GitHub does, and
+tells such an error (C<--config mermaid_command=mmdc>).
+
+Nothing is fetched from the network for a diagram either: the browser
+of B<mmdc> is given a proxy that is not there, so that a remote image
+in a diagram is not shown, and B<mmdr> does not fetch anything.
+
+B<mmdc> draws in a browser of puppeteer, which looks only for its
+own, and the mermaid-cli of Homebrew comes without one: mdee gives it
+Google Chrome or Chromium when one is found, in F</Applications> of
+macOS or in C<PATH> (C<google-chrome>, C<chromium> and others).
+C<PUPPETEER_EXECUTABLE_PATH>, when set, is used instead.
 
 The look is set by C<--config>: C<mermaid_theme=NAME> (C<default>,
 C<dark>, C<forest> or C<neutral>), C<mermaid_background=COLOR> (a color
@@ -985,9 +1024,26 @@ fold width when it is wider; a larger scale makes a small diagram take
 more cells, and fewer panes (C<-C1>, or C<-p>) leave more width for a
 wide one.
 
-The command is given by C<--config mermaid_command=COMMAND>, split
-into words as a shell does: a path, or B<mmdr> with options.  With
-its own C<-c>, it is not given the background.
+The command is chosen by C<--config mermaid_command=COMMAND>, split
+into words as a shell does: C<mermaid_command=mmdc>, or a path, or a
+command with options.  One whose name starts with C<mmdr> is given
+the options of B<mmdr>, one whose name starts with C<mermaidx> those
+of B<mermaidx>, and any other those of B<mmdc>.
+
+B<mermaidx> of L<PyPI|https://pypi.org/project/mermaidx/>
+(C<mermaid_command=mermaidx>) runs Mermaid itself in Python, without
+a browser, and takes less than a second for a diagram.  It draws the
+text in a font of its own, DejaVu Sans, which has no glyphs for
+Japanese, Chinese or Korean: such text is shown as boxes.
+A command with its own C<-p> (the options of puppeteer) is not given
+the proxy, and B<mmdr> with its own C<-c> is not given the background.
+
+B<mmdc> is given the config of Mermaid in a file of C<-c>, with
+C<useMaxWidth: false> for each type of diagram: without it, Mermaid
+makes a diagram as narrow as the page of the browser, about 800
+pixels, and the text of a wide one small.  A diagram is drawn in its
+own size, and made as narrow as the fold width when it is shown.
+B<mmdc> with its own C<-c> is not given it.
 
 =head2 Image Files
 
@@ -1008,7 +1064,11 @@ B<--image>.  The type is detected from the content, not the file name.  JPEG and
 C<sips> (macOS) or ImageMagick; without either, they are not shown.
 A PNG much larger than the screen is reduced by the same tools, to
 send less data; without them, it is sent as it is.
-A file that is not found is not shown.
+A file that is not found is not shown, and its C<![text]> is in the
+color of C<image_missing> (red), with images shown or not, so that a
+wrong path is seen before the text is published.  Only a path is
+looked at, not a URL, and not in the text from the standard input,
+which has no directory.
 
 =head2 Size
 
@@ -1459,12 +1519,19 @@ B<mdee> sets defaults for these when they are not already defined:
 Default: C<-R>.  The C<-R> option is required for ANSI color
 sequences to be displayed correctly.
 
-B<mdee> always adds C<-X>, whether C<LESS> is defined or not.  With
-it, C<less> does not use the alternate screen: the last page stays on
-the screen after C<less> ends, and images (see L</IMAGES>) are shown
-on the same screen that their data is sent to.  To use the alternate
-screen, give C<-+X> in the pager command, such as
-C<NUP_PAGER="less -+X">.
+=item C<LESS_TERMCAP_ti>
+
+When images are shown with C<less> in Ghostty or kitty (see
+L</IMAGES>), B<mdee> sets C<LESS_TERMCAP_ti>, the string with which
+C<less> switches to the alternate screen, to that string (the one
+given in C<LESS_TERMCAP_ti>, or C<tput smcup>) followed by the
+sequences which send the images again by their files.  Ghostty and kitty keep the images for each
+screen, and those sent to the screen shown before are not on the
+alternate screen.  The text is made before the pager starts, so
+that the string is known then.  iTerm2 shows the images on the
+alternate screen, and is not given it.  The images are sent to the
+screen shown as well, for C<less -F>, which does not switch the
+screen when the text fits in it.
 
 =item C<LESSUTFCHARDEF>
 

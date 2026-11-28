@@ -8,7 +8,7 @@ requires 'URI::Escape';
 
 requires 'App::ansiecho';
 requires 'App::ansifold', '1.38';
-requires 'App::ansicolumn', '1.72';
+requires 'App::ansicolumn', '1.73';
 requires 'Term::ANSIColor::Concise', '3.03';
 
 requires 'App::nup', '1.26';

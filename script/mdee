@@ -1799,8 +1799,8 @@ F<mdee-mermaid-I<UID>> of the temporary directory (C<TMPDIR>, or
 F</tmp>), which only the user can read, and drawn again only when the
 code changes or the system has cleaned them up.  A diagram that
 cannot be drawn is not shown, and is tried again the next time; what
-B<mmdr> says then is shown below the closing fence, as
-C<mmdr: error: ...> in the color of C<message>, so that it is not
+B<mmdr> says then is shown below the closing fence, in a box with
+C<mmdr> on its top, in the color of C<message>, so that it is not
 taken for the text.
 B<mmdr> reads the code in its own way, and draws a diagram even with
 an error such as a C<[> not closed: that a diagram is drawn does not

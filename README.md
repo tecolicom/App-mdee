@@ -917,8 +917,8 @@ dark mode.  The images are kept in
 `/tmp`), which only the user can read, and drawn again only when the
 code changes or the system has cleaned them up.  A diagram that
 cannot be drawn is not shown, and is tried again the next time; what
-**mmdr** says then is shown below the closing fence, as
-`mmdr: error: ...` in the color of `message`, so that it is not
+**mmdr** says then is shown below the closing fence, in a box with
+`mmdr` on its top, in the color of `message`, so that it is not
 taken for the text.
 **mmdr** reads the code in its own way, and draws a diagram even with
 an error such as a `[` not closed: that a diagram is drawn does not

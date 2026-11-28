@@ -528,21 +528,26 @@ C<nomark> theme).
 =head2 Messages
 
     LABEL          LIGHT / DARK
-    message        L25/R;E
+    message        R
 
 A message from a command that the module runs, which is not a part of
-the text, is put on lines of its own below the part it is about, each
-starting with the name of the command, as a compiler writes, in the
-C<message> color.  Only a command that fails with something written
-to the standard error has one; a command that is not installed has
-none.  The message of B<mmdr>, when a Mermaid diagram cannot be
-drawn, goes below the closing fence, in place of the diagram:
+the text, is put below the part it is about in a shadow box of
+L<ansicolumn(1)|App::ansicolumn>, as wide as the fold width (or the
+terminal), with the name of the command on its top, in the
+C<message> color; a long line is folded in the box, and the box is
+kept in one pane, as an image is (C<intact=image>).  Only a command
+that fails with something written to the standard error has one; a
+command that is not installed has none.  The message of B<mmdr>,
+when a Mermaid diagram cannot be drawn, goes below the closing
+fence, in place of the diagram:
 
     ```mermaid
     flowchat LR
       A --> B
     ```
-    mmdr: error: unknown or missing Mermaid diagram header
+    ┌─ mmdr ──────────────────────────────────────────────┐
+    │ error: unknown or missing Mermaid diagram header    ▐▌
+    └▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▟▌
 
 =head2 Line Breaks in Tables
 
@@ -718,7 +723,7 @@ my %default_colors = (
     image           => 'I',
     image_link      => 'I',
     image_missing   => 'RI',
-    message         => 'L25/R;E',
+    message         => 'R',
     h1              => 'L25D/${base};E',
     h2              => 'L25D/${base}+y20;E',
     h3              => 'L25DN/${base}+y20',
@@ -1079,12 +1084,62 @@ sub image_color {
     md_color(missing_image($url) ? 'image_missing' : $label, $text);
 }
 
+# The lines of a box drawn by ansicolumn around the lines given, which
+# are folded in it:
+#
+#   border  the border style of ansicolumn (default: box)
+#   label   a label on the top border, at the left
+#   color   a color label of the module, for the whole box
+#   width   the width, the margins included (default: the terminal)
+#   fill    1: as wide as the width; 0: as the longest line, in the
+#           width
+#   margin  columns left out of the box at the left and the right;
+#           spaces are put at the left
+sub box_lines {
+    my($lines, %opt) = @_;
+    my $margin = $opt{margin} // 0;
+    my $width = ($opt{width} || (image_object(['png'])->terminal)[0] || 80) - 2 * $margin;
+    my $label = $opt{label} // '';
+    my $draw = sub {
+        my($w, @fold) = @_;
+        call_ansicolumn(join('', map { "$_\n" } @$lines),
+            '-C1', '-S', $w, @fold,
+            '--border', '--border-style=' . ($opt{border} || 'box'),
+            length $label ? ('--label', "NW=$label") : ());
+    };
+    # Without the document mode a line is not folded: the box is
+    # right when its lines are as wide as one another, and the longest
+    # line has a space before the right border, which some styles do
+    # not have of their own.  The columns of a border depend on its
+    # style, so the narrowest box is searched for.
+    my($long) = sort { ansi_width($b) <=> ansi_width($a) } @$lines;
+    my $fit = sub {
+        my $box = $draw->(shift);
+        my %w = map { ansi_width($_) => 1 } split /\n/, $box;
+        keys %w == 1 && $box !~ /\Q$long\E(?! )/ ? $box : undef;
+    };
+    my $box;
+    if (not $opt{fill}) {
+        my $text = List::Util::max(ansi_width($label) + 2, ansi_width($long));
+        for my $w ($text + 2 .. List::Util::min($text + 8, $width)) {
+            last if defined($box = $fit->($w));
+        }
+    }
+    # In the whole width, folded as a document only when a line does
+    # not fit, because the document mode folds before the end.
+    $box //= $fit->($width) // $draw->($width, '--document');
+    my $pad = ' ' x $margin;
+    map { $pad . ($opt{color} ? md_color($opt{color}, $_) : $_) } split /\n/, $box;
+}
+
 # The lines of a message from a command which mdee runs, not a part of
-# the text: the name of the command at the start of each, as compilers
-# write, in the color of message
+# the text: in a shadow box as wide as the width (the fold width, or
+# that of the terminal), with the name of the command on its top, in
+# the color of message
 sub message_lines {
-    my($name, @lines) = @_;
-    map { md_color('message', "$name: $_") } @lines;
+    my($width, $name, @lines) = @_;
+    box_lines(\@lines, border => 'shadow-box', label => " $name ",
+              color => 'message', width => $width, fill => 1);
 }
 
 # The lines joined by refill() below the rows of an image go down by
@@ -1184,7 +1239,7 @@ my %colorize = (
                 @rows = $img->rows($file, width => $width, rows => $config->{image_rows})
                     if $img and $file;
                 @rows = align_rows($img, $width, @rows);
-                @message = message_lines(@$error) if $error and not @rows;
+                @message = message_lines($width, @$error) if $error and not @rows;
             }
             # the line of the closing fence, in the text before protect(),
             # for the lines joined by refill() below it
@@ -1204,18 +1259,16 @@ my %colorize = (
                 } split /(?<=\n)/, $body;
             }
             $result .= md_color('code_mark', "$ci$close") . $trail;
-            if (@rows) {
-                # Kept in one pane, the rows are one line, joined by GS.
+            # the rows, or the lines of the message in place of them
+            if (my @below = @rows ? @rows : @message) {
+                # Kept in one pane, the lines are one, joined by GS.
                 # They start on the next line, so that the closing
                 # fence stays a line of its own, which ends the code
                 # block for the --exclude of --fold-by.
                 my $keep = intact("image");
-                push @added, [ $at, $keep ? 1 : scalar @rows ];
+                push @added, [ $at, $keep ? 1 : scalar @below ];
                 my $sep = $keep ? "\x1D" : "\n";
-                protect($result) . "\n" . protect(join $sep, @rows);
-            } elsif (@message) {
-                push @added, [ $at, scalar @message ];
-                protect($result) . "\n" . join "\n", map { protect($_) } @message;
+                protect($result) . "\n" . protect(join $sep, @below);
             } else {
                 protect($result)
             }

@@ -231,15 +231,23 @@ my $doc = md('doc.md', join '',
     my $out = mdee_out("$base,image_types=mermaid,$img", $md);
     is(scalar(() = plain($out) =~ /^$PH/mg), 3, 'bad: the other diagram is shown');
     is(scalar(grep { -z } glob "$cache/*.png"), 0, 'bad: nothing is kept for it');
-    # what the command said, below the closing fence, by its name, in
-    # the color of message, without the sequences of the command
+    # what the command said, below the closing fence, in a shadow box
+    # as wide as the terminal with the name of the command on its top,
+    # in the color of message, without the sequences of the command
     my @l = split /\n/, $out;
     my($fence) = grep { plain($l[$_]) eq '```' } 0 .. $#l;
-    is_deeply([ map { plain($_) } @l[$fence + 1, $fence + 2] ],
-	      [ 'mmdr-stub: error: bad diagram', 'mmdr-stub:  at line 1' ],
-	      'bad: the message of the command below the fence');
-    like($l[$fence + 1], qr/^\e\[38;5;231;41m/, 'bad: in the color of message');
-    unlike($out, qr/\e\[31m|\e\]0;/, 'bad: no sequences of the command');
+    my @box = map { plain($_) } @l[$fence + 1 .. $fence + 4];
+    like($box[0], qr/^\x{250C}\x{2500} mmdr-stub \x{2500}+\x{2510} $/, 'bad: the name on the top of the box');
+    like($box[1], qr/^\x{2502} error: bad diagram +\x{2590}\x{258C}$/, 'bad: the message in the box');
+    like($box[2], qr/^\x{2502} +at line 1 +\x{2590}\x{258C}$/, 'bad: its second line');
+    like($box[3], qr/^\x{2514}\x{2584}+\x{259F}\x{258C}$/, 'bad: the bottom with the shadow');
+    is(length $box[1], 80, 'bad: as wide as the terminal');
+    like($l[$fence + 1], qr/^\e\[31m/, 'bad: in the color of message');
+    unlike($out, qr/\e\[31mdiagram|\e\]0;/, 'bad: no sequences of the command');
+    # kept in one pane: the lines of the box are joined by GS
+    my @g = split /\n/, mdee_out("$base,image_types=mermaid,$img,intact=image", $md);
+    my($gs) = grep { /mmdr-stub/ } @g;
+    is(scalar(() = $gs =~ /\x1D/g), 3, 'bad: intact=image joins the lines of the box');
     unlink $log;
     mdee_out("$base,image_types=mermaid,$img", $md);
     ok(scalar(runs()) > 0, 'bad: tried again');

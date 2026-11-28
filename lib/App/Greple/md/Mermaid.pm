@@ -1,8 +1,8 @@
 package App::Greple::md::Mermaid;
 
 # The images of the Mermaid diagrams of a Markdown file.  They are
-# drawn by mmdr of mermaid-rs-renderer into PNG files in a cache
-# directory, and are shown by Text::ANSI::Image as the other images
+# drawn by mmdr of mermaid-rs-renderer into PNG files in a directory
+# of the temporary directory, and are shown by Text::ANSI::Image as the other images
 # are.
 
 use v5.26;
@@ -14,7 +14,6 @@ our @EXPORT_OK = qw(diagram_files);
 
 use Encode qw(encode_utf8);
 use Digest::SHA qw(sha1_hex);
-use File::Path qw(make_path);
 use File::Spec;
 use File::Temp ();
 use JSON::PP ();
@@ -24,18 +23,17 @@ use Text::ParseWords qw(shellwords);
 # the command which draws, when none is given
 our $COMMAND = 'mmdr';
 
-# The directory of the drawn diagrams, or undef when there is no place
-# for it: a real directory of the user, not a symbolic link, which
-# nobody else can read.  A diagram is kept by the digest of the
-# command, its options and the code, so that it is drawn once.  The
-# files stay after mdee ends, which they must on paper, where ansi2pdf
-# reads them after greple.
+# The directory of the drawn diagrams, mdee-mermaid-UID in the
+# temporary directory, or undef when there is no place for it: a real
+# directory of the user, not a symbolic link, which nobody else can
+# read, for /tmp is shared.  A diagram is kept by the digest of the
+# command, its options and the code, so that the same diagram is the
+# same file, and is drawn once.  The files stay after mdee ends, which
+# they must on paper, where ansi2pdf reads them after greple, and are
+# left for the system to clean up; one that is gone is drawn again.
 sub cache_dir {
-    my $base = $ENV{XDG_CACHE_HOME}
-	|| (defined $ENV{HOME} && File::Spec->catdir($ENV{HOME}, '.cache'))
-	|| return;
-    my $dir = File::Spec->catdir($base, 'mdee', 'mermaid');
-    -e $dir or make_path($dir, { mode => 0700, error => \my $err });
+    my $dir = File::Spec->catdir(File::Spec->tmpdir, "mdee-mermaid-$>");
+    -e $dir or mkdir $dir, 0700;
     my @st = lstat $dir or return;
     -d _ && $st[4] == $> or return;
     if ($st[2] & 077) {
@@ -181,12 +179,13 @@ Returns the PNG files of the diagrams, in the order of the codes, and
 C<undef> for one that could not be drawn.  They are drawn by
 I<COMMAND> (split into words as a shell does; default C<mmdr> of
 L<mermaid-rs-renderer|https://github.com/1jehuang/mermaid-rs-renderer>),
-into F<${XDG_CACHE_HOME:-~/.cache}/mdee/mermaid>, a directory only the
-user can read, and are drawn again only when the code, the command or
-the theme, the background (default C<transparent>) or the scale
-(default 3) changes.  Nothing is drawn without C<XDG_CACHE_HOME> or
-C<HOME>, or when that directory is a symbolic link or belongs to
-someone else.  Diagrams drawn before are shown even when the directory
+into F<mdee-mermaid-I<UID>> of the temporary directory (C<TMPDIR>, or
+F</tmp>), a directory only the user can read, and are drawn again only
+when the code, the command or the theme, the background (default
+C<transparent>) or the scale (default 3) changes, or when the file is
+gone: the files are left for the system to clean up.  Nothing is
+drawn when that directory is a symbolic link or belongs to someone
+else.  Diagrams drawn before are shown even when the directory
 cannot be written.
 
 Each diagram is drawn in a run of its own.  mmdr has no options for

@@ -21,8 +21,9 @@ use t::Util;
 # and the file of -c.
 
 $ENV{HOME} = my $dir = tempdir(CLEANUP => 1);
-delete $ENV{XDG_CACHE_HOME};
-my $cache = "$dir/.cache/mdee/mermaid";
+$ENV{TMPDIR} = "$dir/tmp";
+mkdir "$dir/tmp";
+my $cache = "$dir/tmp/mdee-mermaid-$>";
 
 my $PH = "\x{10EEEE}";
 
@@ -137,6 +138,14 @@ my $doc = md('doc.md', join '',
     my $out = mdee_out("$base,image_types=mermaid,$img", $doc);
     is(scalar(() = plain($out) =~ /^$PH/mg), 9, 'cache: the rows are there');
     is(scalar(runs()), 0, 'cache: the command is not run');
+}
+
+# the same diagram in another file comes from the cache as well
+{
+    unlink $log;
+    my $md = md("another.md", "# Another\n\ntext\n\n```mermaid\nflowchart LR\n  A[入力] --> B\n```\n");
+    like(mdee_out("$base,image_types=mermaid,$img", $md), qr/$PH/, "another file: the diagram is shown");
+    is(scalar(runs()), 0, "another file: the command is not run");
 }
 
 # the dark mode, and the look by the config: drawn again
@@ -278,14 +287,32 @@ SKIP: {
 # an unwritable cache: the text is shown, without the diagram
 SKIP: {
     skip 'root can write anywhere', 2 if $> == 0;
-    local $ENV{XDG_CACHE_HOME} = "$dir/ro";
-    mkdir "$dir/ro"; mkdir "$dir/ro/mdee"; mkdir "$dir/ro/mdee/mermaid";
-    chmod 0500, "$dir/ro/mdee/mermaid";
+    local $ENV{TMPDIR} = "$dir/ro";
+    mkdir "$dir/ro"; mkdir "$dir/ro/mdee-mermaid-$>";
+    chmod 0500, "$dir/ro/mdee-mermaid-$>";
     my $md = md('ro.md', "```mermaid\ngraph TD\n  R --> O\n```\n\nafter\n");
     my $out = mdee_out("$base,image_types=mermaid,$img", $md);
     like($out, qr/after/, 'unwritable cache: the text is shown');
     unlike($out, qr/$PH/, 'unwritable cache: no diagram');
-    chmod 0700, "$dir/ro/mdee/mermaid";
+    chmod 0700, "$dir/ro/mdee-mermaid-$>";
+}
+
+# in a shared /tmp, a symbolic link in place of the directory is not
+# used, and the files that the system has cleaned up are drawn again
+{
+    local $ENV{TMPDIR} = "$dir/link";
+    mkdir "$dir/link"; mkdir "$dir/other";
+    symlink "$dir/other", "$dir/link/mdee-mermaid-$>" or die;
+    my $md = md("link.md", "```mermaid\ngraph TD\n  L --> K\n```\n");
+    unlike(mdee_out("$base,image_types=mermaid,$img", $md), qr/$PH/, "a symbolic link: no diagram");
+    is(scalar(() = glob "$dir/other/*"), 0, "a symbolic link: nothing is written there");
+}
+{
+    unlink glob "$cache/*.png";
+    unlink $log;
+    my $out = mdee_out("$base,image_types=mermaid,$img", $doc);
+    is(scalar(() = plain($out) =~ /^$PH/mg), 9, "cleaned up: the rows are there");
+    ok(scalar(runs()) > 0, "cleaned up: drawn again");
 }
 
 done_testing;

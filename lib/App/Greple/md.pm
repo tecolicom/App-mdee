@@ -314,7 +314,7 @@ Available parameters:
     mermaid_command command which draws Mermaid diagrams: mmdr of
                     mermaid-rs-renderer, or mmdc of mermaid-cli, by
                     which a command whose name does not start with
-                    mmdr is taken (default: mmdr, or mmdc when only
+                    mmdr is taken (default: mmdc, or mmdr when only
                     that is found in PATH)
     mermaid_theme   theme of Mermaid: default, dark, forest or neutral
                     (default: dark in the dark mode, or default)
@@ -691,7 +691,7 @@ my $config = Getopt::EX::Config->new(
     image_osc       => 0,        # tell the file of each image in its rows, for ansi2pdf
     image_resend    => '',       # file for the sequences which send the images again by their files
     image_align     => 'center', # where an image is put: left or center
-    mermaid_command => '',       # command which draws Mermaid diagrams (default: mmdr, or mmdc when only that is found)
+    mermaid_command => '',       # command which draws Mermaid diagrams (default: mmdc, or mmdr when only that is found)
     mermaid_theme   => '',       # theme of Mermaid (default: dark in the dark mode, or default)
     mermaid_background => '',    # background of the diagrams, a color of CSS (default: #0d1117 in the dark mode, or white)
     mermaid_scale   => 0,        # scale of the diagrams (default: 1.5)

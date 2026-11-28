@@ -903,7 +903,7 @@ Images inside a paragraph or a code block are not shown.
 
 With `mermaid` in **--image** (the default), a fenced code block
 whose info string is `mermaid` is followed by the image of its
-diagram, when **mmdr** or **mmdc** is installed; without them, the
+diagram, when **mmdc** or **mmdr** is installed; without them, the
 code is shown alone.  The code is shown as it is, as the line of an
 image is, so the output with **--no-image** is the same text without
 the images.
@@ -917,8 +917,8 @@ Mermaid itself in a browser and takes a second or more, for all the
 new diagrams of the file at once (one by one when one has an error),
 while lines on the terminal tell that they are being drawn, how
 many are drawn, and the seconds gone by;
-**mmdr** is used when it is found in `PATH`, and **mmdc** when only
-that is.  They are drawn on the background GitHub shows them on: the
+**mmdc** is used when it is found in `PATH`, for it draws the
+diagrams as GitHub does, and **mmdr** when only that is.  They are drawn on the background GitHub shows them on: the
 `default` theme on white, or the `dark` theme on `#0d1117` in the
 dark mode.  The images are kept in
 `mdee-mermaid-_UID_` of the temporary directory (`TMPDIR`, or

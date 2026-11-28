@@ -25,7 +25,7 @@ use Text::ParseWords qw(shellwords);
 # The commands which draw, in the order they are looked for in PATH
 # when none is given; the first when none is found.  $COMMAND, when
 # set, is used in place of them.
-our @COMMANDS = qw(mmdr mmdc);
+our @COMMANDS = qw(mmdc mmdr);
 our $COMMAND;
 
 sub default_command {
@@ -367,9 +367,9 @@ L<Text::ANSI::Image>.
 
 Returns the PNG files of the diagrams, in the order of the codes, and
 C<undef> for one that could not be drawn.  They are drawn by
-I<COMMAND> (split into words as a shell does; default C<mmdr> of
-L<mermaid-rs-renderer|https://github.com/1jehuang/mermaid-rs-renderer>,
-or C<mmdc> of L<mermaid-cli|https://github.com/mermaid-js/mermaid-cli>
+I<COMMAND> (split into words as a shell does; default C<mmdc> of
+L<mermaid-cli|https://github.com/mermaid-js/mermaid-cli>, or C<mmdr>
+of L<mermaid-rs-renderer|https://github.com/1jehuang/mermaid-rs-renderer>
 when only that is found in C<PATH>; a command whose name does not
 start with C<mmdr> is run as C<mmdc>),
 into F<mdee-mermaid-I<UID>> of the temporary directory (C<TMPDIR>, or
@@ -405,7 +405,8 @@ L<mermaid-rs-renderer|https://github.com/1jehuang/mermaid-rs-renderer>
 or C<mmdc> of L<mermaid-cli|https://github.com/mermaid-js/mermaid-cli>,
 and a command whose name (that of its first word, so not with C<nice>
 or C<env> before it) starts with C<mmdr> is run as the former.
-Without I<COMMAND>, it is mmdr, or mmdc when only that is found in
+Without I<COMMAND>, it is mmdc, which is Mermaid itself and draws
+the diagrams as GitHub does, or mmdr when only that is found in
 C<PATH>.
 
 mmdc is given the look by its options (C<-b>, C<-s>, C<-t>), and

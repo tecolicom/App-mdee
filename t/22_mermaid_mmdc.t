@@ -173,19 +173,19 @@ my $doc = md('doc.md', join '',
     is(App::Greple::md::Mermaid::browser(), undef, 'browser: none with PUPPETEER_EXECUTABLE_PATH');
 }
 
-# without a command, the first of mmdr and mmdc found in PATH
+# without a command, the first of mmdc and mmdr found in PATH
 {
     require App::Greple::md::Mermaid;
     mkdir "$dir/bin";
-    symlink $stub, "$dir/bin/mmdr" or die;
-    local $ENV{PATH} = "$dir/none:$dir/bin";
-    is(App::Greple::md::Mermaid::default_command(), 'mmdr', 'PATH: mmdr when there is no mmdc');
     symlink $stub, "$dir/bin/mmdc" or die;
-    is(App::Greple::md::Mermaid::default_command(), 'mmdr', 'PATH: mmdr first');
-    unlink "$dir/bin/mmdr";
+    local $ENV{PATH} = "$dir/none:$dir/bin";
     is(App::Greple::md::Mermaid::default_command(), 'mmdc', 'PATH: mmdc when there is no mmdr');
+    symlink $stub, "$dir/bin/mmdr" or die;
+    is(App::Greple::md::Mermaid::default_command(), 'mmdc', 'PATH: mmdc first');
+    unlink "$dir/bin/mmdc";
+    is(App::Greple::md::Mermaid::default_command(), 'mmdr', 'PATH: mmdr when there is no mmdc');
     local $ENV{PATH} = "$dir/none";
-    is(App::Greple::md::Mermaid::default_command(), 'mmdr', 'PATH: mmdr when none is found');
+    is(App::Greple::md::Mermaid::default_command(), 'mmdc', 'PATH: mmdc when none is found');
 }
 
 done_testing;

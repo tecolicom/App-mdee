@@ -277,6 +277,21 @@ SKIP: {
 	      'refill: the paragraph below a message is joined and folded');
 }
 
+# the class .mermaid in the attributes of pandoc, as pandoc-plot takes
+# it, with or without other attributes before and after it; not a
+# class which only begins with mermaid, nor a word in a string
+{
+    my $md = md('pandoc.md', join '',
+	"```{.mermaid caption=\"図\" #fig:a width=100%}\ngraph TD\n  P1 --> P2\n```\n\n",
+	"``` { #fig:b .mermaid }\ngraph TD\n  P3 --> P4\n```\n\n",
+	"```{.mermaidx}\ngraph TD\n  P5 --> P6\n```\n\n",
+	"```{.python caption=\"a .mermaid\"}\nprint(1)\n```\n");
+    my @l = split /\n/, plain(mdee_out("$base,image_types=mermaid,$img", $md));
+    my @after = map { $l[$_ + 1] // '' } grep { $l[$_] eq '```' } 0 .. $#l;
+    is_deeply([ map { /^$PH/ ? 1 : 0 } @after ], [ 1, 1, 0, 0 ],
+	      'pandoc: {.mermaid ...} drawn, {.mermaidx} and a string not');
+}
+
 # a block of mermaid inside an HTML comment is not drawn
 {
     unlink $log;

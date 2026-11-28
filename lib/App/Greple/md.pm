@@ -1201,7 +1201,10 @@ my %colorize = (
         # all drawn at once
         my(@diagram, @error, $img, @added, $diagram);
         if (grep { $_ eq 'mermaid' } split /:/, $config->{image_types} // '') {
-            # A block of mermaid, not inside an HTML comment, which the
+            # A block of mermaid, by the info string "mermaid", or by
+            # the class .mermaid in the attributes of pandoc
+            # ({.mermaid caption="..." #fig:x}, as pandoc-plot takes
+            # it), not inside an HTML comment, which the
             # comments step takes later.  The comments are looked for
             # as that step sees them, with the code blocks out of the
             # way: a <!-- inside a code block starts no comment.
@@ -1212,7 +1215,10 @@ my %colorize = (
             }
             $diagram = sub {
                 my($info, $pos) = @_;
-                $info =~ /^\h*mermaid(?:\h|$)/i
+                # the values in quotes are out of the way of the class
+                ($info =~ /^\h*mermaid(?:\h|$)/i
+                 or $info =~ s/"[^"]*"|'[^']*'//gr
+                    =~ /^\h*\{[^}]*(?<![\w-])\.mermaid(?![\w-])[^}]*\}\h*$/i)
                     and not grep { $_->[0] <= $pos and $pos < $_->[1] } @comment;
             };
             my @code;

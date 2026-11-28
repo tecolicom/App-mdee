@@ -902,7 +902,9 @@ Images inside a paragraph or a code block are not shown.
 ## Mermaid Diagrams
 
 With `mermaid` in **--image** (the default), a fenced code block
-whose info string is `mermaid` is followed by the image of its
+whose info string is `mermaid`, or has the class `.mermaid` in the
+attributes of pandoc, as pandoc-plot takes it
+(`{.mermaid caption="..." #fig:x}`), is followed by the image of its
 diagram, when **mmdc** or **mmdr** is installed; without them, the
 code is shown alone.  The code is shown as it is, as the line of an
 image is, so the output with **--no-image** is the same text without

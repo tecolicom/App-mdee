@@ -1808,7 +1808,9 @@ Images inside a paragraph or a code block are not shown.
 =head2 Mermaid Diagrams
 
 With C<mermaid> in B<--image> (the default), a fenced code block
-whose info string is C<mermaid> is followed by the image of its
+whose info string is C<mermaid>, or has the class C<.mermaid> in the
+attributes of pandoc, as pandoc-plot takes it
+(C<{.mermaid caption="..." #fig:x}>), is followed by the image of its
 diagram, when B<mmdc> or B<mmdr> is installed; without them, the
 code is shown alone.  The code is shown as it is, as the line of an
 image is, so the output with B<--no-image> is the same text without

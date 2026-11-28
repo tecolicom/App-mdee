@@ -55,6 +55,16 @@ sub kind {
 # network only through a proxy that is not there, so that a diagram
 # cannot fetch anything (a remote image in a node) when it is drawn.
 # Nothing is fetched from the network, as for the other images.
+# The config of Mermaid given to mmdc: a diagram is drawn in its own
+# size, not made as narrow as the page of the browser (about 800
+# pixels), which made the text of a wide diagram small; it is made
+# narrower to the width when it is shown.
+our %MERMAID = map { $_ => { useMaxWidth => JSON::PP::false() } } qw(
+    flowchart sequence gantt journey timeline class state er pie
+    quadrantChart xyChart requirement architecture mindmap kanban
+    gitGraph c4 sankey packet block radar
+);
+
 our %PUPPETEER = (
     args => [ '--proxy-server=http://127.0.0.1:9', '--proxy-bypass-list=<-loopback>' ],
 );
@@ -140,17 +150,24 @@ sub diagram_files {
 		  mermaidx => [ '-q', '-t', $theme, '-b', $background, '--scale', $scale ],
 	      }->{$kind},
 	      $mmdr ? (scale => $scale) : () };
-    # a file of options: the background for mmdr, the browser for mmdc
-    my($flag, $own, $data) = @{ {
-	mmdr => [ '-c', qr/^(?:-c|--configFile(?:=|$))/,
-		  { themeVariables => { background => "$background" } } ],
-	mmdc => [ '-p', qr/^(?:-p|--puppeteerConfigFile(?:=|$))/,
-		  { %PUPPETEER, map { (executablePath => $_) } browser() } ],
+    # files of options, each as [ FLAG, OWN, DATA ], not given when the
+    # command has its own: the background for mmdr; for mmdc, the
+    # browser, and the diagrams in their own size (%MERMAID)
+    my $c = qr/^(?:-c|--configFile(?:=|$))/;
+    my @conf = @{ {
+	mmdr => [ [ '-c', $c, { themeVariables => { background => "$background" } } ] ],
+	mmdc => [ [ '-p', qr/^(?:-p|--puppeteerConfigFile(?:=|$))/,
+		    { %PUPPETEER, map { (executablePath => $_) } browser() } ],
+		  [ '-c', $c, \%MERMAID ] ],
     }->{$kind} // [] };
+    # what the digest is made of besides: the config of Mermaid, which
+    # changes the diagram, unless the command has its own
+    my @more = map { JSON::PP->new->canonical->encode($_->[2]) }
+	grep { $_->[2] == \%MERMAID and not grep { /$c/ } @cmd } @conf;
     # the file of each diagram, by the digest
     my @path = map {
 	File::Spec->catfile($dir,
-	    sha1_hex(encode_utf8(join "\0", @cmd, @look, s/\n?\z/\n/r)) . '.png');
+	    sha1_hex(encode_utf8(join "\0", @cmd, @look, @more, s/\n?\z/\n/r)) . '.png');
     } @codes;
     # those to be drawn, once each; without a place to write, the
     # diagrams drawn before are shown
@@ -161,13 +178,16 @@ sub diagram_files {
 		if !-e $path[$i] and !$seen{$path[$i]}++;
 	}
     }
-    my(%error, $conf);
+    my(%error, @file);
     if (@todo) {
-	# the file of options, after the digest, which must not depend
-	# on the name of the file
-	if ($flag and not grep { /$own/ } @cmd) {
-	    $conf = config_file($dir, $data);
-	    push @{$r->{opt}}, $flag, "$conf" if $conf;
+	# the files of options, after the digest, which must not depend
+	# on their names
+	for (@conf) {
+	    my($flag, $own, $data) = @$_;
+	    next if grep { /$own/ } @cmd;
+	    my $file = config_file($dir, $data) or next;
+	    push @file, $file;
+	    push @{$r->{opt}}, $flag, "$file";
 	}
 	my $progress = progress(basename($cmd[0]));
 	my $diagrams = sub { "$_[0] Mermaid diagram" . ($_[0] > 1 ? 's' : '') };
@@ -434,7 +454,11 @@ Without I<COMMAND>, it is mmdc, which is Mermaid itself and draws
 the diagrams as GitHub does, or mmdr when only that is found in
 C<PATH>.
 
-mmdc is given the look by its options (C<-b>, C<-s>, C<-t>), and
+mmdc is given the look by its options (C<-b>, C<-s>, C<-t>), the
+config of Mermaid in a file of C<-c> with C<useMaxWidth: false> for
+each type of diagram (C<%MERMAID>), so that a wide diagram is drawn
+in its own size, not as narrow as the page of the browser, unless
+I<COMMAND> has its own C<-c>, and
 draws in a browser started by puppeteer, which looks only for its
 own (the mermaid-cli of Homebrew has none): unless
 C<PUPPETEER_EXECUTABLE_PATH> is set, it is given Google Chrome or

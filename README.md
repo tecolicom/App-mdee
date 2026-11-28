@@ -969,6 +969,13 @@ Japanese, Chinese or Korean: such text is shown as boxes.
 A command with its own `-p` (the options of puppeteer) is not given
 the proxy, and **mmdr** with its own `-c` is not given the background.
 
+**mmdc** is given the config of Mermaid in a file of `-c`, with
+`useMaxWidth: false` for each type of diagram: without it, Mermaid
+makes a diagram as narrow as the page of the browser, about 800
+pixels, and the text of a wide one small.  A diagram is drawn in its
+own size, and made as narrow as the fold width when it is shown.
+**mmdc** with its own `-c` is not given it.
+
 ## Image Files
 
 The file is read from the local disk, by a path relative to the

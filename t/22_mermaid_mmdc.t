@@ -97,7 +97,8 @@ my $doc = md('doc.md', join '',
     like($runs[0], qr/-i \S+\.md -o \S+\.md$/, 'from a Markdown file of them');
     like($runs[0], qr/-e png -t default -b white -s 1.5 -p \S+\.json\b/, 'the look by the options, and -p');
     unlike($runs[0], qr/ -q /, 'not -q, for the lines of the diagrams drawn');
-    unlike($runs[0], qr/ -c | --size/, 'no option of mmdr');
+    unlike($runs[0], qr/ --size/, 'no option of mmdr');
+    like($runs[0], qr/ -c \S+\.json /, 'the config of Mermaid in a file of -c');
     is(scalar(() = glob "$cache/*.png"), 2, 'two diagrams are kept');
 }
 
@@ -122,6 +123,11 @@ my $doc = md('doc.md', join '',
     mdee_out("$base,image_types=mermaid,$term,mermaid_command=$stub -p /my/config.json", $md);
     ($run) = runs();
     is(scalar(() = ($run // '') =~ /-p /g), 1, 'proxy: not given with -p of the command');
+    unlink $log;
+    $md = md('conf2.md', "```mermaid\ngraph TD\n  C2 --> D2\n```\n");
+    mdee_out("$base,image_types=mermaid,$term,mermaid_command=$stub -c /my/mermaid.json", $md);
+    ($run) = runs();
+    is(scalar(() = ($run // '') =~ /(?:^| )-c /g), 1, 'config: not given with -c of the command');
 }
 
 # a diagram with an error stops the run of all: they are drawn one by

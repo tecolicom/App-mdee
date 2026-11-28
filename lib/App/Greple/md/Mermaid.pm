@@ -104,7 +104,9 @@ sub cache_dir {
 #   scale   => 1.5             the scale of the image: the larger, the
 #                              more cells it takes, up to the width
 #
-# Each diagram is drawn in a run of its own.  mmdc is given the look
+# Each diagram is drawn in a run of its own, but mmdc, which starts a
+# browser for each run, draws all that are to be drawn in one run
+# first, and those it could not one by one.  mmdc is given the look
 # by its options, and the options of puppeteer (%PUPPETEER) in a file
 # of -p.  mmdr has no options for the background and the scale: the
 # background goes in a file of -c, and the size is asked for first
@@ -131,29 +133,65 @@ sub diagram_files {
 	   { themeVariables => { background => "$background" } })
 	: ('-p', qr/^(?:-p|--puppeteerConfigFile(?:=|$))/,
 	   { %PUPPETEER, map { (executablePath => $_) } browser() });
-    my($conf, %seen, %error);
-    my $i = 0;
-    map {
-	my $code = s/\n?\z/\n/r;
-	my $path = File::Spec->catfile($dir,
-	    sha1_hex(encode_utf8(join "\0", @cmd, @look, $code)) . '.png');
-	# without a place to write, the diagrams drawn before are shown
-	if (!-e $path and !$seen{$path}++ and -w $dir) {
-	    # the file of options, after the digest, which must not
-	    # depend on the name of the file
-	    if (!$conf and not grep { /$own/ } @cmd) {
-		$conf = config_file($dir, $data);
-		push @{$r->{opt}}, $flag, "$conf" if $conf;
-	    }
-	    $error{$path} = draw($r, $code, $path);
+    # the file of each diagram, by the digest
+    my @path = map {
+	File::Spec->catfile($dir,
+	    sha1_hex(encode_utf8(join "\0", @cmd, @look, s/\n?\z/\n/r)) . '.png');
+    } @codes;
+    # those to be drawn, once each; without a place to write, the
+    # diagrams drawn before are shown
+    my(%seen, @todo);
+    if (-w $dir) {
+	for my $i (0 .. $#codes) {
+	    push @todo, [ $path[$i], $codes[$i] =~ s/\n?\z/\n/r ]
+		if !-e $path[$i] and !$seen{$path[$i]}++;
 	}
+    }
+    my(%error, $conf);
+    if (@todo) {
+	# the file of options, after the digest, which must not depend
+	# on the name of the file
+	if (not grep { /$own/ } @cmd) {
+	    $conf = config_file($dir, $data);
+	    push @{$r->{opt}}, $flag, "$conf" if $conf;
+	}
+	# mmdc starts a browser for each run: all in one run first
+	draw_all($r, @todo) if !$mmdr and @todo > 1;
+	for (@todo) {
+	    my($path, $code) = @$_;
+	    $error{$path} = draw($r, $code, $path) unless -s $path;
+	}
+    }
+    map {
+	my $path = $path[$_];
 	# what the command said when it failed, for the author to see
 	if ($opt{errors} and defined $error{$path} and $error{$path} ne '') {
-	    $opt{errors}[$i] = [ basename($cmd[0]), split /\n/, $error{$path} ];
+	    $opt{errors}[$_] = [ basename($cmd[0]), split /\n/, $error{$path} ];
 	}
-	$i++;
 	-s $path ? $path : undef;
-    } @codes;
+    } 0 .. $#codes;
+}
+
+# Draw the diagrams in one run of mmdc, from a Markdown file of their
+# code blocks, which it draws into OUT-1.png, OUT-2.png and so on.  It
+# draws none when one has an error, and the diagrams are then drawn
+# one by one, which tells the error of each.  A code with a fence of
+# its own is not put in the file.
+sub draw_all {
+    my($r, @todo) = @_;
+    return if grep { $_->[1] =~ /^\h*(?:```|~~~)/m } @todo;
+    my($cmd, $opt) = @{$r}{qw(cmd opt)};
+    my $tmp = eval { File::Temp->newdir(DIR => $r->{dir}) } or return;
+    my $in  = File::Spec->catfile($tmp, 'in.md');
+    my $out = File::Spec->catfile($tmp, 'out.md');
+    open my $fh, '>:encoding(utf8)', $in or return;
+    print $fh map { "```mermaid\n$_->[1]```\n\n" } @todo;
+    close $fh;
+    run(@$cmd, @$opt, '-i', $in, '-o', $out) or return;
+    for my $n (1 .. @todo) {
+	my $png = File::Spec->catfile($tmp, "out-$n.png");
+	rename $png, $todo[$n - 1][0] if -s $png;
+    }
 }
 
 # A file of options in JSON, removed with the object
@@ -279,7 +317,10 @@ drawn when that directory is a symbolic link or belongs to someone
 else.  Diagrams drawn before are shown even when the directory
 cannot be written.
 
-Each diagram is drawn in a run of its own.  mmdr has no options for
+Each diagram is drawn in a run of its own.  mmdc, which starts a
+browser for each run, is first given all the diagrams to be drawn in
+one Markdown file, and draws each in a run of its own only when that
+fails, as it does when one of them has an error.  mmdr has no options for
 the background and the scale: the background is given as
 C<themeVariables> in a file of C<-c>, unless I<COMMAND> has its own
 C<-c> (C<--configFile>), and for a scale other than 1 it is first

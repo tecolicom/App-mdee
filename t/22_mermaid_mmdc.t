@@ -12,7 +12,8 @@ use t::Util;
 # image_types with mermaid and a mermaid_command whose name does not
 # start with mmdr: it is run as mmdc of mermaid-cli, given the look by
 # its options (-b, -s, -t) and the options of puppeteer in a file of
-# -p, each diagram from a .mmd file of its own.  The stub here writes a
+# -p, all the diagrams to be drawn from a Markdown file in one run,
+# and one by one from a .mmd file each when that fails.  The stub here writes a
 # PNG of 64x102 (3 rows) and logs its arguments.
 
 $ENV{HOME} = my $dir = tempdir(CLEANUP => 1);
@@ -37,17 +38,25 @@ for (my $i = 0; $i < @ARGV; $i++) {
 open my $log, '>>', $ENV{STUB_LOG} or die;
 print $log "@ARGV\n";
 close $log;
-$opt{-i} =~ /\.mmd$/ or exit 2;
-if (do { open my $in, '<', $opt{-i} or die; local $/; <$in> =~ /BAD/ }) {
+$opt{-i} =~ /\.(mmd|md)$/ or exit 2;
+my $md = $1 eq 'md';
+my $text = do { open my $in, '<', $opt{-i} or die; local $/; <$in> };
+if ($text =~ /BAD/) {
     print STDERR "Error: Parse error on line 2:\n",
 	"Parser.parseError (https://x.invalid/mermaid.mjs:1561:21)\n",
 	"    at #evaluate (file:///x/ExecutionContext.js:402:19)\n";
     exit 1;
 }
-open my $png, '>:raw', $opt{-o} or die;
-print $png "\x89PNG\r\n\x1a\n", pack('N', 13), 'IHDR',
-    pack('NNCCCCC', 64, 102, 8, 6, 0, 0, 0), "\0\0\0\0",
-    pack('N', 0), 'IEND', "\xae\x42\x60\x82";
+# a Markdown file: OUT-1.png, OUT-2.png ... for its diagrams
+my @out = $md
+    ? map { $opt{-o} =~ s/\.md$/-$_.png/r } 1 .. (() = $text =~ /^```mermaid$/mg)
+    : $opt{-o};
+for (@out) {
+    open my $png, '>:raw', $_ or die;
+    print $png "\x89PNG\r\n\x1a\n", pack('N', 13), 'IHDR',
+	pack('NNCCCCC', 64, 102, 8, 6, 0, 0, 0), "\0\0\0\0",
+	pack('N', 0), 'IEND', "\xae\x42\x60\x82";
+}
 STUB
     close $fh;
     chmod 0755, $stub;
@@ -84,8 +93,8 @@ my $doc = md('doc.md', join '',
     my $out = mdee_out("$base,image_types=mermaid,$img", $doc);
     is(scalar(() = plain($out) =~ /^$PH/mg), 6, 'three rows for each diagram');
     my @runs = runs();
-    is(scalar @runs, 2, 'a run for each diagram');
-    is(scalar(grep { /-i \S+\.mmd / } @runs), 2, 'from a .mmd file each');
+    is(scalar @runs, 1, 'one run for the diagrams');
+    like($runs[0], qr/-i \S+\.md -o \S+\.md$/, 'from a Markdown file of them');
     like($runs[0], qr/-e png -q -t default -b white -s 1.5 -p \S+\.json\b/, 'the look by the options, and -p');
     unlike($runs[0], qr/ -c | --size/, 'no option of mmdr');
     is(scalar(() = glob "$cache/*.png"), 2, 'two diagrams are kept');
@@ -112,6 +121,31 @@ my $doc = md('doc.md', join '',
     mdee_out("$base,image_types=mermaid,$term,mermaid_command=$stub -p /my/config.json", $md);
     ($run) = runs();
     is(scalar(() = ($run // '') =~ /-p /g), 1, 'proxy: not given with -p of the command');
+}
+
+# a diagram with an error stops the run of all: they are drawn one by
+# one then, and the others are shown
+{
+    unlink $log;
+    my $out = mdee_out("$base,image_types=mermaid,$img", md('mixed.md', join '',
+	"```mermaid\ngraph TD\n  M1 --> M2\n```\n\n",
+	"```mermaid\nBAD\n```\n\n",
+	"```mermaid\ngraph TD\n  M3 --> M4\n```\n"));
+    my @runs = runs();
+    is(scalar @runs, 4, 'mixed: one run of all, and one for each');
+    like($runs[0], qr/-i \S+\.md /, 'mixed: all first');
+    is(scalar(grep { /-i \S+\.mmd / } @runs[1..$#runs]), 3, 'mixed: then each from a .mmd file');
+    is(scalar(() = plain($out) =~ /^$PH/mg), 6, 'mixed: the others are shown');
+    is(scalar(() = $out =~ /Parse error/g), 1, 'mixed: the error of the bad one');
+}
+
+# a single diagram is drawn from a .mmd file
+{
+    unlink $log;
+    mdee_out("$base,image_types=mermaid,$img", md('single.md', "```mermaid\ngraph TD\n  S1 --> S2\n```\n"));
+    my @runs = runs();
+    is(scalar @runs, 1, 'single: one run');
+    like($runs[0] // '', qr/-i \S+\.mmd /, 'single: from a .mmd file');
 }
 
 # the message of mmdc, without the stack of JavaScript after it

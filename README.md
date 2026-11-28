@@ -913,7 +913,8 @@ The diagrams are drawn by **mmdr** of
 which needs no browser, is quick, and draws the diagrams in its own
 way, or by **mmdc** of
 [mermaid-cli](https://github.com/mermaid-js/mermaid-cli), which is
-Mermaid itself in a browser and takes a few seconds for a diagram;
+Mermaid itself in a browser and takes a second or more, for all the
+new diagrams of the file at once (one by one when one has an error);
 **mmdr** is used when it is found in `PATH`, and **mmdc** when only
 that is.  They are drawn on the background GitHub shows them on: the
 `default` theme on white, or the `dark` theme on `#0d1117` in the

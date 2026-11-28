@@ -956,7 +956,14 @@ wide one.
 The command is chosen by `--config mermaid_command=COMMAND`, split
 into words as a shell does: `mermaid_command=mmdc`, or a path, or a
 command with options.  One whose name starts with `mmdr` is given
-the options of **mmdr**, and any other those of **mmdc**.
+the options of **mmdr**, one whose name starts with `mermaidx` those
+of **mermaidx**, and any other those of **mmdc**.
+
+**mermaidx** of [PyPI](https://pypi.org/project/mermaidx/)
+(`mermaid_command=mermaidx`) runs Mermaid itself in Python, without
+a browser, and takes less than a second for a diagram.  It draws the
+text in a font of its own, DejaVu Sans, which has no glyphs for
+Japanese, Chinese or Korean: such text is shown as boxes.
 A command with its own `-p` (the options of puppeteer) is not given
 the proxy, and **mmdr** with its own `-c` is not given the background.
 

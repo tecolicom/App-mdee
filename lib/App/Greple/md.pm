@@ -311,10 +311,10 @@ Available parameters:
                     do not show those sent before (default: none)
     image_align     left or center: where an image is put in the fold
                     width, or the terminal width (default: center)
-    mermaid_command command which draws Mermaid diagrams: mmdr of
-                    mermaid-rs-renderer, or mmdc of mermaid-cli, by
-                    which a command whose name does not start with
-                    mmdr is taken (default: mmdc, or mmdr when only
+    mermaid_command command which draws Mermaid diagrams: mmdc of
+                    mermaid-cli, mmdr of mermaid-rs-renderer, or
+                    mermaidx of PyPI, by the start of its name; mmdc
+                    for any other (default: mmdc, or mmdr when only
                     that is found in PATH)
     mermaid_theme   theme of Mermaid: default, dark, forest or neutral
                     (default: dark in the dark mode, or default)

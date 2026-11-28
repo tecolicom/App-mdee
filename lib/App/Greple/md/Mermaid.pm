@@ -40,9 +40,15 @@ sub default_command {
 
 # Whether the command is mmdr, by its name: mmdr has other options
 # than mmdc (no -b, -s, -q or -p) and draws without a browser
-sub is_mmdr {
+sub is_mmdr { kind($_[0]) eq 'mmdr' }
+
+# The kind of the command, by its name: mmdr, mermaidx (of PyPI, which
+# runs mermaid.js in Python, without a browser), or mmdc for any other
+sub kind {
     my $name = (File::Spec->splitpath($_[0] // ''))[2];
-    $name =~ /^mmdr/i;
+    $name =~ /^mmdr/i     ? 'mmdr'
+  : $name =~ /^mermaidx/i ? 'mermaidx'
+  :                         'mmdc';
 }
 
 # The options of puppeteer given to mmdc: the browser goes to the
@@ -119,20 +125,28 @@ sub diagram_files {
     my $dir = cache_dir() // return (undef) x @codes;
     my @cmd = shellwords($opt{command} || $COMMAND || default_command());
     @cmd or return (undef) x @codes;
-    my $mmdr = is_mmdr($cmd[0]);
+    my $kind = kind($cmd[0]);
+    my $mmdr = $kind eq 'mmdr';
     my $background = $opt{background} || 'transparent';
     my $scale = $opt{scale} || 1.5;
     my $theme = $opt{theme} || 'default';
     # what the digest is made of, which are also the options of mmdc
     my @look = ('-t', $theme, '-b', $background, '-s', $scale);
     my $r = { dir => $dir, cmd => \@cmd,
-	      opt => [ '-e', 'png', $mmdr ? ('-t', $theme) : ('-q', @look) ],
+	      opt => {
+		  mmdr     => [ '-e', 'png', '-t', $theme ],
+		  mmdc     => [ '-e', 'png', '-q', @look ],
+		  # PNG by the name of the output file
+		  mermaidx => [ '-q', '-t', $theme, '-b', $background, '--scale', $scale ],
+	      }->{$kind},
 	      $mmdr ? (scale => $scale) : () };
-    my($flag, $own, $data) = $mmdr
-	? ('-c', qr/^(?:-c|--configFile(?:=|$))/,
-	   { themeVariables => { background => "$background" } })
-	: ('-p', qr/^(?:-p|--puppeteerConfigFile(?:=|$))/,
-	   { %PUPPETEER, map { (executablePath => $_) } browser() });
+    # a file of options: the background for mmdr, the browser for mmdc
+    my($flag, $own, $data) = @{ {
+	mmdr => [ '-c', qr/^(?:-c|--configFile(?:=|$))/,
+		  { themeVariables => { background => "$background" } } ],
+	mmdc => [ '-p', qr/^(?:-p|--puppeteerConfigFile(?:=|$))/,
+		  { %PUPPETEER, map { (executablePath => $_) } browser() } ],
+    }->{$kind} // [] };
     # the file of each diagram, by the digest
     my @path = map {
 	File::Spec->catfile($dir,
@@ -151,7 +165,7 @@ sub diagram_files {
     if (@todo) {
 	# the file of options, after the digest, which must not depend
 	# on the name of the file
-	if (not grep { /$own/ } @cmd) {
+	if ($flag and not grep { /$own/ } @cmd) {
 	    $conf = config_file($dir, $data);
 	    push @{$r->{opt}}, $flag, "$conf" if $conf;
 	}
@@ -159,7 +173,7 @@ sub diagram_files {
 	my $diagrams = sub { "$_[0] Mermaid diagram" . ($_[0] > 1 ? 's' : '') };
 	$progress->('drawing ' . $diagrams->(scalar @todo) . '...');
 	# mmdc starts a browser for each run: all in one run first
-	draw_all($r, $progress, @todo) if !$mmdr and @todo > 1;
+	draw_all($r, $progress, @todo) if $kind eq 'mmdc' and @todo > 1;
 	my @left = grep { !-s $_->[0] } @todo;
 	for my $n (1 .. @left) {
 	    my($path, $code) = @{$left[$n - 1]};
@@ -305,6 +319,11 @@ sub draw {
     # the stack of JavaScript (mmdc) is not for the author: it starts
     # with a line of "at FUNCTION (FILE)", or of "FUNCTION (URL)"
     $text =~ s/^(?:\h+at\h(?:.*\()?|\S+\h\()(?:file|https?|node):.*//ms;
+    # nor that of Python (mermaidx): the error at its end, without the
+    # name of the exception which carries it
+    if ($text =~ /^Traceback \(most recent call last\):/m) {
+	$text =~ s/\A.*^[\w.]+(?:Error|Exception): (?:Mermaid rendering failed: )?//ms;
+    }
     $text =~ s/\A\n+|\s+\z//g;
     # a long one, as a panic with its backtrace, is cut to ten lines
     my @line = split /\n/, $text;
@@ -370,8 +389,9 @@ C<undef> for one that could not be drawn.  They are drawn by
 I<COMMAND> (split into words as a shell does; default C<mmdc> of
 L<mermaid-cli|https://github.com/mermaid-js/mermaid-cli>, or C<mmdr>
 of L<mermaid-rs-renderer|https://github.com/1jehuang/mermaid-rs-renderer>
-when only that is found in C<PATH>; a command whose name does not
-start with C<mmdr> is run as C<mmdc>),
+when only that is found in C<PATH>; a command whose name starts with
+C<mmdr> is run as C<mmdr>, one with C<mermaidx> as C<mermaidx> of
+L<PyPI|https://pypi.org/project/mermaidx/>, and any other as C<mmdc>),
 into F<mdee-mermaid-I<UID>> of the temporary directory (C<TMPDIR>, or
 F</tmp>), a directory only the user can read, and are drawn again only
 when the code, the command or the theme, the background (default
@@ -403,8 +423,13 @@ is not installed, or that fails without a word, puts nothing.
 I<COMMAND> is C<mmdr> of
 L<mermaid-rs-renderer|https://github.com/1jehuang/mermaid-rs-renderer>
 or C<mmdc> of L<mermaid-cli|https://github.com/mermaid-js/mermaid-cli>,
-and a command whose name (that of its first word, so not with C<nice>
-or C<env> before it) starts with C<mmdr> is run as the former.
+or C<mermaidx> of L<PyPI|https://pypi.org/project/mermaidx/>, and a
+command whose name (that of its first word, so not with C<nice> or
+C<env> before it) starts with C<mmdr> or C<mermaidx> is run as that
+one, and any other as mmdc.  mermaidx, which runs mermaid.js in
+Python without a browser, is given the look by its options (C<-t>,
+C<-b>, C<--scale>) and no file of options, and the traceback of
+Python before its error is left out of the message.
 Without I<COMMAND>, it is mmdc, which is Mermaid itself and draws
 the diagrams as GitHub does, or mmdr when only that is found in
 C<PATH>.

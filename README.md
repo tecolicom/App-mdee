@@ -903,27 +903,43 @@ Images inside a paragraph or a code block are not shown.
 
 With `mermaid` in **--image** (the default), a fenced code block
 whose info string is `mermaid` is followed by the image of its
-diagram, when **mmdr** is installed; without it, the code is shown
-alone.  The code is shown as it is, as the line of an image is, so
-the output with **--no-image** is the same text without the images.
+diagram, when **mmdr** or **mmdc** is installed; without them, the
+code is shown alone.  The code is shown as it is, as the line of an
+image is, so the output with **--no-image** is the same text without
+the images.
 
 The diagrams are drawn by **mmdr** of
 [mermaid-rs-renderer](https://github.com/1jehuang/mermaid-rs-renderer),
 which needs no browser, is quick, and draws the diagrams in its own
-way.  They are drawn on the background GitHub shows them on: the
+way, or by **mmdc** of
+[mermaid-cli](https://github.com/mermaid-js/mermaid-cli), which is
+Mermaid itself in a browser and takes a few seconds for a diagram;
+**mmdr** is used when it is found in `PATH`, and **mmdc** when only
+that is.  They are drawn on the background GitHub shows them on: the
 `default` theme on white, or the `dark` theme on `#0d1117` in the
 dark mode.  The images are kept in
 `mdee-mermaid-_UID_` of the temporary directory (`TMPDIR`, or
 `/tmp`), which only the user can read, and drawn again only when the
 code changes or the system has cleaned them up.  A diagram that
 cannot be drawn is not shown, and is tried again the next time; what
-**mmdr** says then is shown below the closing fence, in a box with
-`mmdr` on its top, in the color of `message`, so that it is not
-taken for the text.
+the command says then is shown below the closing fence, in a box
+with the name of the command on its top, in the color of `message`,
+so that it is not taken for the text; the stack of JavaScript that
+**mmdc** writes after its error is left out.
 **mmdr** reads the code in its own way, and draws a diagram even with
 an error such as a `[` not closed: that a diagram is drawn does not
-mean that the code is right.
-**mmdr** does not fetch anything from the network.
+mean that the code is right.  **mmdc** reads it as GitHub does, and
+tells such an error (`--config mermaid_command=mmdc`).
+
+Nothing is fetched from the network for a diagram either: the browser
+of **mmdc** is given a proxy that is not there, so that a remote image
+in a diagram is not shown, and **mmdr** does not fetch anything.
+
+**mmdc** draws in a browser of puppeteer, which looks only for its
+own, and the mermaid-cli of Homebrew comes without one: mdee gives it
+Google Chrome or Chromium when one is found, in `/Applications` of
+macOS or in `PATH` (`google-chrome`, `chromium` and others).
+`PUPPETEER_EXECUTABLE_PATH`, when set, is used instead.
 
 The look is set by `--config`: `mermaid_theme=NAME` (`default`,
 `dark`, `forest` or `neutral`), `mermaid_background=COLOR` (a color
@@ -934,9 +950,12 @@ fold width when it is wider; a larger scale makes a small diagram take
 more cells, and fewer panes (`-C1`, or `-p`) leave more width for a
 wide one.
 
-The command is given by `--config mermaid_command=COMMAND`, split
-into words as a shell does: a path, or **mmdr** with options.  With
-its own `-c`, it is not given the background.
+The command is chosen by `--config mermaid_command=COMMAND`, split
+into words as a shell does: `mermaid_command=mmdc`, or a path, or a
+command with options.  One whose name starts with `mmdr` is given
+the options of **mmdr**, and any other those of **mmdc**.
+A command with its own `-p` (the options of puppeteer) is not given
+the proxy, and **mmdr** with its own `-c` is not given the background.
 
 ## Image Files
 

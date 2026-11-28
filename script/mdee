@@ -1785,27 +1785,43 @@ Images inside a paragraph or a code block are not shown.
 
 With C<mermaid> in B<--image> (the default), a fenced code block
 whose info string is C<mermaid> is followed by the image of its
-diagram, when B<mmdr> is installed; without it, the code is shown
-alone.  The code is shown as it is, as the line of an image is, so
-the output with B<--no-image> is the same text without the images.
+diagram, when B<mmdr> or B<mmdc> is installed; without them, the
+code is shown alone.  The code is shown as it is, as the line of an
+image is, so the output with B<--no-image> is the same text without
+the images.
 
 The diagrams are drawn by B<mmdr> of
 L<mermaid-rs-renderer|https://github.com/1jehuang/mermaid-rs-renderer>,
 which needs no browser, is quick, and draws the diagrams in its own
-way.  They are drawn on the background GitHub shows them on: the
+way, or by B<mmdc> of
+L<mermaid-cli|https://github.com/mermaid-js/mermaid-cli>, which is
+Mermaid itself in a browser and takes a few seconds for a diagram;
+B<mmdr> is used when it is found in C<PATH>, and B<mmdc> when only
+that is.  They are drawn on the background GitHub shows them on: the
 C<default> theme on white, or the C<dark> theme on C<#0d1117> in the
 dark mode.  The images are kept in
 F<mdee-mermaid-I<UID>> of the temporary directory (C<TMPDIR>, or
 F</tmp>), which only the user can read, and drawn again only when the
 code changes or the system has cleaned them up.  A diagram that
 cannot be drawn is not shown, and is tried again the next time; what
-B<mmdr> says then is shown below the closing fence, in a box with
-C<mmdr> on its top, in the color of C<message>, so that it is not
-taken for the text.
+the command says then is shown below the closing fence, in a box
+with the name of the command on its top, in the color of C<message>,
+so that it is not taken for the text; the stack of JavaScript that
+B<mmdc> writes after its error is left out.
 B<mmdr> reads the code in its own way, and draws a diagram even with
 an error such as a C<[> not closed: that a diagram is drawn does not
-mean that the code is right.
-B<mmdr> does not fetch anything from the network.
+mean that the code is right.  B<mmdc> reads it as GitHub does, and
+tells such an error (C<--config mermaid_command=mmdc>).
+
+Nothing is fetched from the network for a diagram either: the browser
+of B<mmdc> is given a proxy that is not there, so that a remote image
+in a diagram is not shown, and B<mmdr> does not fetch anything.
+
+B<mmdc> draws in a browser of puppeteer, which looks only for its
+own, and the mermaid-cli of Homebrew comes without one: mdee gives it
+Google Chrome or Chromium when one is found, in F</Applications> of
+macOS or in C<PATH> (C<google-chrome>, C<chromium> and others).
+C<PUPPETEER_EXECUTABLE_PATH>, when set, is used instead.
 
 The look is set by C<--config>: C<mermaid_theme=NAME> (C<default>,
 C<dark>, C<forest> or C<neutral>), C<mermaid_background=COLOR> (a color
@@ -1816,9 +1832,12 @@ fold width when it is wider; a larger scale makes a small diagram take
 more cells, and fewer panes (C<-C1>, or C<-p>) leave more width for a
 wide one.
 
-The command is given by C<--config mermaid_command=COMMAND>, split
-into words as a shell does: a path, or B<mmdr> with options.  With
-its own C<-c>, it is not given the background.
+The command is chosen by C<--config mermaid_command=COMMAND>, split
+into words as a shell does: C<mermaid_command=mmdc>, or a path, or a
+command with options.  One whose name starts with C<mmdr> is given
+the options of B<mmdr>, and any other those of B<mmdc>.
+A command with its own C<-p> (the options of puppeteer) is not given
+the proxy, and B<mmdr> with its own C<-c> is not given the background.
 
 =head2 Image Files
 

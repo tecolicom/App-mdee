@@ -1,8 +1,9 @@
 package App::Greple::md::Mermaid;
 
 # The images of the Mermaid diagrams of a Markdown file.  They are
-# drawn by mmdr of mermaid-rs-renderer into PNG files in a directory
-# of the temporary directory, and are shown by Text::ANSI::Image as the other images
+# drawn by a command (mmdr of mermaid-rs-renderer, or mmdc of
+# mermaid-cli) into PNG files in a directory of the temporary
+# directory, and are shown by Text::ANSI::Image as the other images
 # are.
 
 use v5.26;
@@ -21,8 +22,57 @@ use JSON::PP ();
 use POSIX ();
 use Text::ParseWords qw(shellwords);
 
-# the command which draws, when none is given
-our $COMMAND = 'mmdr';
+# The commands which draw, in the order they are looked for in PATH
+# when none is given; the first when none is found.  $COMMAND, when
+# set, is used in place of them.
+our @COMMANDS = qw(mmdr mmdc);
+our $COMMAND;
+
+sub default_command {
+    for my $name (@COMMANDS) {
+	for my $dir (File::Spec->path) {
+	    my $file = File::Spec->catfile($dir, $name);
+	    return $name if -f $file and -x _;
+	}
+    }
+    $COMMANDS[0];
+}
+
+# Whether the command is mmdr, by its name: mmdr has other options
+# than mmdc (no -b, -s, -q or -p) and draws without a browser
+sub is_mmdr {
+    my $name = (File::Spec->splitpath($_[0] // ''))[2];
+    $name =~ /^mmdr/i;
+}
+
+# The options of puppeteer given to mmdc: the browser goes to the
+# network only through a proxy that is not there, so that a diagram
+# cannot fetch anything (a remote image in a node) when it is drawn.
+# Nothing is fetched from the network, as for the other images.
+our %PUPPETEER = (
+    args => [ '--proxy-server=http://127.0.0.1:9', '--proxy-bypass-list=<-loopback>' ],
+);
+
+# The browsers that mmdc is given, the first found, when
+# PUPPETEER_EXECUTABLE_PATH is not set: puppeteer looks only for its
+# own, which the mermaid-cli of Homebrew does not have.  A name
+# without a slash is looked for in PATH.
+our @BROWSERS = (
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    '/Applications/Chromium.app/Contents/MacOS/Chromium',
+    qw(google-chrome google-chrome-stable chromium chromium-browser),
+);
+
+sub browser {
+    return if $ENV{PUPPETEER_EXECUTABLE_PATH};
+    for my $name (@BROWSERS) {
+	for my $file ($name =~ m{/} ? $name
+		      : map { File::Spec->catfile($_, $name) } File::Spec->path) {
+	    return $file if -f $file and -x _;
+	}
+    }
+    return;
+}
 
 # The directory of the drawn diagrams, mdee-mermaid-UID in the
 # temporary directory, or undef when there is no place for it: a real
@@ -47,30 +97,40 @@ sub cache_dir {
 # one that could not be drawn.
 #
 #   codes   => [ CODE, ... ]   the text of each diagram
-#   command => 'mmdr ...'      the command, split as a shell does
+#   command => 'mmdc ...'      the command, split as a shell does; one
+#                              whose name starts with mmdr is run as mmdr
 #   theme   => 'default'       the theme of Mermaid (dark in the dark mode)
 #   background => 'transparent'  the background, a color of CSS
 #   scale   => 1.5             the scale of the image: the larger, the
 #                              more cells it takes, up to the width
 #
-# Each diagram is drawn in a run of its own.  mmdr has no options for
-# the background and the scale: the background goes in a file of -c,
-# unless the command has its own, and the size is asked for first and
-# given multiplied (see draw).  A diagram that cannot be drawn is not
-# shown, and is tried again the next time.
+# Each diagram is drawn in a run of its own.  mmdc is given the look
+# by its options, and the options of puppeteer (%PUPPETEER) in a file
+# of -p.  mmdr has no options for the background and the scale: the
+# background goes in a file of -c, and the size is asked for first
+# and given multiplied (see draw).  The file is not given when the
+# command has its own.  A diagram that cannot be drawn is not shown,
+# and is tried again the next time.
 sub diagram_files {
     my %opt = @_;
     my @codes = @{$opt{codes} // []} or return ();
     my $dir = cache_dir() // return (undef) x @codes;
-    my @cmd = shellwords($opt{command} || $COMMAND);
+    my @cmd = shellwords($opt{command} || $COMMAND || default_command());
     @cmd or return (undef) x @codes;
+    my $mmdr = is_mmdr($cmd[0]);
     my $background = $opt{background} || 'transparent';
     my $scale = $opt{scale} || 1.5;
     my $theme = $opt{theme} || 'default';
-    # what the digest is made of
+    # what the digest is made of, which are also the options of mmdc
     my @look = ('-t', $theme, '-b', $background, '-s', $scale);
-    my $r = { dir => $dir, cmd => \@cmd, opt => [ '-e', 'png', '-t', $theme ],
-	      scale => $scale };
+    my $r = { dir => $dir, cmd => \@cmd,
+	      opt => [ '-e', 'png', $mmdr ? ('-t', $theme) : ('-q', @look) ],
+	      $mmdr ? (scale => $scale) : () };
+    my($flag, $own, $data) = $mmdr
+	? ('-c', qr/^(?:-c|--configFile(?:=|$))/,
+	   { themeVariables => { background => "$background" } })
+	: ('-p', qr/^(?:-p|--puppeteerConfigFile(?:=|$))/,
+	   { %PUPPETEER, map { (executablePath => $_) } browser() });
     my($conf, %seen, %error);
     my $i = 0;
     map {
@@ -79,12 +139,11 @@ sub diagram_files {
 	    sha1_hex(encode_utf8(join "\0", @cmd, @look, $code)) . '.png');
 	# without a place to write, the diagrams drawn before are shown
 	if (!-e $path and !$seen{$path}++ and -w $dir) {
-	    # the background in a file of -c, after the digest, which
-	    # must not depend on the name of the file
-	    if (!$conf and not grep { /^(?:-c|--configFile(?:=|$))/ } @cmd) {
-		$conf = config_file($dir,
-		    { themeVariables => { background => "$background" } });
-		push @{$r->{opt}}, '-c', "$conf" if $conf;
+	    # the file of options, after the digest, which must not
+	    # depend on the name of the file
+	    if (!$conf and not grep { /$own/ } @cmd) {
+		$conf = config_file($dir, $data);
+		push @{$r->{opt}}, $flag, "$conf" if $conf;
 	    }
 	    $error{$path} = draw($r, $code, $path);
 	}
@@ -106,8 +165,8 @@ sub config_file {
     $fh;
 }
 
-# Draw one diagram from a file of its own.  With a scale, the command
-# is first asked for the size of the diagram (--size prints it in
+# Draw one diagram from a file of its own.  With a scale (mmdr), the
+# command is first asked for the size of the diagram (--size prints it in
 # JSON), and is given that size multiplied: it takes a width and a
 # height and draws the diagram as large; with only one of them it
 # takes 1200 or 800 for the other.  A diagram whose size is not told
@@ -126,7 +185,7 @@ sub draw {
     print $fh $code;
     close $fh;
     my @size;
-    if ($r->{scale} != 1
+    if ($r->{scale} and $r->{scale} != 1
 	and not grep { /^(?:-w|-H|--(?:width|height)(?:=|$))/ } @$cmd) {
 	my $json = File::Spec->catfile($tmp, 'size.json');
 	my $size = run({ out => $json }, @$cmd, @$opt, '-i', $in, '--size') && eval {
@@ -148,6 +207,9 @@ sub draw {
     $text =~ s/\r?\n/\n/g;
     $text =~ s/\t/ /g;
     $text =~ s/[\x00-\x09\x0b-\x1f\x7f\x{80}-\x{9f}]//g;
+    # the stack of JavaScript (mmdc) is not for the author: it starts
+    # with a line of "at FUNCTION (FILE)", or of "FUNCTION (URL)"
+    $text =~ s/^(?:\h+at\h(?:.*\()?|\S+\h\()(?:file|https?|node):.*//ms;
     $text =~ s/\A\n+|\s+\z//g;
     # a long one, as a panic with its backtrace, is cut to ten lines
     my @line = split /\n/, $text;
@@ -204,7 +266,10 @@ L<Text::ANSI::Image>.
 Returns the PNG files of the diagrams, in the order of the codes, and
 C<undef> for one that could not be drawn.  They are drawn by
 I<COMMAND> (split into words as a shell does; default C<mmdr> of
-L<mermaid-rs-renderer|https://github.com/1jehuang/mermaid-rs-renderer>),
+L<mermaid-rs-renderer|https://github.com/1jehuang/mermaid-rs-renderer>,
+or C<mmdc> of L<mermaid-cli|https://github.com/mermaid-js/mermaid-cli>
+when only that is found in C<PATH>; a command whose name does not
+start with C<mmdr> is run as C<mmdc>),
 into F<mdee-mermaid-I<UID>> of the temporary directory (C<TMPDIR>, or
 F</tmp>), a directory only the user can read, and are drawn again only
 when the code, the command or the theme, the background (default
@@ -226,8 +291,28 @@ A diagram that cannot be drawn is not shown, and is tried again the
 next time.  With B<errors>, what the command wrote to the standard
 error then is put in the array, at the index of the code, as
 C<[NAME, LINE, ...]>: the name of the command and the lines, without
-control characters and escape sequences, ten at most.  A command that
+control characters and escape sequences, and without the stack of
+JavaScript that B<mmdc> writes after its error, ten at most.  A command that
 is not installed, or that fails without a word, puts nothing.
+
+I<COMMAND> is C<mmdr> of
+L<mermaid-rs-renderer|https://github.com/1jehuang/mermaid-rs-renderer>
+or C<mmdc> of L<mermaid-cli|https://github.com/mermaid-js/mermaid-cli>,
+and a command whose name (that of its first word, so not with C<nice>
+or C<env> before it) starts with C<mmdr> is run as the former.
+Without I<COMMAND>, it is mmdr, or mmdc when only that is found in
+C<PATH>.
+
+mmdc is given the look by its options (C<-b>, C<-s>, C<-t>), and
+draws in a browser started by puppeteer, which looks only for its
+own (the mermaid-cli of Homebrew has none): unless
+C<PUPPETEER_EXECUTABLE_PATH> is set, it is given Google Chrome or
+Chromium, the first found of C<@BROWSERS> (the applications of macOS,
+and C<google-chrome>, C<google-chrome-stable>, C<chromium> and
+C<chromium-browser> in C<PATH>), as C<executablePath>.  The browser is given a proxy that is
+not there, so that a diagram fetches nothing from the network; this
+is not done when I<COMMAND> has its own C<-p>
+(C<--puppeteerConfigFile>).
 
 =back
 

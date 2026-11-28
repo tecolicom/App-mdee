@@ -306,8 +306,11 @@ Available parameters:
                     (default: 0)
     image_align     left or center: where an image is put in the fold
                     width, or the terminal width (default: center)
-    mermaid_command command which draws Mermaid diagrams, mmdr of
-                    mermaid-rs-renderer, with options (default: mmdr)
+    mermaid_command command which draws Mermaid diagrams: mmdr of
+                    mermaid-rs-renderer, or mmdc of mermaid-cli, by
+                    which a command whose name does not start with
+                    mmdr is taken (default: mmdr, or mmdc when only
+                    that is found in PATH)
     mermaid_theme   theme of Mermaid: default, dark, forest or neutral
                     (default: dark in the dark mode, or default)
     mermaid_background  background of the diagrams, a color of CSS or
@@ -682,7 +685,7 @@ my $config = Getopt::EX::Config->new(
     image_tty       => '',       # where the data of the images goes (default: /dev/tty)
     image_osc       => 0,        # tell the file of each image in its rows, for ansi2pdf
     image_align     => 'center', # where an image is put: left or center
-    mermaid_command => '',       # command which draws Mermaid diagrams (default: mmdr)
+    mermaid_command => '',       # command which draws Mermaid diagrams (default: mmdr, or mmdc when only that is found)
     mermaid_theme   => '',       # theme of Mermaid (default: dark in the dark mode, or default)
     mermaid_background => '',    # background of the diagrams, a color of CSS (default: #0d1117 in the dark mode, or white)
     mermaid_scale   => 0,        # scale of the diagrams (default: 1.5)
@@ -1126,8 +1129,9 @@ sub box_lines {
         }
     }
     # In the whole width, folded as a document only when a line does
-    # not fit, because the document mode folds before the end.
-    $box //= $fit->($width) // $draw->($width, '--document');
+    # not fit, because the document mode folds before the end; at
+    # spaces, so that a word in quotes stays whole.
+    $box //= $fit->($width) // $draw->($width, '--document', '--boundary=space');
     my $pad = ' ' x $margin;
     map { $pad . ($opt{color} ? md_color($opt{color}, $_) : $_) } split /\n/, $box;
 }

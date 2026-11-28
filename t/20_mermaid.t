@@ -81,7 +81,7 @@ sub md {
 
 my $tty = "$dir/tty";
 my $base = 'mode=light';
-my $term = "image_term=80x24:16x34,image_tty=$tty";
+my $term = "image_term=80x24:16x34,image_tty=$tty,image_align=left,mermaid_scale=3";
 my $img  = "$term,mermaid_command=$stub";
 
 sub mdee_out {
@@ -158,6 +158,14 @@ my $doc = md('doc.md', join '',
     mdee_out("$base,image_types=mermaid,$img,mermaid_theme=forest,mermaid_background=#fff,mermaid_scale=2", $doc);
     ($draw) = grep { !/ --size / } runs();
     like($draw // '', qr/-t forest -w 128 -H 67 .*"background":"#fff"/, 'mermaid_theme, mermaid_background, mermaid_scale');
+}
+
+# the scale is 1.5 by default: 96x51 (64x33.5 multiplied)
+{
+    unlink $log;
+    mdee_out("$base,image_types=mermaid,image_term=80x24:16x34,image_tty=$tty,mermaid_command=$stub", $doc);
+    my($draw) = grep { !/ --size / } runs();
+    like($draw // "", qr/ -w 96 -H 51 /, "the scale 1.5 by default");
 }
 
 # with the scale 1 the size is not asked for

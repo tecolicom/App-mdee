@@ -49,7 +49,7 @@ sub cache_dir {
 #   command => 'mmdr ...'      the command, split as a shell does
 #   theme   => 'default'       the theme of Mermaid (dark in the dark mode)
 #   background => 'transparent'  the background, a color of CSS
-#   scale   => 3               the scale of the image: the larger, the
+#   scale   => 1.5             the scale of the image: the larger, the
 #                              more cells it takes, up to the width
 #
 # Each diagram is drawn in a run of its own.  mmdr has no options for
@@ -64,7 +64,7 @@ sub diagram_files {
     my @cmd = shellwords($opt{command} || $COMMAND);
     @cmd or return (undef) x @codes;
     my $background = $opt{background} || 'transparent';
-    my $scale = $opt{scale} || 3;
+    my $scale = $opt{scale} || 1.5;
     my $theme = $opt{theme} || 'default';
     # what the digest is made of
     my @look = ('-t', $theme, '-b', $background, '-s', $scale);
@@ -182,7 +182,7 @@ L<mermaid-rs-renderer|https://github.com/1jehuang/mermaid-rs-renderer>),
 into F<mdee-mermaid-I<UID>> of the temporary directory (C<TMPDIR>, or
 F</tmp>), a directory only the user can read, and are drawn again only
 when the code, the command or the theme, the background (default
-C<transparent>) or the scale (default 3) changes, or when the file is
+C<transparent>) or the scale (default 1.5) changes, or when the file is
 gone: the files are left for the system to clean up.  Nothing is
 drawn when that directory is a symbolic link or belongs to someone
 else.  Diagrams drawn before are shown even when the directory

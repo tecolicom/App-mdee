@@ -304,6 +304,8 @@ Available parameters:
     image_osc       1: each row of an image tells its file by a private
                     OSC, for ansi2pdf, which draws the image itself
                     (default: 0)
+    image_align     left or center: where an image is put in the fold
+                    width, or the terminal width (default: center)
     mermaid_command command which draws Mermaid diagrams, mmdr of
                     mermaid-rs-renderer, with options (default: mmdr)
     mermaid_theme   theme of Mermaid: default, dark, forest or neutral
@@ -312,7 +314,7 @@ Available parameters:
                     transparent (default: #0d1117 in the dark mode,
                     or white, as GitHub shows them)
     mermaid_scale   scale of the diagrams; a larger one takes more
-                    cells, up to the fold width (default: 3)
+                    cells, up to the fold width (default: 1.5)
     table_style     lattice: column separators (default; pipe is
                     another name); 3line: columns separated by spaces,
                     a rule above and below the table and per column
@@ -651,10 +653,11 @@ my $config = Getopt::EX::Config->new(
     image_term      => '',       # size of the terminal, COLSxROWS:WxH (default: of /dev/tty)
     image_tty       => '',       # where the data of the images goes (default: /dev/tty)
     image_osc       => 0,        # tell the file of each image in its rows, for ansi2pdf
+    image_align     => 'center', # where an image is put: left or center
     mermaid_command => '',       # command which draws Mermaid diagrams (default: mmdr)
     mermaid_theme   => '',       # theme of Mermaid (default: dark in the dark mode, or default)
     mermaid_background => '',    # background of the diagrams, a color of CSS (default: #0d1117 in the dark mode, or white)
-    mermaid_scale   => 0,        # scale of the diagrams (default: 3)
+    mermaid_scale   => 0,        # scale of the diagrams (default: 1.5)
     rule            => 1,        # box-drawing characters for tables
     table_style     => 'lattice', # lattice (or pipe): column separators; 3line, simple: spaces and rules only
     table_gap       => 1,        # columns from a cell to the mark place of the next column
@@ -755,7 +758,7 @@ sub finalize {
                        "colorize!", "nofork!", "fold!", "refill!", "refill_parser=s", "front_matter!", "fold_width=i", "fold_runin=i", "fold_runout=i",
                        "table!", "table_trim!",
                        "table_width=i", "table_cell=s", "table_wrap_mark=s", "table_cell_mark=s", "rule!", "table_style=s", "table_gap=i",
-                       "table_runin=i", "table_runout=i", "table_boundary=s", "table_linebreak=s", "intact=s", "keep=s%", "image_types=s", "image_rows=i", "image_term=s", "image_tty=s", "image_osc=i", "mermaid_command=s", "mermaid_theme=s", "mermaid_background=s", "mermaid_scale=f",
+                       "table_runin=i", "table_runout=i", "table_boundary=s", "table_linebreak=s", "intact=s", "keep=s%", "image_types=s", "image_rows=i", "image_term=s", "image_tty=s", "image_osc=i", "image_align=s", "mermaid_command=s", "mermaid_theme=s", "mermaid_background=s", "mermaid_scale=f",
                        "heading_markup|hm:s", "cjk_friendly!", "tick_open=s", "tick_close=s",
                        "hashed=s%",
                        "colormap|cm=s" => \@opt_cm,
@@ -1009,6 +1012,21 @@ sub image_object {
     );
 }
 
+# The rows of an image, put in the middle of the width (the fold width,
+# or that of the terminal) with image_align=center.  An image is as
+# wide as the placeholders of a row.
+sub align_rows {
+    my($img, $width, @rows) = @_;
+    my $align = $config->{image_align} || 'center';
+    $align =~ /^(?:left|center)$/
+        or die "image_align: left or center expected: $align\n";
+    @rows and $align eq 'center' or return @rows;
+    $width ||= ($img->terminal)[0] or return @rows;
+    my $cols = () = $rows[0] =~ /\x{10EEEE}/g;
+    my $pad = ' ' x (($width - $cols) / 2);
+    map { $pad . $_ } @rows;
+}
+
 # The lines joined by refill() below the rows of an image go down by
 # the rows: [ the line above the rows, the number of rows ], ...
 sub shift_refill_lines {
@@ -1102,6 +1120,7 @@ my %colorize = (
                 my $file = shift @diagram;
                 @rows = $img->rows($file, width => $width, rows => $config->{image_rows})
                     if $img and $file;
+                @rows = align_rows($img, $width, @rows);
             }
             # the line of the closing fence, in the text before protect(),
             # for the lines joined by refill() below it
@@ -1188,6 +1207,7 @@ my %colorize = (
                 width => $width,
                 rows  => $config->{image_rows},
             ) : ();
+            @rows = align_rows($img, $width, @rows);
             if (@rows) {
                 # the line of a shown image is markup only, the Markdown
                 # or the HTML tags: it is put as it is in code_info, as the

@@ -233,7 +233,7 @@ C<header> (h1-h6), C<horizontal_rule>, C<blockquote>.
 
 The following elements are always processed and cannot be disabled:
 C<comment>, C<code_block> (C<code_mark>, C<code_info>),
-C<link>, C<image>, C<image_link>.
+C<link>, C<image>, C<image_link>, C<image_missing>, C<message>.
 Use C<--cm LABEL=> to remove their color without disabling processing.
 
 =head1 CONFIGURATION
@@ -509,17 +509,40 @@ body.
 
 =head2 Links
 
-    LABEL        LIGHT / DARK
-    link         I
-    image        I
-    image_link   I
-    link_mark    -       -
+    LABEL          LIGHT / DARK
+    link           I
+    image          I
+    image_link     I
+    image_missing  RI
+    link_mark      -       -
 
 C<link_mark> colors the brackets (C<[>, C<]>) around link and image
 text.  Undefined by default, falls back to C<emphasis_mark>.
 The C<!> prefix for images uses the C<image> or C<image_link>
-color.  Hide brackets with C<--cm 'link_mark=sub{""}'> (used by
-the C<nomark> theme).
+color.  An image whose file is not found, by a path relative to the
+file being shown, is in the C<image_missing> color instead, for the
+author to see; a URL and the standard input are not looked at.
+Hide brackets with C<--cm 'link_mark=sub{""}'> (used by the
+C<nomark> theme).
+
+=head2 Messages
+
+    LABEL          LIGHT / DARK
+    message        L25/R;E
+
+A message from a command that the module runs, which is not a part of
+the text, is put on lines of its own below the part it is about, each
+starting with the name of the command, as a compiler writes, in the
+C<message> color.  Only a command that fails with something written
+to the standard error has one; a command that is not installed has
+none.  The message of B<mmdr>, when a Mermaid diagram cannot be
+drawn, goes below the closing fence, in place of the diagram:
+
+    ```mermaid
+    flowchat LR
+      A --> B
+    ```
+    mmdr: error: unknown or missing Mermaid diagram header
 
 =head2 Line Breaks in Tables
 
@@ -617,7 +640,7 @@ my @color_labels = qw(
     code_mark code_tick code_info code_block code_inline
     code_config code_template code_data
     meta_mark meta_block
-    comment link image image_link
+    comment link image image_link image_missing message
     h1 h2 h3 h4 h5 h6
     bold italic strike emphasis_mark
     bold_mark italic_mark strike_mark link_mark br_mark
@@ -694,6 +717,8 @@ my %default_colors = (
     link            => 'I',
     image           => 'I',
     image_link      => 'I',
+    image_missing   => 'RI',
+    message         => 'L25/R;E',
     h1              => 'L25D/${base};E',
     h2              => 'L25D/${base}+y20;E',
     h3              => 'L25DN/${base}+y20',
@@ -1027,6 +1052,41 @@ sub align_rows {
     map { $pad . $_ } @rows;
 }
 
+# The directory of the file being shown, where the paths of its images
+# start
+sub image_dir {
+    defined $current_file && $current_file =~ m{^(.*)/} ? $1 : ".";
+}
+
+# An image whose file, a path in the Markdown text, is not found, for
+# the author to see: a URL is not looked at, and nor is the text from
+# the standard input, which has no directory.  A path with %XX is
+# found in either form.
+sub missing_image {
+    my $url = shift;
+    defined $current_file and $current_file ne '-' or return 0;
+    $url =~ m{^(?:[a-z][a-z0-9+.-]*:|#)}i and return 0;
+    $url =~ s/[?#].*//s;
+    length $url or return 0;
+    my $path = local_path($url, image_dir()) // return 0;
+    not (-e $path or -e ($path =~ s/%([0-9A-Fa-f]{2})/chr hex $1/ger));
+}
+
+# The color of the image of the URL: image_missing when its file is
+# not found
+sub image_color {
+    my($label, $url, $text) = @_;
+    md_color(missing_image($url) ? 'image_missing' : $label, $text);
+}
+
+# The lines of a message from a command which mdee runs, not a part of
+# the text: the name of the command at the start of each, as compilers
+# write, in the color of message
+sub message_lines {
+    my($name, @lines) = @_;
+    map { md_color('message', "$name: $_") } @lines;
+}
+
 # The lines joined by refill() below the rows of an image go down by
 # the rows: [ the line above the rows, the number of rows ], ...
 sub shift_refill_lines {
@@ -1073,7 +1133,7 @@ my %colorize = (
         }
         # the images of the Mermaid diagrams (image_types has mermaid),
         # all drawn at once
-        my(@diagram, $img, @added, $diagram);
+        my(@diagram, @error, $img, @added, $diagram);
         if (grep { $_ eq 'mermaid' } split /:/, $config->{image_types} // '') {
             # A block of mermaid, not inside an HTML comment, which the
             # comments step takes later.  The comments are looked for
@@ -1105,6 +1165,7 @@ my %colorize = (
                     background => $config->{mermaid_background}
                         || (($config->{mode} // '') eq 'dark' ? '#0d1117' : 'white'),
                     scale   => $config->{mermaid_scale},
+                    errors  => \@error,
                 );
                 $img = image_object(['png']) if grep { defined } @diagram;
             }
@@ -1115,16 +1176,19 @@ my %colorize = (
             # the place of the block, before any other match is made
             my($start, $end) = ($-[0], $+[0]);
             # the rows of the image of a diagram go below the closing fence
-            my @rows;
+            # or what the command said when it could not draw it
+            my(@rows, @message);
             if (@diagram and $diagram->($lang, $start)) {
                 my $file = shift @diagram;
+                my $error = shift @error;
                 @rows = $img->rows($file, width => $width, rows => $config->{image_rows})
                     if $img and $file;
                 @rows = align_rows($img, $width, @rows);
+                @message = message_lines(@$error) if $error and not @rows;
             }
             # the line of the closing fence, in the text before protect(),
             # for the lines joined by refill() below it
-            my $at = @rows && @App::Greple::md::refill_lines
+            my $at = (@rows || @message) && @App::Greple::md::refill_lines
                 ? restore(substr($_, 0, $end)) =~ tr/\n// + 1 : 0;
             my @label = $config->{highlight} ? code_labels($lang, $body) : ();
             $body = shift(@highlight) // $body;
@@ -1149,14 +1213,15 @@ my %colorize = (
                 push @added, [ $at, $keep ? 1 : scalar @rows ];
                 my $sep = $keep ? "\x1D" : "\n";
                 protect($result) . "\n" . protect(join $sep, @rows);
+            } elsif (@message) {
+                push @added, [ $at, scalar @message ];
+                protect($result) . "\n" . join "\n", map { protect($_) } @message;
             } else {
                 protect($result)
             }
         }mge;
-        if ($img) {
-            $img->flush;
-            shift_refill_lines(@added);
-        }
+        $img->flush if $img;
+        shift_refill_lines(@added);
     }),
 
     comments => Step(sub {
@@ -1166,8 +1231,8 @@ my %colorize = (
     image_links => Step(sub {
         s{$SKIP_CODE|\[!\[(?<text>$LT)\]\((?<img>[^)\n]+)\)\]\(<?(?<url>[^>)\s\n]+)>?\)}{
             protect(
-                osc8($+{img}, md_color('image_link', "!"))
-                . osc8($+{url}, mark_color('link', "[") . md_color('image_link', $+{text}) . mark_color('link', "]"))
+                osc8($+{img}, image_color('image_link', $+{img}, "!"))
+                . osc8($+{url}, mark_color('link', "[") . image_color('image_link', $+{img}, $+{text}) . mark_color('link', "]"))
             )
         }ge;
     }),
@@ -1182,7 +1247,7 @@ my %colorize = (
         @types or return;
         my $img = image_object(\@types);
         my @added;
-        my $dir = defined $current_file && $current_file =~ m{^(.*)/} ? $1 : ".";
+        my $dir = image_dir();
         my $width = $config->{fold} ? $config->{fold_width} : 0;
         # A Markdown image, alone or as a link, or an HTML <img> with
         # only <p>, <div>, <a> or <center> around it (README files made
@@ -1229,7 +1294,7 @@ my %colorize = (
 
     images => Step(sub {
         s{$SKIP_CODE|!\[(?<text>$LT)\]\(<?(?<url>[^>)\s\n]+)>?\)}{
-            protect(osc8($+{url}, md_color('image', "!") . mark_color('link', "[") . md_color('image', $+{text}) . mark_color('link', "]")))
+            protect(osc8($+{url}, image_color('image', $+{url}, "!") . mark_color('link', "[") . image_color('image', $+{url}, $+{text}) . mark_color('link', "]")))
         }ge;
     }),
 

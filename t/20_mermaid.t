@@ -18,7 +18,8 @@ use t::Util;
 # run of its own, from a .mmd file.  The stub fails on an option that
 # mmdr does not have, tells 64x33.5 as the size of a diagram, writes a
 # PNG of the size it is given (64x34 without), and logs its arguments
-# and the file of -c.
+# and the file of -c.  With BAD in the code it fails, and writes an
+# error with escape sequences in it.
 
 $ENV{HOME} = my $dir = tempdir(CLEANUP => 1);
 $ENV{TMPDIR} = "$dir/tmp";
@@ -55,7 +56,10 @@ exit 1 if $ENV{FAIL};
 $opt{-i} =~ /\.mmd$/ or exit 2;
 open my $in, '<', $opt{-i} or die;
 my $text = do { local $/; <$in> };
-exit 1 if $text =~ /BAD/;
+if ($text =~ /BAD/) {
+    print STDERR "error: bad \e[31mdiagram\e]0;title\a\n\tat line 1\n";
+    exit 1;
+}
 if ($size) {
     print $ENV{NOSIZE} ? "?\n" : qq({\n  "width": 64.0,\n  "height": 33.5\n}\n);
     exit 0;
@@ -227,9 +231,42 @@ my $doc = md('doc.md', join '',
     my $out = mdee_out("$base,image_types=mermaid,$img", $md);
     is(scalar(() = plain($out) =~ /^$PH/mg), 3, 'bad: the other diagram is shown');
     is(scalar(grep { -z } glob "$cache/*.png"), 0, 'bad: nothing is kept for it');
+    # what the command said, below the closing fence, by its name, in
+    # the color of message, without the sequences of the command
+    my @l = split /\n/, $out;
+    my($fence) = grep { plain($l[$_]) eq '```' } 0 .. $#l;
+    is_deeply([ map { plain($_) } @l[$fence + 1, $fence + 2] ],
+	      [ 'mmdr-stub: error: bad diagram', 'mmdr-stub:  at line 1' ],
+	      'bad: the message of the command below the fence');
+    like($l[$fence + 1], qr/^\e\[38;5;231;41m/, 'bad: in the color of message');
+    unlike($out, qr/\e\[31m|\e\]0;/, 'bad: no sequences of the command');
     unlink $log;
     mdee_out("$base,image_types=mermaid,$img", $md);
     ok(scalar(runs()) > 0, 'bad: tried again');
+}
+
+# a command which is not there says nothing, and nor does one which
+# fails without a word
+{
+    my $md = md('none.md', "```mermaid\nBAD\n```\n");
+    my $out = mdee_out("$base,image_types=mermaid,$term,mermaid_command=$dir/no-such-command", $md);
+    is(plain($out), "```mermaid\nBAD\n```\n", 'no command: the code alone');
+    local $ENV{FAIL} = 1;
+    $out = mdee_out("$base,image_types=mermaid,$img", md('silent.md', "```mermaid\ngraph TD\n  S1 --> S2\n```\n"));
+    is(plain($out), "```mermaid\ngraph TD\n  S1 --> S2\n```\n", 'failed without a word: the code alone');
+}
+
+# with refill, the paragraph below a message is joined and folded
+SKIP: {
+    require App::Greple::md::Blocks;
+    App::Greple::md::Blocks::available() or skip 'no parser for refill', 1;
+    my $md = md('refill-bad.md', join '',
+	"```mermaid\nBAD\n```\n\n",
+	"aaaa bbbb cccc\ndddd eeee ffff\n\nend\n");
+    my $out = mdee_out("$base,image_types=mermaid,$img,refill=1,fold=1,fold_width=10", $md);
+    my @text = grep { /^[a-f]{4}/ } split /\n/, plain($out);
+    is_deeply([ map { s/\h+$//r } @text ], [ 'aaaa bbbb', 'cccc dddd', 'eeee ffff' ],
+	      'refill: the paragraph below a message is joined and folded');
 }
 
 # a block of mermaid inside an HTML comment is not drawn

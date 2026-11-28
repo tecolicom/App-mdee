@@ -12,7 +12,8 @@ use utf8;
 use Exporter 'import';
 our @EXPORT_OK = qw(diagram_files);
 
-use Encode qw(encode_utf8);
+use Encode qw(encode_utf8 decode);
+use File::Basename qw(basename);
 use Digest::SHA qw(sha1_hex);
 use File::Spec;
 use File::Temp ();
@@ -70,7 +71,8 @@ sub diagram_files {
     my @look = ('-t', $theme, '-b', $background, '-s', $scale);
     my $r = { dir => $dir, cmd => \@cmd, opt => [ '-e', 'png', '-t', $theme ],
 	      scale => $scale };
-    my($conf, %seen);
+    my($conf, %seen, %error);
+    my $i = 0;
     map {
 	my $code = s/\n?\z/\n/r;
 	my $path = File::Spec->catfile($dir,
@@ -84,8 +86,13 @@ sub diagram_files {
 		    { themeVariables => { background => "$background" } });
 		push @{$r->{opt}}, '-c', "$conf" if $conf;
 	    }
-	    draw($r, $code, $path);
+	    $error{$path} = draw($r, $code, $path);
 	}
+	# what the command said when it failed, for the author to see
+	if ($opt{errors} and defined $error{$path} and $error{$path} ne '') {
+	    $opt{errors}[$i] = [ basename($cmd[0]), split /\n/, $error{$path} ];
+	}
+	$i++;
 	-s $path ? $path : undef;
     } @codes;
 }
@@ -105,14 +112,17 @@ sub config_file {
 # height and draws the diagram as large; with only one of them it
 # takes 1200 or 800 for the other.  A diagram whose size is not told
 # is drawn in its own size, and so is any diagram when the command has
-# a width or a height of its own.
+# a width or a height of its own.  Returns undef when it is drawn, or
+# else what the command wrote to the standard error, without control
+# characters.
 sub draw {
     my($r, $code, $path) = @_;
     my($cmd, $opt) = @{$r}{qw(cmd opt)};
-    my $tmp = eval { File::Temp->newdir(DIR => $r->{dir}) } or return;
+    my $tmp = eval { File::Temp->newdir(DIR => $r->{dir}) } or return '';
     my $in  = File::Spec->catfile($tmp, 'in.mmd');
     my $out = File::Spec->catfile($tmp, 'out.png');
-    open my $fh, '>:encoding(utf8)', $in or return;
+    my $err = File::Spec->catfile($tmp, 'err.txt');
+    open my $fh, '>:encoding(utf8)', $in or return '';
     print $fh $code;
     close $fh;
     my @size;
@@ -128,12 +138,25 @@ sub draw {
 	    ref $size eq 'HASH' ? @{$size}{qw(width height)} : ();
 	@size = ('-w', POSIX::ceil($w), '-H', POSIX::ceil($h)) if defined $h;
     }
-    run(@$cmd, @$opt, @size, '-i', $in, '-o', $out)
-	and -s $out and rename $out, $path;
+    if (run({ err => $err }, @$cmd, @$opt, @size, '-i', $in, '-o', $out)
+	and -s $out and rename($out, $path)) {
+	return undef;
+    }
+    open my $e, '<:raw', $err or return '';
+    my $text = decode('UTF-8', do { local $/; <$e> } // '');
+    $text =~ s/\e(?:\[[0-9;?]*[ -\/]*[\@-~]|\][^\a\e]*(?:\a|\e\\)?|.)//gs;
+    $text =~ s/\r?\n/\n/g;
+    $text =~ s/\t/ /g;
+    $text =~ s/[\x00-\x09\x0b-\x1f\x7f\x{80}-\x{9f}]//g;
+    $text =~ s/\A\n+|\s+\z//g;
+    # a long one, as a panic with its backtrace, is cut to ten lines
+    my @line = split /\n/, $text;
+    join "\n", @line > 10 ? (@line[0..9], '...') : @line;
 }
 
 # Run a command, without a shell, its output thrown away, or its
-# standard output written to the file of { out => FILE } given first.
+# standard output and standard error written to the files of
+# { out => FILE, err => FILE } given first.
 # True when it ends with success.
 sub run {
     my $to = ref $_[0] eq 'HASH' ? shift : {};
@@ -142,7 +165,10 @@ sub run {
     if ($pid == 0) {
 	open STDIN,  '<', File::Spec->devnull;
 	open STDOUT, '>', $to->{out} // File::Spec->devnull or POSIX::_exit(127);
-	open STDERR, '>', File::Spec->devnull;
+	open STDERR, '>', $to->{err} // File::Spec->devnull;
+	# a command which is not there says nothing: it is not a fault
+	# of the text
+	no warnings 'exec';
 	exec { $cmd[0] } @cmd or POSIX::_exit(127);
     }
     waitpid $pid, 0;
@@ -173,7 +199,7 @@ L<Text::ANSI::Image>.
 
 =over 4
 
-=item B<diagram_files>(B<codes> => [I<CODE>, ...], B<command> => I<COMMAND>, B<theme> => I<THEME>, B<background> => I<COLOR>, B<scale> => I<N>)
+=item B<diagram_files>(B<codes> => [I<CODE>, ...], B<command> => I<COMMAND>, B<theme> => I<THEME>, B<background> => I<COLOR>, B<scale> => I<N>, B<errors> => I<ARRAYREF>)
 
 Returns the PNG files of the diagrams, in the order of the codes, and
 C<undef> for one that could not be drawn.  They are drawn by
@@ -197,7 +223,11 @@ multiplied (C<-w>, C<-H>), unless I<COMMAND> has a width or a height
 of its own.
 
 A diagram that cannot be drawn is not shown, and is tried again the
-next time.
+next time.  With B<errors>, what the command wrote to the standard
+error then is put in the array, at the index of the code, as
+C<[NAME, LINE, ...]>: the name of the command and the lines, without
+control characters and escape sequences, ten at most.  A command that
+is not installed, or that fails without a word, puts nothing.
 
 =back
 

@@ -133,6 +133,28 @@ my $doc = md('doc.md', "# Title\n\n![logo](a.png)\n\ntext with ![inline](a.png) 
     is(sent(), '', 'nothing sent for them');
 }
 
+# an image whose file is not found is in the color of image_missing
+# (red), for the author to see, with images shown or not; a URL, a
+# file which is there and a code span are not
+{
+    my $RED = qr/\e\[31;3m/;
+    my $md = md('missing.md', join "\n",
+		'![none](missing.png) and ![logo](a.png)', '',
+		'[![badge](gone.png)](https://example.com/)', '',
+		'![web](https://example.com/a.png) and `![code](missing.png)`', '');
+    for my $cfg ($base, "$base,$img") {
+	my @l = grep { /\S/ } split /\n/, mdee_out($cfg, $md);
+	my $with = $cfg eq $base ? 'no images' : 'images';
+	is(scalar(() = $l[0] =~ /$RED/g), 2, "$with: a missing file in red, ! and the text");
+	like($l[0], qr/$RED\x{21}.*\e\[3m\x{21}/, "$with: the file which is there is not");
+	is(scalar(() = $l[1] =~ /$RED/g), 2, "$with: an image as a link");
+	unlike($l[2], $RED, "$with: a URL and a code span are not looked at");
+    }
+    # the text from the standard input has no directory
+    my $stdin = greple("'-Mmd::config($base)'")->setstdin("![none](missing.png)\n")->run;
+    unlike($stdin->stdout, $RED, 'the standard input: not looked at');
+}
+
 # an image which is not a PNG, by its content, is not taken as one
 {
     open my $fh, '>', "$dir/fake.png" or die;

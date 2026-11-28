@@ -27,7 +27,7 @@ mdee - em·dee, Markdown Easy on the Eyes
     --ts --table-style=#    table style: lattice, 3line or simple (default: lattice)
          --keep TYPE=WHAT   kept in one pane: table=none|row|head|all (default: table=head)
          --cat-v            visualize whitespace via cat-v
-         --[no-]image[=#]   image types to show (default: png,jpeg,gif)
+         --[no-]image[=#]   image types to show (default: png,jpeg,gif,mermaid)
      -w  --width=#          output width (default: terminal width)
          --fold-width=#     fold width (default: pane width - 3 - run-in)
          --runin=#          run-in width for line breaking (default: 4)
@@ -82,6 +82,14 @@ remain clickable.
 Use `--no-theme` to display the original Markdown source with
 markup characters intact.
 
+mdee is a previewer for the author of a document, not a renderer for
+its readers.  The text is shown as it is written, and read as the
+renderers read it, so that what they will not show as intended is
+seen before it is published: emphasis follows the rules of
+CommonMark, the paragraphs of **--refill** are those of a Markdown
+parser, and an image whose file is not found is marked.  Images and
+Mermaid diagrams are shown below their lines, which stay as written.
+
 The same view is printed to PDF with `-o file.pdf`.  See
 ["Printing to PDF"](#printing-to-pdf).
 
@@ -127,6 +135,8 @@ Others are always processed for structural integrity.
     always    link             ([text](url))
               image            (![text])
               image_link       (![text](url))
+              image_missing    (an image whose file is not found)
+              message          (a message from a command, below its part)
 
 Tables and list item folding are controlled by `--table` and
 `--fold` options, not by `--show`.
@@ -490,11 +500,10 @@ Use [tecolicom/tap](https://github.com/tecolicom/homebrew-tap):
 - **--**\[**no-**\]**image**\[=_TYPES_\]
 
     Show images in the terminal (default: on).  _TYPES_ is a list of
-    the types of images to show, separated by commas: `png`, `jpeg` and
-    `gif` (default: all of them), and `mermaid`, which is not in the
-    default: **--image=png,jpeg,gif,mermaid** also draws the Mermaid
-    diagrams (see ["Mermaid Diagrams"](#mermaid-diagrams)).  **--image=png** shows PNG only, and
-    **--no-image** none.  They are shown only in the terminals that
+    the types of images to show, separated by commas: `png`, `jpeg`,
+    `gif` and `mermaid` (default: all of them); `mermaid` draws the
+    Mermaid diagrams (see ["Mermaid Diagrams"](#mermaid-diagrams)).  **--image=png** shows
+    PNG only, and **--no-image** none.  They are shown only in the terminals that
     support them; see ["IMAGES"](#images).
 
 - **-w** _N_, **--width**=_N_
@@ -701,6 +710,8 @@ bold text, etc.).
         link              Inline links [text](url)
         image             Images ![alt](url)
         image_link        Image links [![alt](img)](url)
+        image_missing     Images whose file is not found
+        message           Messages of the commands run (mmdr), not of the text
         link_mark         Link/image brackets (overrides emphasis_mark)
         br_mark           <br> breaking a table cell (overrides emphasis_mark)
         blockquote        Blockquote marker (>)
@@ -890,10 +901,11 @@ Images inside a paragraph or a code block are not shown.
 
 ## Mermaid Diagrams
 
-With `mermaid` in **--image**, a fenced code block whose info string
-is `mermaid` is followed by the image of its diagram.  The code is
-shown as it is, as the line of an image is, so the output with
-**--no-image** is the same text without the images.
+With `mermaid` in **--image** (the default), a fenced code block
+whose info string is `mermaid` is followed by the image of its
+diagram, when **mmdr** is installed; without it, the code is shown
+alone.  The code is shown as it is, as the line of an image is, so
+the output with **--no-image** is the same text without the images.
 
 The diagrams are drawn by **mmdr** of
 [mermaid-rs-renderer](https://github.com/1jehuang/mermaid-rs-renderer),
@@ -904,7 +916,13 @@ dark mode.  The images are kept in
 `mdee-mermaid-_UID_` of the temporary directory (`TMPDIR`, or
 `/tmp`), which only the user can read, and drawn again only when the
 code changes or the system has cleaned them up.  A diagram that
-cannot be drawn is not shown, and is tried again the next time.
+cannot be drawn is not shown, and is tried again the next time; what
+**mmdr** says then is shown below the closing fence, as
+`mmdr: error: ...` in the color of `message`, so that it is not
+taken for the text.
+**mmdr** reads the code in its own way, and draws a diagram even with
+an error such as a `[` not closed: that a diagram is drawn does not
+mean that the code is right.
 **mmdr** does not fetch anything from the network.
 
 The look is set by `--config`: `mermaid_theme=NAME` (`default`,
@@ -939,7 +957,11 @@ PNG, JPEG and GIF files are shown, those of the types given to
 `sips` (macOS) or ImageMagick; without either, they are not shown.
 A PNG much larger than the screen is reduced by the same tools, to
 send less data; without them, it is sent as it is.
-A file that is not found is not shown.
+A file that is not found is not shown, and its `![text]` is in the
+color of `image_missing` (red), with images shown or not, so that a
+wrong path is seen before the text is published.  Only a path is
+looked at, not a URL, and not in the text from the standard input,
+which has no directory.
 
 ## Size
 

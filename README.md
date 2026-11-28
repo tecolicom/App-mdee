@@ -900,9 +900,11 @@ The diagrams are drawn by **mmdr** of
 which needs no browser, is quick, and draws the diagrams in its own
 way.  They are drawn on the background GitHub shows them on: the
 `default` theme on white, or the `dark` theme on `#0d1117` in the
-dark mode.  The diagrams are drawn each time mdee shows the file,
-into a temporary directory which only the user can read.  A diagram
-that cannot be drawn is not shown.
+dark mode.  The images are kept in
+`mdee-mermaid-_UID_` of the temporary directory (`TMPDIR`, or
+`/tmp`), which only the user can read, and drawn again only when the
+code changes or the system has cleaned them up.  A diagram that
+cannot be drawn is not shown, and is tried again the next time.
 **mmdr** does not fetch anything from the network.
 
 The look is set by `--config`: `mermaid_theme=NAME` (`default`,
